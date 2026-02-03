@@ -11,14 +11,10 @@ class BoundaryIntent(BaseModel):
 
 class RoomIntent(BaseModel):
     name: str
-    room_type: Literal[
-        "living",
-        "bedroom",
-        "kitchen",
-        "bathroom"
-    ]
+    room_type: Literal["living", "bedroom", "kitchen", "bathroom"]
     width: float
     height: float
+    origin: Point | None = None
 
 
 class OpeningIntent(BaseModel):
