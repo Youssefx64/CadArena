@@ -15,10 +15,7 @@ class LayoutPlanner:
             self.cursor_x = 0
             self.cursor_y += room.height
 
-        room.origin = Point(
-            x=self.cursor_x,
-            y=self.cursor_y
-        )
+        room.origin = Point(x=self.cursor_x, y=self.cursor_y)
 
         self.cursor_x += room.width
         return room

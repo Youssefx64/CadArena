@@ -31,12 +31,7 @@ class PlannerAgent:
             origin = self._propose_position(attempt)
             room.origin = origin
 
-            self.logger.info(
-                "Trying %s at (%s, %s)",
-                room.name,
-                origin.x,
-                origin.y
-            )
+            self.logger.info("Trying %s at (%s, %s)", room.name, origin.x, origin.y)
 
             if not self.boundary_constraint.is_valid(room, self.boundary):
                 continue
