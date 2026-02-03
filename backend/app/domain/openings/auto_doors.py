@@ -15,5 +15,5 @@ def auto_place_door(room: Room) -> Opening:
         type="door",
         width=door_width,
         position=Point(x=x, y=y),
-        orientation="horizontal"
+        orientation="horizontal",
     )

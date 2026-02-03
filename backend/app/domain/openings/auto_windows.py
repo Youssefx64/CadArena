@@ -17,11 +17,8 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
             Opening(
                 type="window",
                 width=window_width,
-                position=Point(
-                    x=room.origin.x,
-                    y=room.origin.y + room.height / 2
-                ),
-                orientation="vertical"
+                position=Point(x=room.origin.x, y=room.origin.y + room.height / 2),
+                orientation="vertical",
             )
         )
 
@@ -32,10 +29,9 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
                 type="window",
                 width=window_width,
                 position=Point(
-                    x=room.origin.x + room.width,
-                    y=room.origin.y + room.height / 2
+                    x=room.origin.x + room.width, y=room.origin.y + room.height / 2
                 ),
-                orientation="vertical"
+                orientation="vertical",
             )
         )
 
@@ -45,11 +41,8 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
             Opening(
                 type="window",
                 width=window_width,
-                position=Point(
-                    x=room.origin.x + room.width / 2,
-                    y=room.origin.y
-                ),
-                orientation="horizontal"
+                position=Point(x=room.origin.x + room.width / 2, y=room.origin.y),
+                orientation="horizontal",
             )
         )
 
@@ -60,10 +53,9 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
                 type="window",
                 width=window_width,
                 position=Point(
-                    x=room.origin.x + room.width / 2,
-                    y=room.origin.y + room.height
+                    x=room.origin.x + room.width / 2, y=room.origin.y + room.height
                 ),
-                orientation="horizontal"
+                orientation="horizontal",
             )
         )
 

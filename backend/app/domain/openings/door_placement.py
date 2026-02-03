@@ -1,5 +1,5 @@
 from app.schemas.room import Room
-from app.schemas.geometry import Point
+from app.schemas.geometry import RectangleGeometry, Point
 from app.schemas.opening import Opening
 
 
@@ -19,8 +19,9 @@ def place_door_inside_room(room: Room) -> Opening:
         type="door",
         width=door_width,
         position=Point(x=x, y=y),
-        orientation="horizontal"
+        orientation="horizontal",
     )
+
 
 def place_door_with_user_preference(room: Room, intent) -> Opening:
     door_width = intent.width
@@ -30,22 +31,16 @@ def place_door_with_user_preference(room: Room, intent) -> Opening:
         return Opening(
             type="door",
             width=door_width,
-            position=Point(
-                x=room.origin.x,
-                y=room.origin.y + offset
-            ),
-            orientation="vertical"
+            position=Point(x=room.origin.x, y=room.origin.y + offset),
+            orientation="vertical",
         )
 
     if intent.wall == "bottom":
         return Opening(
             type="door",
             width=door_width,
-            position=Point(
-                x=room.origin.x + offset,
-                y=room.origin.y
-            ),
-            orientation="horizontal"
+            position=Point(x=room.origin.x + offset, y=room.origin.y),
+            orientation="horizontal",
         )
 
     # fallback
