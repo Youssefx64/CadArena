@@ -33,25 +33,13 @@ class SpacingConstraint(Constraint):
         b_top = b_bottom + b.height
 
         # Calculate gaps
-        horizontal_gap = max(
-            b_left - a_right,
-            a_left - b_right,
-            0
-        )
+        horizontal_gap = max(b_left - a_right, a_left - b_right, 0)
 
-        vertical_gap = max(
-            b_bottom - a_top,
-            a_bottom - b_top,
-            0
-        )
+        vertical_gap = max(b_bottom - a_top, a_bottom - b_top, 0)
 
         # If overlapping in both axes → invalid
         if horizontal_gap == 0 and vertical_gap == 0:
             return False
 
         # At least one axis must satisfy spacing
-        return (
-            horizontal_gap >= self.min_spacing or
-            vertical_gap >= self.min_spacing
-        )
-
+        return horizontal_gap >= self.min_spacing or vertical_gap >= self.min_spacing

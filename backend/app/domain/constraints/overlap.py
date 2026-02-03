@@ -19,8 +19,8 @@ class OverlapConstraint(Constraint):
 
     def _overlaps(self, a: Room, b: Room) -> bool:
         return not (
-            a.origin.x + a.width <= b.origin.x or
-            a.origin.x >= b.origin.x + b.width or
-            a.origin.y + a.height <= b.origin.y or
-            a.origin.y >= b.origin.y + b.height
+            a.origin.x + a.width <= b.origin.x
+            or a.origin.x >= b.origin.x + b.width
+            or a.origin.y + a.height <= b.origin.y
+            or a.origin.y >= b.origin.y + b.height
         )

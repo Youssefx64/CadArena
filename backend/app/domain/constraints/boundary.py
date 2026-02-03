@@ -20,8 +20,8 @@ class BoundaryConstraint(Constraint):
         boundary_top = boundary_bottom + boundary.height
 
         return (
-            room_left >= boundary_left and
-            room_bottom >= boundary_bottom and
-            room_right <= boundary_right and
-            room_top <= boundary_top
+            room_left >= boundary_left
+            and room_bottom >= boundary_bottom
+            and room_right <= boundary_right
+            and room_top <= boundary_top
         )
