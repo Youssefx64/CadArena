@@ -1,5 +1,6 @@
 WALL_THICKNESS = 0.2  # meters
 
+
 def validate_rectangle(width: float, height: float):
     if width <= 0 or height <= 0:
         raise ValueError("Invalid rectangle dimensions")
