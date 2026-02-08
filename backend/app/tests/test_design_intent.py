@@ -1,5 +1,4 @@
 from app.schemas.design_intent import DesignIntent
-from app.schemas.geometry import Point
 
 
 def main():
@@ -32,8 +31,9 @@ def main():
             {
                 "type": "door",
                 "width": 1.0,
-                "position": {"x": 0, "y": 4},
-                "orientation": "vertical"
+                "room_name": "Living Room",
+                "wall": "bottom",
+                "offset": 4.0
             }
         ]
     )
