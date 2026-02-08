@@ -15,11 +15,21 @@ class WallCutManager:
         self.door_placements: list[DoorPlacement] = []
     
     def add_wall_segments(self, segments: list[WallSegment]):
-        """Add wall segments from a room."""
+        """
+        Add wall segments from a room.
+        
+        Args:
+            segments: List of wall segments to add.
+        """
         self.wall_segments.extend(segments)
     
     def add_door_placement(self, placement: DoorPlacement):
-        """Register a door placement for later cutting."""
+        """
+        Register a door placement for later cutting.
+        
+        Args:
+            placement: Door placement to register.
+        """
         self.door_placements.append(placement)
     
     def process_cuts(self) -> list[WallSegment]:
@@ -31,24 +41,27 @@ class WallCutManager:
         """
         final_segments: list[WallSegment] = []
 
-        # Group placements by wall segment id
+        # Group placements by wall segment id for efficient lookup
         placements_by_wall: dict[int, list[DoorPlacement]] = {}
         for placement in self.door_placements:
             placements_by_wall.setdefault(id(placement.wall), []).append(placement)
 
-        min_length = 0.1
-        tol = 1e-6
+        min_length = 0.1  # Minimum segment length to keep
+        tol = 1e-6  # Tolerance for interval merging
 
         for segment in self.wall_segments:
             placements = placements_by_wall.get(id(segment))
             if not placements:
+                # No cuts on this segment - keep as-is
                 final_segments.append(segment)
                 continue
 
             length = segment.length()
             if length < 0.01:
+                # Skip very short segments
                 continue
 
+            # Calculate unit vector along wall direction
             dx = segment.end.x - segment.start.x
             dy = segment.end.y - segment.start.y
             ux = dx / length
@@ -70,9 +83,11 @@ class WallCutManager:
                 intervals.append((start, end))
 
             if not intervals:
+                # No valid intervals - keep segment as-is
                 final_segments.append(segment)
                 continue
 
+            # Sort intervals by start position
             intervals.sort(key=lambda item: item[0])
 
             # Merge overlapping intervals
@@ -82,13 +97,16 @@ class WallCutManager:
                     merged.append([start, end])
                     continue
                 last = merged[-1]
+                # Merge if intervals overlap or are very close
                 if start <= last[1] + tol:
                     last[1] = max(last[1], end)
                 else:
                     merged.append([start, end])
 
+            # Create wall segments between cuts
             cursor = 0.0
             for start, end in merged:
+                # Add segment before cut if it's long enough
                 if start - cursor > min_length:
                     seg_start = Point(
                         x=segment.start.x + ux * cursor,
@@ -102,6 +120,7 @@ class WallCutManager:
 
                 cursor = max(cursor, end)
 
+            # Add final segment after last cut if it's long enough
             if length - cursor > min_length:
                 seg_start = Point(
                     x=segment.start.x + ux * cursor,
