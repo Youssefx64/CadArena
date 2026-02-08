@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.pipeline.draw_pipeline import draw_rectangle_pipeline
 from app.schemas.geometry import RectangleGeometry
 from app.schemas.design_intent import DesignIntent
@@ -20,7 +20,10 @@ def generate_dxf(intent: DesignIntent):
     """
     Generate a DXF file from a structured design intent.
     """
-    dxf_path = generate_dxf_from_intent(intent)
+    try:
+        dxf_path = generate_dxf_from_intent(intent)
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {
         "status": "success",
