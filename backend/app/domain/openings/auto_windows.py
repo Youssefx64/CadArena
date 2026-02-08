@@ -1,3 +1,10 @@
+"""
+Automatic window placement utilities.
+
+This module provides functions for automatically placing windows in rooms
+that are adjacent to the external boundary.
+"""
+
 from app.schemas.room import Room
 from app.schemas.geometry import RectangleGeometry, Point
 from app.schemas.opening import Opening
@@ -6,12 +13,21 @@ from app.schemas.opening import Opening
 def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]:
     """
     Place windows only if the room touches the external boundary.
+    
+    Checks each side of the room and places a window if that side
+    aligns with the boundary edge. Windows are centered on the wall.
+    
+    Args:
+        room: Room to place windows in.
+        boundary: Building boundary to check alignment against.
+    
+    Returns:
+        List of window openings (empty if room doesn't touch boundary).
     """
-
     windows: list[Opening] = []
     window_width = 1.2
 
-    # Left boundary
+    # Check left boundary alignment
     if room.origin.x == boundary.origin.x:
         windows.append(
             Opening(
@@ -22,7 +38,7 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
             )
         )
 
-    # Right boundary
+    # Check right boundary alignment
     if room.origin.x + room.width == boundary.origin.x + boundary.width:
         windows.append(
             Opening(
@@ -35,7 +51,7 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
             )
         )
 
-    # Bottom boundary
+    # Check bottom boundary alignment
     if room.origin.y == boundary.origin.y:
         windows.append(
             Opening(
@@ -46,7 +62,7 @@ def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]
             )
         )
 
-    # Top boundary
+    # Check top boundary alignment
     if room.origin.y + room.height == boundary.origin.y + boundary.height:
         windows.append(
             Opening(

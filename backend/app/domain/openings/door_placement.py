@@ -1,3 +1,10 @@
+"""
+Door placement strategies.
+
+This module provides various strategies for placing doors in rooms,
+including inside placement and user preference-based placement.
+"""
+
 from app.schemas.room import Room
 from app.schemas.geometry import RectangleGeometry, Point
 from app.schemas.opening import Opening
@@ -5,10 +12,17 @@ from app.schemas.opening import Opening
 
 def place_door_inside_room(room: Room) -> Opening:
     """
-    Guaranteed visible door:
-    placed slightly inside the room.
+    Place door slightly inside the room for guaranteed visibility.
+    
+    Places door near the bottom-left corner with a small offset from edges.
+    This ensures the door is always visible even if wall rendering is imprecise.
+    
+    Args:
+        room: Room to place door in.
+    
+    Returns:
+        Opening specification for the placed door.
     """
-
     door_width = 1.0
     offset = 0.3  # push inside room
 
@@ -24,6 +38,19 @@ def place_door_inside_room(room: Room) -> Opening:
 
 
 def place_door_with_user_preference(room: Room, intent) -> Opening:
+    """
+    Place door based on user preferences from design intent.
+    
+    Uses intent specifications for wall side, offset, and width.
+    Falls back to inside placement if wall preference is not recognized.
+    
+    Args:
+        room: Room to place door in.
+        intent: Opening intent with user preferences.
+    
+    Returns:
+        Opening specification for the placed door.
+    """
     door_width = intent.width
     offset = intent.offset or (room.width / 2)
 
@@ -43,5 +70,5 @@ def place_door_with_user_preference(room: Room, intent) -> Opening:
             orientation="horizontal",
         )
 
-    # fallback
+    # fallback to inside placement
     return place_door_inside_room(room)
