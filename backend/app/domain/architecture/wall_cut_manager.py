@@ -1,6 +1,11 @@
 from app.domain.architecture.wall import WallSegment
 from app.domain.architecture.opening import DoorPlacement
 from app.schemas.geometry import Point
+from app.domain.architecture.opening_geometry import (
+    opening_interval_on_wall,
+    opening_points_from_placement,
+    point_on_axis_segment,
+)
 
 
 class WallCutManager:
@@ -12,7 +17,7 @@ class WallCutManager:
     
     def __init__(self):
         self.wall_segments: list[WallSegment] = []
-        self.door_placements: list[DoorPlacement] = []
+        self.cut_segments: list[tuple[Point, Point, WallSegment | None, bool]] = []
     
     def add_wall_segments(self, segments: list[WallSegment]):
         """
@@ -30,7 +35,17 @@ class WallCutManager:
         Args:
             placement: Door placement to register.
         """
-        self.door_placements.append(placement)
+        cut_start, cut_end = opening_points_from_placement(placement)
+        self.add_cut_segment(cut_start, cut_end, wall=placement.wall, allow_shared=True)
+
+    def add_cut_segment(
+        self,
+        cut_start: Point,
+        cut_end: Point,
+        wall: WallSegment | None = None,
+        allow_shared: bool = False,
+    ):
+        self.cut_segments.append((cut_start, cut_end, wall, allow_shared))
     
     def process_cuts(self) -> list[WallSegment]:
         """
@@ -41,45 +56,36 @@ class WallCutManager:
         """
         final_segments: list[WallSegment] = []
 
-        # Group placements by wall segment id for efficient lookup
-        placements_by_wall: dict[int, list[DoorPlacement]] = {}
-        for placement in self.door_placements:
-            placements_by_wall.setdefault(id(placement.wall), []).append(placement)
-
         min_length = 0.1  # Minimum segment length to keep
         tol = 1e-6  # Tolerance for interval merging
 
         for segment in self.wall_segments:
-            placements = placements_by_wall.get(id(segment))
-            if not placements:
-                # No cuts on this segment - keep as-is
-                final_segments.append(segment)
-                continue
-
             length = segment.length()
             if length < 0.01:
                 # Skip very short segments
                 continue
 
-            # Calculate unit vector along wall direction
-            dx = segment.end.x - segment.start.x
-            dy = segment.end.y - segment.start.y
-            ux = dx / length
-            uy = dy / length
-
             # Build cut intervals (start, end) along the wall
             intervals: list[tuple[float, float]] = []
-            for placement in placements:
-                start = placement.offset
-                end = placement.offset + placement.door.width
-
-                if start < 0 or end > length:
-                    print(
-                        f"Warning: Door doesn't fit on wall "
-                        f"(offset={start}, width={placement.door.width}, length={length})"
-                    )
+            for cut_start, cut_end, primary_wall, allow_shared in self.cut_segments:
+                if primary_wall is not None and id(primary_wall) == id(segment):
+                    if not (
+                        point_on_axis_segment(segment, cut_start)
+                        and point_on_axis_segment(segment, cut_end)
+                    ):
+                        continue
+                elif not allow_shared:
                     continue
-
+                elif not (
+                    point_on_axis_segment(segment, cut_start)
+                    and point_on_axis_segment(segment, cut_end)
+                ):
+                    continue
+                start, end = opening_interval_on_wall(segment, cut_start, cut_end)
+                if start < 0 or end > length:
+                    continue
+                if end - start <= 0:
+                    continue
                 intervals.append((start, end))
 
             if not intervals:
@@ -109,12 +115,12 @@ class WallCutManager:
                 # Add segment before cut if it's long enough
                 if start - cursor > min_length:
                     seg_start = Point(
-                        x=segment.start.x + ux * cursor,
-                        y=segment.start.y + uy * cursor
+                        x=segment.start.x + (segment.end.x - segment.start.x) * (cursor / length),
+                        y=segment.start.y + (segment.end.y - segment.start.y) * (cursor / length)
                     )
                     seg_end = Point(
-                        x=segment.start.x + ux * start,
-                        y=segment.start.y + uy * start
+                        x=segment.start.x + (segment.end.x - segment.start.x) * (start / length),
+                        y=segment.start.y + (segment.end.y - segment.start.y) * (start / length)
                     )
                     final_segments.append(WallSegment(seg_start, seg_end))
 
@@ -123,12 +129,12 @@ class WallCutManager:
             # Add final segment after last cut if it's long enough
             if length - cursor > min_length:
                 seg_start = Point(
-                    x=segment.start.x + ux * cursor,
-                    y=segment.start.y + uy * cursor
+                    x=segment.start.x + (segment.end.x - segment.start.x) * (cursor / length),
+                    y=segment.start.y + (segment.end.y - segment.start.y) * (cursor / length)
                 )
                 seg_end = Point(
-                    x=segment.start.x + ux * length,
-                    y=segment.start.y + uy * length
+                    x=segment.start.x + (segment.end.x - segment.start.x) * (length / length),
+                    y=segment.start.y + (segment.end.y - segment.start.y) * (length / length)
                 )
                 final_segments.append(WallSegment(seg_start, seg_end))
 

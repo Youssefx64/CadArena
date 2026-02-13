@@ -6,7 +6,9 @@ Note: This appears to be an alternative implementation to wall_cut.py.
 """
 
 from app.domain.architecture.wall import WallSegment
-from app.schemas.geometry import Point
+from app.domain.architecture.wall_cut_manager import WallCutManager
+from app.domain.architecture.door_wall_placement import place_door_on_wall
+from app.domain.architecture.opening_geometry import opening_points_from_placement
 
 
 def cut_wall_for_door(
@@ -14,53 +16,12 @@ def cut_wall_for_door(
     offset: float,
     door_width: float
 ) -> tuple[WallSegment, WallSegment]:
-    """
-    Cut a wall segment to create a gap for a door.
-    
-    Args:
-        wall: Wall segment to cut.
-        offset: Distance from wall start to gap start.
-        door_width: Width of the door gap.
-    
-    Returns:
-        Tuple of (left_segment, right_segment) with gap between them.
-    
-    Raises:
-        ValueError: If door exceeds wall length.
-    """
-    length = wall.length()
-    if offset + door_width > length:
-        raise ValueError("Door exceeds wall length")
-
-    # Calculate unit vector along wall
-    dx = wall.end.x - wall.start.x
-    dy = wall.end.y - wall.start.y
-
-    ux = dx / length
-    uy = dy / length
-
-    # Calculate gap start and end points
-    gap_start = Point(
-        x=wall.start.x + ux * offset,
-        y=wall.start.y + uy * offset
-    )
-
-    gap_end = Point(
-        x=gap_start.x + ux * door_width,
-        y=gap_start.y + uy * door_width
-    )
-
-    # Create segments with gap
-    left = WallSegment(
-        start=wall.start,
-        end=gap_start,
-        orientation=wall.orientation
-    )
-
-    right = WallSegment(
-        start=gap_end,
-        end=wall.end,
-        orientation=wall.orientation
-    )
-
-    return left, right
+    placement = place_door_on_wall(wall=wall, offset=offset, door_width=door_width)
+    manager = WallCutManager()
+    manager.add_wall_segments([wall])
+    cut_start, cut_end = opening_points_from_placement(placement)
+    manager.add_cut_segment(cut_start, cut_end, wall=wall, allow_shared=False)
+    segments = manager.process_cuts()
+    if len(segments) != 2:
+        raise ValueError("Unexpected wall cut result")
+    return segments[0], segments[1]
