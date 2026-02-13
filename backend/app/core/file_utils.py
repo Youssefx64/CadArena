@@ -7,6 +7,7 @@ timestamped filenames, and resolving file paths with security constraints.
 
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 
 # Backend root directory (two levels up from this file)
@@ -37,8 +38,9 @@ def generate_dxf_filename(prefix: str = "drawing") -> Path:
         Path object pointing to the generated filename in the output directory.
     """
     output_dir = ensure_output_dir()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{prefix}_{timestamp}.dxf"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    suffix = uuid4().hex[:8]
+    filename = f"{prefix}_{timestamp}_{suffix}.dxf"
     return output_dir / filename
 
 
