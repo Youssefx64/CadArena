@@ -15,8 +15,10 @@ from fastapi.responses import FileResponse
 from app.pipeline.draw_pipeline import draw_rectangle_pipeline
 from app.schemas.geometry import RectangleGeometry
 from app.schemas.design_intent import DesignIntent
+from app.schemas.intent_draft import DesignIntentDraft
 from app.schemas.export import DxfDownloadRequest
 from app.pipeline.intent_to_agent import generate_dxf_from_intent
+from app.services.intent_processing import generate_dxf_from_payload
 from app.services.dxf_exporter import (
     DxfExportDependencyError,
     DxfExportError,
@@ -123,6 +125,23 @@ def generate_dxf(intent: DesignIntent, request: Request):
     }
 
 
+@router.post("/generate-dxf/resolve")
+def generate_dxf_with_defaults(intent: DesignIntentDraft, request: Request):
+    """
+    Generate a DXF file from a lenient design intent payload.
+    """
+    try:
+        dxf_path = generate_dxf_from_payload(intent)
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "status": "success",
+        "dxf_path": str(dxf_path),
+        "download_urls": _build_download_links(request, str(dxf_path)),
+    }
+
+
 @router.post("/download-dxf")
 def download_dxf(
     request: DxfDownloadRequest,
@@ -196,6 +215,22 @@ def generate_and_download_dxf(
     """
     try:
         dxf_path = generate_dxf_from_intent(intent)
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return _download_file_response(str(dxf_path), export_format)
+
+
+@router.post("/generate-dxf/resolve/download")
+def generate_and_download_dxf_resolved(
+    intent: DesignIntentDraft,
+    export_format: ExportFormat = Query(default=ExportFormat.DXF, alias="format"),
+):
+    """
+    Generate a DXF file from a lenient design intent and download it.
+    """
+    try:
+        dxf_path = generate_dxf_from_payload(intent)
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
