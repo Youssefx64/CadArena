@@ -1,178 +1,30 @@
-from app.schemas.design_intent import DesignIntent
+from pathlib import Path
+
+import pytest
+
+pytest.importorskip("ezdxf")
+
 from app.pipeline.intent_to_agent import generate_dxf_from_intent
+from app.schemas.design_intent import DesignIntent
 
 
-def main():
+def test_generate_dxf_from_intent_creates_file() -> None:
     intent = DesignIntent(
-        boundary={"width": 24, "height": 14},
+        boundary={"width": 12.0, "height": 8.0},
         rooms=[
             {
                 "name": "Living Room",
                 "room_type": "living",
-                "width": 10,
-                "height": 8,
-                "origin": {"x": 0, "y": 0},
-            },
-            {
-                "name": "Kitchen",
-                "room_type": "kitchen",
-                "width": 6,
-                "height": 6,
-                "origin": {"x": 0, "y": 8},
-            },
-            {
-                "name": "Bathroom",
-                "room_type": "bathroom",
-                "width": 4,
-                "height": 6,
-                "origin": {"x": 6, "y": 8},
-            },
-            {
-                "name": "Corridor",
-                "room_type": "corridor",
-                "width": 2,
-                "height": 14,
-                "origin": {"x": 10, "y": 0},
-            },
-            {
-                "name": "Stairs",
-                "room_type": "stairs",
-                "width": 4,
-                "height": 5,
-                "origin": {"x": 12, "y": 0},
-            },
-            {
-                "name": "Bedroom 1",
-                "room_type": "bedroom",
-                "width": 8,
-                "height": 5,
-                "origin": {"x": 16, "y": 0},
-            },
-            {
-                "name": "Bedroom 2",
-                "room_type": "bedroom",
-                "width": 12,
-                "height": 5,
-                "origin": {"x": 12, "y": 5},
-            },
-            {
-                "name": "Bedroom 3",
-                "room_type": "bedroom",
-                "width": 12,
-                "height": 4,
-                "origin": {"x": 12, "y": 10},
-            },
+                "width": 12.0,
+                "height": 8.0,
+                "origin": {"x": 0.0, "y": 0.0},
+            }
         ],
-        openings=[
-            {
-                "type": "door",
-                "width": 1.0,
-                "room_name": "Corridor",
-                "wall": "bottom",
-                "cut_start": {"x": 10.4, "y": 0},
-                "cut_end": {"x": 11.4, "y": 0},
-            },
-            {
-                "type": "door",
-                "room_name": "Living Room",
-                "wall": "right",
-                "cut_start": {"x": 10, "y": 2},
-                "cut_end": {"x": 10, "y": 3},
-            },
-            {
-                "type": "door",
-                "room_name": "Kitchen",
-                "wall": "bottom",
-                "cut_start": {"x": 2, "y": 8},
-                "cut_end": {"x": 3, "y": 8},
-            },
-            {
-                "type": "door",
-                "room_name": "Bathroom",
-                "wall": "right",
-                "cut_start": {"x": 10, "y": 9},
-                "cut_end": {"x": 10, "y": 9.8},
-            },
-            {
-                "type": "door",
-                "room_name": "Stairs",
-                "wall": "left",
-                "cut_start": {"x": 12, "y": 1.2},
-                "cut_end": {"x": 12, "y": 2.2},
-                "hinge": "right",
-            },
-            {
-                "type": "door",
-                "room_name": "Bedroom 1",
-                "wall": "left",
-                "cut_start": {"x": 16, "y": 1.5},
-                "cut_end": {"x": 16, "y": 2.5},
-                "hinge": "right",
-            },
-            {
-                "type": "door",
-                "room_name": "Bedroom 2",
-                "wall": "left",
-                "cut_start": {"x": 12, "y": 6.2},
-                "cut_end": {"x": 12, "y": 7.2},
-                "hinge": "right",
-            },
-            {
-                "type": "door",
-                "room_name": "Bedroom 3",
-                "wall": "left",
-                "cut_start": {"x": 12, "y": 11.2},
-                "cut_end": {"x": 12, "y": 12.2},
-                "hinge": "right",
-            },
-            {
-                "type": "window",
-                "room_name": "Living Room",
-                "wall": "left",
-                "cut_start": {"x": 0, "y": 3},
-                "cut_end": {"x": 0, "y": 4.5},
-            },
-            {
-                "type": "window",
-                "room_name": "Kitchen",
-                "wall": "top",
-                "cut_start": {"x": 1, "y": 14},
-                "cut_end": {"x": 2.5, "y": 14},
-            },
-            {
-                "type": "window",
-                "room_name": "Bathroom",
-                "wall": "top",
-                "cut_start": {"x": 7, "y": 14},
-                "cut_end": {"x": 8, "y": 14},
-            },
-            {
-                "type": "window",
-                "room_name": "Bedroom 1",
-                "wall": "bottom",
-                "cut_start": {"x": 19, "y": 0},
-                "cut_end": {"x": 20.5, "y": 0},
-            },
-            {
-                "type": "window",
-                "room_name": "Bedroom 2",
-                "wall": "right",
-                "cut_start": {"x": 24, "y": 6.5},
-                "cut_end": {"x": 24, "y": 8},
-            },
-            {
-                "type": "window",
-                "room_name": "Bedroom 3",
-                "wall": "right",
-                "cut_start": {"x": 24, "y": 11.5},
-                "cut_end": {"x": 24, "y": 12.8},
-            },
-        ],
+        openings=[],
     )
 
     dxf_path = generate_dxf_from_intent(intent)
-    print("DXF generated at:", dxf_path)
 
-
-if __name__ == "__main__":
-    main()
+    assert isinstance(dxf_path, Path)
+    assert dxf_path.suffix.lower() == ".dxf"
+    assert dxf_path.exists()

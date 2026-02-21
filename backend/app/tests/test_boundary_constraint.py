@@ -1,38 +1,28 @@
-from app.schemas.room import Room
-from app.schemas.geometry import Point, RectangleGeometry
-from app.domain.constraints.boundary import is_room_inside_boundary
+from app.domain.constraints.boundary import BoundaryConstraint
+from app.domain.entities import Point2D, RectangleBoundary, Room
 
 
-def main():
-    boundary = RectangleGeometry(
-        type="rectangle",
-        width=30,
-        height=50,
-        origin=Point(x=0, y=0)
-    )
-
-    room_inside = Room(
+def test_boundary_constraint_accepts_room_inside_boundary() -> None:
+    boundary = RectangleBoundary(width=30.0, height=50.0, origin=Point2D(x=0.0, y=0.0))
+    room = Room(
         name="Living",
         room_type="living",
-        width=10,
-        height=8,
-        origin=Point(x=5, y=5)
+        width=10.0,
+        height=8.0,
+        origin=Point2D(x=5.0, y=5.0),
     )
 
-    room_outside = Room(
+    assert BoundaryConstraint().is_valid(room, boundary) is True
+
+
+def test_boundary_constraint_rejects_room_outside_boundary() -> None:
+    boundary = RectangleBoundary(width=30.0, height=50.0, origin=Point2D(x=0.0, y=0.0))
+    room = Room(
         name="Bedroom",
         room_type="bedroom",
-        width=10,
-        height=8,
-        origin=Point(x=25, y=45)
+        width=10.0,
+        height=8.0,
+        origin=Point2D(x=25.0, y=45.0),
     )
 
-    print("Inside room valid:",
-          is_room_inside_boundary(room_inside, boundary))
-
-    print("Outside room valid:",
-          is_room_inside_boundary(room_outside, boundary))
-
-
-if __name__ == "__main__":
-    main()
+    assert BoundaryConstraint().is_valid(room, boundary) is False
