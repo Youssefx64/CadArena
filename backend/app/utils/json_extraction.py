@@ -49,3 +49,47 @@ def extract_json_object(raw_text: str) -> dict[str, Any]:
         )
 
     return parsed
+
+
+def extract_json_object_permissive(raw_text: str) -> dict[str, Any]:
+    """Extract the best JSON object candidate from mixed model output."""
+
+    cleaned = strip_markdown_fences(raw_text)
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    candidates: list[dict[str, Any]] = []
+    for index, char in enumerate(cleaned):
+        if char != "{":
+            continue
+        try:
+            candidate, _ = decoder.raw_decode(cleaned[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict):
+            candidates.append(candidate)
+
+    if not candidates:
+        raise ValueError("No JSON object found in model output")
+
+    candidates.sort(key=_score_candidate, reverse=True)
+    return candidates[0]
+
+
+def _score_candidate(candidate: dict[str, Any]) -> tuple[int, int, int, int, int]:
+    has_boundary = isinstance(candidate.get("boundary"), dict)
+    has_rooms = isinstance(candidate.get("rooms"), list)
+    has_walls = isinstance(candidate.get("walls"), list)
+    has_openings = isinstance(candidate.get("openings"), list)
+    exact_keys = set(candidate.keys()) == _EXPECTED_TOP_LEVEL_KEYS
+
+    top_level_score = int(has_boundary) + int(has_rooms) + int(has_walls) + int(has_openings)
+    room_count = len(candidate.get("rooms", [])) if has_rooms else 0
+    wall_count = len(candidate.get("walls", [])) if has_walls else 0
+    opening_count = len(candidate.get("openings", [])) if has_openings else 0
+    return (int(exact_keys), top_level_score, room_count, wall_count, opening_count)

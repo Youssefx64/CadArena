@@ -44,6 +44,7 @@ class OllamaProviderClient(ProviderClient):
         payload = {
             "model": self.model_id,
             "prompt": compiled_prompt,
+            "format": "json",
             "stream": False,
             "options": {
                 "temperature": 0,

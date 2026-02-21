@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.utils.json_extraction import extract_json_object
+from app.utils.json_extraction import extract_json_object, extract_json_object_permissive
 
 
 class OutputParser:
@@ -13,3 +13,5 @@ class OutputParser:
     def parse(self, raw_output: str) -> dict[str, Any]:
         return extract_json_object(raw_output)
 
+    def parse_permissive(self, raw_output: str) -> dict[str, Any]:
+        return extract_json_object_permissive(raw_output)

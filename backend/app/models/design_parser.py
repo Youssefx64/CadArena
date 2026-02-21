@@ -30,7 +30,7 @@ class ParseDesignRequest(BaseModel):
 
     prompt: str = Field(min_length=1, max_length=12000)
     model: ParseDesignModel
-    recovery_mode: RecoveryMode = RecoveryMode.STRICT
+    recovery_mode: RecoveryMode = RecoveryMode.REPAIR
 
     model_config = ConfigDict(extra="forbid")
 

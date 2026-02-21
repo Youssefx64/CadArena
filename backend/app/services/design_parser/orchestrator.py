@@ -106,6 +106,48 @@ class DesignParseOrchestrator:
         try:
             parsed_payload = self._output_parser.parse(raw_output)
         except ValueError as exc:
+            if recovery_mode == RecoveryMode.REPAIR:
+                try:
+                    parsed_payload = self._output_parser.parse_permissive(raw_output)
+                    logger.warning(
+                        "request_id=%s provider=%s event=json_repair_fallback reason=%s",
+                        request_id,
+                        provider.model_id,
+                        str(exc),
+                    )
+                except ValueError:
+                    logger.warning(
+                        "request_id=%s provider=%s event=json_rejected reason=%s",
+                        request_id,
+                        provider.model_id,
+                        str(exc),
+                    )
+                    raise ParseDesignServiceError(
+                        code="INVALID_JSON_OUTPUT",
+                        message="Model output is not strict JSON",
+                        status_code=502,
+                        model_used=provider.model_id,
+                        provider_used=provider.model_id,
+                        failover_triggered=failover_triggered,
+                        details=[str(exc)],
+                    ) from exc
+            else:
+                logger.warning(
+                    "request_id=%s provider=%s event=json_rejected reason=%s",
+                    request_id,
+                    provider.model_id,
+                    str(exc),
+                )
+                raise ParseDesignServiceError(
+                    code="INVALID_JSON_OUTPUT",
+                    message="Model output is not strict JSON",
+                    status_code=502,
+                    model_used=provider.model_id,
+                    provider_used=provider.model_id,
+                    failover_triggered=failover_triggered,
+                    details=[str(exc)],
+                ) from exc
+        except Exception as exc:
             logger.warning(
                 "request_id=%s provider=%s event=json_rejected reason=%s",
                 request_id,
@@ -126,6 +168,24 @@ class DesignParseOrchestrator:
         try:
             validated_payload = self._intent_validator.validate(candidate_payload)
         except ValidationError as exc:
+            if recovery_mode == RecoveryMode.REPAIR:
+                try:
+                    synthesized_payload = self._recovery_policy.apply({}, prompt, RecoveryMode.REPAIR)
+                    validated_payload = self._intent_validator.validate(synthesized_payload)
+                    logger.warning(
+                        "request_id=%s provider=%s event=repair_synthesized_fallback reason=%s",
+                        request_id,
+                        provider.model_id,
+                        self._intent_validator.to_error_details(exc)[0] if exc.errors() else "validation_error",
+                    )
+                    return ParseOrchestrationResult(
+                        model_used=provider.model_id,
+                        provider_used=provider.model_id,
+                        failover_triggered=failover_triggered,
+                        data=validated_payload,
+                    )
+                except ValidationError:
+                    pass
             raise ParseDesignServiceError(
                 code="INVALID_STRUCTURED_OUTPUT",
                 message="Model output failed schema validation",
@@ -164,4 +224,3 @@ class DesignParseOrchestrator:
                 provider_used=model_used,
                 details=["Use alphabetic English prompt text."],
             )
-
