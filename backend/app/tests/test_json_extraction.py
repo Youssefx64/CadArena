@@ -1,6 +1,6 @@
 import pytest
 
-from app.utils.json_extraction import extract_json_object
+from app.utils.json_extraction import extract_json_object, extract_json_object_permissive
 
 
 def test_extract_json_object_accepts_exact_schema_keys() -> None:
@@ -37,3 +37,12 @@ def test_extract_json_object_rejects_missing_required_top_key() -> None:
     with pytest.raises(ValueError):
         extract_json_object(raw)
 
+
+def test_extract_json_object_permissive_extracts_from_mixed_text() -> None:
+    raw = (
+        "Output:\n"
+        '{"boundary":{"width":20,"height":12},"rooms":[],"walls":[],"openings":[]}\n'
+        "done."
+    )
+    parsed = extract_json_object_permissive(raw)
+    assert parsed["boundary"]["width"] == 20
