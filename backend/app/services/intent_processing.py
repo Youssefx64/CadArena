@@ -2,12 +2,19 @@
 Intent processing orchestration (defaults + planning + DXF generation).
 """
 
-from app.pipeline.intent_to_agent import generate_dxf_from_intent
 from app.schemas.intent_draft import DesignIntentDraft
+from app.services.adapters.dxf_generator_adapter import PipelineDXFGenerator
 from app.services.intent_defaults import IntentDefaultsResolver
+from app.services.ports.dxf_generator import DXFGeneratorPort
 
 
-def generate_dxf_from_payload(payload: DesignIntentDraft | dict):
+_DEFAULT_DXF_GENERATOR: DXFGeneratorPort = PipelineDXFGenerator()
+
+
+def generate_dxf_from_payload(
+    payload: DesignIntentDraft | dict,
+    dxf_generator: DXFGeneratorPort = _DEFAULT_DXF_GENERATOR,
+):
     resolver = IntentDefaultsResolver()
     intent, planning_context = resolver.resolve(payload)
-    return generate_dxf_from_intent(intent, planning_context)
+    return dxf_generator.generate(intent, planning_context)
