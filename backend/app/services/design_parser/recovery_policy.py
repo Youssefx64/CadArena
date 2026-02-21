@@ -21,7 +21,7 @@ class RecoveryPolicy:
         candidate = payload if isinstance(payload, dict) else {}
         boundary = self._resolve_boundary(candidate, prompt)
         rooms = self._sanitize_rooms(candidate.get("rooms"), boundary)
-        if not rooms:
+        if not rooms or not self._rooms_satisfy_requested_counts(rooms, prompt):
             rooms = self._synthesize_rooms(prompt=prompt, boundary=boundary)
 
         walls = self._sanitize_walls(candidate.get("walls"), rooms)
@@ -50,8 +50,10 @@ class RecoveryPolicy:
             height = self._positive_float(payload.get("height"))
 
         p_width, p_height = self._extract_boundary_from_prompt(prompt)
-        width = width if width is not None else p_width
-        height = height if height is not None else p_height
+        if p_width is not None:
+            width = p_width
+        if p_height is not None:
+            height = p_height
 
         return {
             "width": float(width if width is not None else 20.0),
@@ -222,22 +224,26 @@ class RecoveryPolicy:
         total = len(room_types)
         cols = max(1, min(3, math.ceil(math.sqrt(total))))
         rows = max(1, math.ceil(total / cols))
-        room_width = boundary["width"] / cols
-        room_height = boundary["height"] / rows
+        x_edges = [round(boundary["width"] * idx / cols, 3) for idx in range(cols + 1)]
+        y_edges = [round(boundary["height"] * idx / rows, 3) for idx in range(rows + 1)]
 
         type_counter: dict[str, int] = {}
         rooms: list[dict[str, Any]] = []
         for idx, room_type in enumerate(room_types):
             row = idx // cols
             col = idx % cols
+            x0 = x_edges[col]
+            x1 = x_edges[col + 1]
+            y0 = y_edges[row]
+            y1 = y_edges[row + 1]
             type_counter[room_type] = type_counter.get(room_type, 0) + 1
             rooms.append(
                 {
                     "name": self._default_room_name(room_type, type_counter[room_type]),
                     "room_type": room_type,
-                    "width": round(room_width, 3),
-                    "height": round(room_height, 3),
-                    "origin": {"x": round(col * room_width, 3), "y": round(row * room_height, 3)},
+                    "width": round(x1 - x0, 3),
+                    "height": round(y1 - y0, 3),
+                    "origin": {"x": x0, "y": y0},
                 }
             )
         return rooms
@@ -245,7 +251,7 @@ class RecoveryPolicy:
     @staticmethod
     def _extract_boundary_from_prompt(prompt: str) -> tuple[float | None, float | None]:
         text = prompt.lower()
-        match = re.search(r"(\\d+(?:\\.\\d+)?)\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)", text)
+        match = re.search(r"(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)", text)
         if not match:
             return None, None
         return float(match.group(1)), float(match.group(2))
@@ -313,8 +319,8 @@ class RecoveryPolicy:
             room_types.append("living")
         if "kitchen" in text:
             room_types.append("kitchen")
-        bedroom_count = RecoveryPolicy._extract_count(text, r"(\\d+)\\s*bedrooms?", default_if_present="bedroom")
-        bathroom_count = RecoveryPolicy._extract_count(text, r"(\\d+)\\s*bathrooms?", default_if_present="bathroom")
+        bedroom_count = RecoveryPolicy._extract_count(text, r"(\d+)\s*bedrooms?", default_if_present="bedroom")
+        bathroom_count = RecoveryPolicy._extract_count(text, r"(\d+)\s*bathrooms?", default_if_present="bathroom")
         room_types.extend("bedroom" for _ in range(bedroom_count))
         room_types.extend("bathroom" for _ in range(bathroom_count))
         if "corridor" in text or "hallway" in text:
@@ -328,5 +334,31 @@ class RecoveryPolicy:
         match = re.search(pattern, text)
         if match:
             return max(1, int(match.group(1)))
+        if "two " + default_if_present in text or "two " + default_if_present + "s" in text:
+            return 2
+        if "three " + default_if_present in text or "three " + default_if_present + "s" in text:
+            return 3
         return 1 if default_if_present in text else 0
 
+    def _rooms_satisfy_requested_counts(self, rooms: list[dict[str, Any]], prompt: str) -> bool:
+        expected = self._requested_room_type_counts(prompt)
+        if not expected:
+            return bool(rooms)
+
+        actual: dict[str, int] = {}
+        for room in rooms:
+            room_type = room.get("room_type")
+            if not isinstance(room_type, str):
+                continue
+            actual[room_type] = actual.get(room_type, 0) + 1
+
+        for room_type, count in expected.items():
+            if actual.get(room_type, 0) < count:
+                return False
+        return True
+
+    def _requested_room_type_counts(self, prompt: str) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for room_type in self._requested_room_types(prompt):
+            counts[room_type] = counts.get(room_type, 0) + 1
+        return counts
