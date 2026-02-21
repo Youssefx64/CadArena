@@ -5,9 +5,9 @@ This module provides functions for automatically placing doors in rooms
 based on simple heuristics.
 """
 
-from app.schemas.room import Room
-from app.schemas.opening import Opening
-from app.schemas.geometry import Point
+from app.domain.entities import Room
+from app.domain.entities import Opening
+from app.domain.entities import Point
 
 
 def auto_place_door(room: Room) -> Opening:

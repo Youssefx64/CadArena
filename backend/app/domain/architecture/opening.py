@@ -5,7 +5,7 @@ This module defines the DoorPlacement class for representing a door's
 position on a wall segment.
 """
 
-from app.schemas.geometry import Point
+from app.domain.entities import Point
 from app.domain.architecture.wall import WallSegment
 from app.domain.architecture.door import DoorSpec
 

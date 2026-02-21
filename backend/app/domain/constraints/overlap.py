@@ -6,7 +6,7 @@ with each other.
 """
 
 from app.domain.constraints.base import Constraint
-from app.schemas.room import Room
+from app.domain.entities import Room
 
 
 class OverlapConstraint(Constraint):

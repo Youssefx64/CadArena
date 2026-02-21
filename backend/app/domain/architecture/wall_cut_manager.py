@@ -1,6 +1,6 @@
 from app.domain.architecture.wall import WallSegment
 from app.domain.architecture.opening import DoorPlacement
-from app.schemas.geometry import Point
+from app.domain.entities import Point
 from app.domain.architecture.opening_geometry import (
     opening_interval_on_wall,
     opening_points_from_placement,

@@ -5,9 +5,9 @@ This module provides functions for automatically placing windows in rooms
 that are adjacent to the external boundary.
 """
 
-from app.schemas.room import Room
-from app.schemas.geometry import RectangleGeometry, Point
-from app.schemas.opening import Opening
+from app.domain.entities import Room
+from app.domain.entities import RectangleGeometry, Point
+from app.domain.entities import Opening
 
 
 def auto_place_windows(room: Room, boundary: RectangleGeometry) -> list[Opening]:

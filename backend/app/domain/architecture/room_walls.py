@@ -1,4 +1,4 @@
-from app.schemas.room import Room
+from app.domain.entities import Room
 from app.domain.architecture.wall import WallSegment
 from app.domain.architecture.wall_generator import generate_wall_segments
 

@@ -6,8 +6,8 @@ while allowing rooms to share walls or touch at corners.
 """
 
 from app.domain.constraints.base import Constraint
-from app.schemas.room import Room
-from app.core.config import PlannerConfig
+from app.domain.entities import Room
+from app.domain.planner.config import MIN_SPACING
 
 
 class SpacingConstraint(Constraint):
@@ -18,7 +18,7 @@ class SpacingConstraint(Constraint):
     spacing on at least one axis (horizontal or vertical) if rooms are separated.
     """
 
-    def __init__(self, min_spacing: float = PlannerConfig.MIN_SPACING):
+    def __init__(self, min_spacing: float = MIN_SPACING):
         """
         Initialize spacing constraint.
         

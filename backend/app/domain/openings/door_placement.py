@@ -5,9 +5,9 @@ This module provides various strategies for placing doors in rooms,
 including inside placement and user preference-based placement.
 """
 
-from app.schemas.room import Room
-from app.schemas.geometry import RectangleGeometry, Point
-from app.schemas.opening import Opening
+from app.domain.entities import Room
+from app.domain.entities import RectangleGeometry, Point
+from app.domain.entities import Opening
 
 
 def place_door_inside_room(room: Room) -> Opening:

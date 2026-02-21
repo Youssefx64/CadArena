@@ -5,9 +5,9 @@ This module provides functions to generate wall segments from rooms
 and boundary rectangles.
 """
 
-from app.schemas.room import Room
+from app.domain.entities import Room
 from app.domain.architecture.wall import WallSegment
-from app.schemas.geometry import Point, RectangleGeometry
+from app.domain.entities import Point, RectangleGeometry
 
 
 def generate_wall_segments(room: Room) -> list[WallSegment]:

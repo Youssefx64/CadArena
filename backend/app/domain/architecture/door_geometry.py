@@ -7,7 +7,7 @@ door leaf, and swing arc.
 """
 
 from app.domain.architecture.opening import DoorPlacement
-from app.schemas.geometry import Point
+from app.domain.entities import Point
 import math
 
 

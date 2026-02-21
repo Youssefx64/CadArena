@@ -6,8 +6,8 @@ within the building boundary.
 """
 
 from app.domain.constraints.base import Constraint
-from app.schemas.room import Room
-from app.schemas.geometry import RectangleGeometry
+from app.domain.entities import Room
+from app.domain.entities import RectangleGeometry
 
 
 class BoundaryConstraint(Constraint):

@@ -5,7 +5,7 @@ This module defines the WallSegment class for representing linear wall segments
 in 2D space.
 """
 
-from app.schemas.geometry import Point
+from app.domain.entities import Point
 
 
 class WallSegment:

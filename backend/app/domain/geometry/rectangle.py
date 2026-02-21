@@ -5,7 +5,7 @@ This module provides functions for converting rectangle geometries
 to point lists for rendering.
 """
 
-from app.schemas.geometry import Point, RectangleGeometry
+from app.domain.entities import Point, RectangleGeometry
 
 
 def rectangle_to_points(rect: RectangleGeometry):

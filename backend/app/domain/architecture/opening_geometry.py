@@ -1,6 +1,6 @@
 from app.domain.architecture.opening import DoorPlacement
 from app.domain.architecture.wall import WallSegment
-from app.schemas.geometry import Point
+from app.domain.entities import Point
 
 
 def opening_points_from_placement(placement: DoorPlacement) -> tuple[Point, Point]:

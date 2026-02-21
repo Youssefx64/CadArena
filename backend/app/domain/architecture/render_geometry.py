@@ -1,6 +1,6 @@
 from app.domain.architecture.wall import WallSegment
-from app.schemas.geometry import Point
-from app.schemas.room import Room
+from app.domain.entities import Point
+from app.domain.entities import Room
 
 
 RENDER_WALL_THICKNESS = 0.15
@@ -72,9 +72,14 @@ def build_room_dimensions(rooms: list[Room]) -> list[tuple[str, Point]]:
             continue
         cx = room.origin.x + room.width / 2
         cy = room.origin.y + room.height / 2
-        text = f"{room.width}m x {room.height}m"
+        text = f"{_fmt_dimension(room.width)}m x {_fmt_dimension(room.height)}m"
         labels.append((text, Point(x=cx, y=cy - 0.3)))
     return labels
+
+
+def _fmt_dimension(value: float) -> str:
+    text = f"{value:.2f}".rstrip("0").rstrip(".")
+    return text if text else "0"
 
 
 def build_stair_lines(origin: Point, width: float, height: float, steps: int = 8) -> list[tuple[Point, Point]]:

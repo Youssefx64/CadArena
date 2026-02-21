@@ -5,7 +5,7 @@ This module provides functions for placing doors on wall segments,
 either manually with specified offset or automatically on room walls.
 """
 
-from app.schemas.room import Room
+from app.domain.entities import Room
 from app.domain.architecture.wall import WallSegment
 from app.domain.architecture.opening import DoorPlacement
 from app.domain.architecture.door import DoorSpec

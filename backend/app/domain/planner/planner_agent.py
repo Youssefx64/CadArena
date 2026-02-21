@@ -5,13 +5,14 @@ This module provides a rule-based agent that automatically places rooms
 within a boundary while satisfying constraints (boundary, overlap, spacing).
 """
 
-from app.schemas.room import Room
-from app.schemas.geometry import Point, RectangleGeometry
+import logging
+
+from app.domain.entities import Room
+from app.domain.entities import Point, RectangleGeometry
 from app.domain.constraints.boundary import BoundaryConstraint
 from app.domain.constraints.overlap import OverlapConstraint
 from app.domain.constraints.spacing import SpacingConstraint
-from app.core.config import PlannerConfig
-from app.core.logging import get_logger
+from app.domain.planner.config import MAX_PLACEMENT_TRIES, MIN_SPACING
 from app.domain.planner.planning_context import PlacementRules
 
 
@@ -38,7 +39,7 @@ class PlannerAgent:
         self.overlap_constraint = OverlapConstraint()
         self.spacing_constraint = SpacingConstraint()
 
-        self.logger = get_logger("PlannerAgent")
+        self.logger = logging.getLogger("PlannerAgent")
 
     def place_room(self, room: Room) -> Room:
         """
@@ -59,7 +60,7 @@ class PlannerAgent:
         step = 1.0
         cols, rows = self._candidate_grid(room, step)
         total_candidates = cols * rows
-        total_attempts = max(PlannerConfig.MAX_PLACEMENT_TRIES, total_candidates)
+        total_attempts = max(MAX_PLACEMENT_TRIES, total_candidates)
 
         for attempt in range(total_attempts):
             # Ensure full search coverage even when MAX_PLACEMENT_TRIES < candidate count
@@ -86,7 +87,7 @@ class PlannerAgent:
 
         raise RuntimeError(
             f"Failed to place room: {room.name}. "
-            f"Grid searched={total_candidates} candidates, spacing={PlannerConfig.MIN_SPACING}m"
+            f"Grid searched={total_candidates} candidates, spacing={MIN_SPACING}m"
         )
 
     def _candidate_grid(self, room: Room, step: float) -> tuple[int, int]:

@@ -3,10 +3,15 @@ Planning context and rule definitions for deterministic placement.
 """
 
 from dataclasses import dataclass, field
-from typing import Iterable
+from typing import Protocol
 
-from app.schemas.room import Room
-from app.schemas.design_intent import RoomIntent
+from app.domain.entities import Room
+
+
+class RoomSpec(Protocol):
+    name: str
+    room_type: str
+    origin: object | None
 
 
 @dataclass(frozen=True)
@@ -58,7 +63,7 @@ class PlanningContext:
             )
         )
 
-    def order_rooms(self, rooms: list[RoomIntent]) -> list[RoomIntent]:
+    def order_rooms(self, rooms: list[RoomSpec]) -> list[RoomSpec]:
         """
         Return a deterministic room order for planning.
         """
@@ -68,7 +73,7 @@ class PlanningContext:
         fixed = [r for r in rooms if r.origin is not None]
         auto = [r for r in rooms if r.origin is None]
 
-        def _priority(room: RoomIntent) -> int:
+        def _priority(room: RoomSpec) -> int:
             return self.room_type_priority.get(room.room_type, 100)
 
         auto_sorted = sorted(

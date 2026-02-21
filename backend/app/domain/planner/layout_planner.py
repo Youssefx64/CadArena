@@ -5,8 +5,8 @@ This module provides a basic layout planner that places rooms sequentially
 in a grid pattern, wrapping to the next row when the current row is full.
 """
 
-from app.schemas.room import Room
-from app.schemas.geometry import Point
+from app.domain.entities import Room
+from app.domain.entities import Point
 
 
 class LayoutPlanner:
