@@ -1,6 +1,10 @@
 import pytest
 
-from app.utils.json_extraction import extract_json_object, extract_json_object_permissive
+from app.utils.json_extraction import (
+    extract_json_object,
+    extract_json_object_permissive,
+    extract_json_object_with_keys,
+)
 
 
 def test_extract_json_object_accepts_exact_schema_keys() -> None:
@@ -46,3 +50,13 @@ def test_extract_json_object_permissive_extracts_from_mixed_text() -> None:
     )
     parsed = extract_json_object_permissive(raw)
     assert parsed["boundary"]["width"] == 20
+
+
+def test_extract_json_object_with_keys_accepts_extraction_contract() -> None:
+    raw = (
+        '{"boundary":{"width":24,"height":16},'
+        '"room_program":[{"name":"Living Room","room_type":"living","count":1}],'
+        '"constraints":{"notes":[],"adjacency_preferences":[]}}'
+    )
+    parsed = extract_json_object_with_keys(raw, {"boundary", "room_program", "constraints"})
+    assert set(parsed.keys()) == {"boundary", "room_program", "constraints"}

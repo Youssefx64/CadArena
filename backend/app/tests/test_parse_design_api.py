@@ -3,9 +3,8 @@ import json
 
 import pytest
 
-from app.models.design_parser import ParseDesignModel, RecoveryMode
+from app.models.design_parser import ParseDesignModel, ParseDesignRequest, RecoveryMode
 from app.routers.design_parser import parse_design, router as design_parser_router
-from app.models.design_parser import ParseDesignRequest
 from app.services.design_parser_service import (
     ParseDesignServiceError,
     _ORCHESTRATOR,
@@ -55,101 +54,184 @@ def test_parse_design_json_validation_path(monkeypatch: pytest.MonkeyPatch) -> N
     assert exc_info.value.code == "INVALID_JSON_OUTPUT"
 
 
-def test_parse_design_repair_mode_accepts_prose_wrapped_json(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_parse_design_rejects_prose_wrapped_json_for_hf(monkeypatch: pytest.MonkeyPatch) -> None:
     wrapped = (
-        "Sure, here is the result:\n"
-        '{'
-        '"boundary":{"width":20.0,"height":12.0},'
-        '"rooms":[{"name":"Living Room","room_type":"living","width":10.0,"height":6.0,"origin":{"x":0.0,"y":0.0}}],'
-        '"walls":[{"room_name":"Living Room","wall":"bottom","start":{"x":0.0,"y":0.0},"end":{"x":10.0,"y":0.0},"thickness":0.2}],'
-        '"openings":[]'
-        "}\n"
-        "Thanks."
+        "Here is your result:\n"
+        '{"boundary":{"width":20.0,"height":12.0},"room_program":[{"name":"Living Room","room_type":"living","count":1}],"constraints":{"notes":[],"adjacency_preferences":[]}}'
     )
 
-    async def _fake_generate_with_ollama(_: str, *, request_id: str) -> str:
+    async def _fake_generate_with_hf(_: str, *, request_id: str) -> str:
         return wrapped
 
-    provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
-    monkeypatch.setattr(provider, "generate", _fake_generate_with_ollama)
+    provider = _ORCHESTRATOR._providers[ParseDesignModel.HUGGINGFACE]  # type: ignore[attr-defined]
+    monkeypatch.setattr(provider, "generate", _fake_generate_with_hf)
 
-    model_used, data = asyncio.run(
-        parse_design_prompt(
-            prompt="Create a 20x12 house with one living room.",
-            model_choice=ParseDesignModel.OLLAMA,
-            recovery_mode=RecoveryMode.REPAIR,
+    with pytest.raises(ParseDesignServiceError) as exc_info:
+        asyncio.run(
+            parse_design_prompt(
+                prompt="Create a 20x12 house with one living room.",
+                model_choice=ParseDesignModel.HUGGINGFACE,
+                recovery_mode=RecoveryMode.REPAIR,
+            )
         )
-    )
 
-    assert model_used == "llama3.1:8b"
-    assert data["boundary"]["width"] == 20.0
+    assert exc_info.value.code == "INVALID_JSON_OUTPUT"
 
 
-def test_parse_design_repair_mode_enforces_requested_room_counts(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    under_specified = (
-        "{"
-        '"boundary":{"width":20.0,"height":12.0},'
-        '"rooms":['
-        '{"name":"Living Room","room_type":"living","width":10.0,"height":6.0,"origin":{"x":0.0,"y":0.0}},'
-        '{"name":"Kitchen","room_type":"kitchen","width":10.0,"height":6.0,"origin":{"x":10.0,"y":0.0}},'
-        '{"name":"Bedroom 1","room_type":"bedroom","width":10.0,"height":6.0,"origin":{"x":0.0,"y":6.0}},'
-        '{"name":"Bathroom 1","room_type":"bathroom","width":10.0,"height":6.0,"origin":{"x":10.0,"y":6.0}}'
-        "],"
-        '"walls":[],'
-        '"openings":[]'
-        "}"
-    )
+def test_parse_design_small_house_program_is_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
+    extracted = {
+        "boundary": {"width": 20.0, "height": 12.0},
+        "room_program": [
+            {"name": "Living Room", "room_type": "living", "count": 1},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+            {"name": "Bedroom", "room_type": "bedroom", "count": 2},
+            {"name": "Bathroom", "room_type": "bathroom", "count": 1},
+        ],
+        "constraints": {"notes": ["Keep circulation practical"], "adjacency_preferences": [["kitchen", "living"]]},
+    }
 
     async def _fake_generate_with_ollama(_: str, *, request_id: str) -> str:
-        return under_specified
+        return json.dumps(extracted, separators=(",", ":"))
 
     provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
     monkeypatch.setattr(provider, "generate", _fake_generate_with_ollama)
 
-    _, data = asyncio.run(
+    _, data_first = asyncio.run(
         parse_design_prompt(
             prompt="Create a 20x12 house with a living room, kitchen, 2 bedrooms, and 1 bathroom.",
             model_choice=ParseDesignModel.OLLAMA,
-            recovery_mode=RecoveryMode.REPAIR,
+        )
+    )
+    _, data_second = asyncio.run(
+        parse_design_prompt(
+            prompt="Create a 20x12 house with a living room, kitchen, 2 bedrooms, and 1 bathroom.",
+            model_choice=ParseDesignModel.OLLAMA,
         )
     )
 
-    bedroom_count = sum(1 for room in data["rooms"] if room["room_type"] == "bedroom")
-    bathroom_count = sum(1 for room in data["rooms"] if room["room_type"] == "bathroom")
-    assert bedroom_count >= 2
-    assert bathroom_count >= 1
+    assert data_first == data_second
+    assert data_first["boundary"] == {"width": 20.0, "height": 12.0}
+    assert len(data_first["rooms"]) == 6
+    assert len(data_first["walls"]) == 24
+    assert sum(1 for room in data_first["rooms"] if room["room_type"] == "bedroom") == 2
+    assert sum(1 for room in data_first["rooms"] if room["room_type"] == "bathroom") == 1
+    assert sum(1 for room in data_first["rooms"] if room["room_type"] == "corridor") == 1
+
+    for room in data_first["rooms"]:
+        x = room["origin"]["x"]
+        y = room["origin"]["y"]
+        assert x >= 0 and y >= 0
+        assert x + room["width"] <= 20.0 + 1e-6
+        assert y + room["height"] <= 12.0 + 1e-6
 
 
-def test_parse_design_repair_mode_prioritizes_prompt_boundary(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    wrong_boundary = (
-        "{"
-        '"boundary":{"width":17.0,"height":10.0},'
-        '"rooms":['
-        '{"name":"Living Room","room_type":"living","width":8.5,"height":10.0,"origin":{"x":0.0,"y":0.0}},'
-        '{"name":"Kitchen","room_type":"kitchen","width":8.5,"height":10.0,"origin":{"x":8.5,"y":0.0}}'
-        "],"
-        '"walls":[],'
-        '"openings":[]'
-        "}"
+def test_parse_design_complex_program_contains_all_requested_elements(monkeypatch: pytest.MonkeyPatch) -> None:
+    extracted = {
+        "boundary": {"width": 24.0, "height": 16.0},
+        "room_program": [
+            {"name": "Master Bedroom", "room_type": "bedroom", "count": 1},
+            {"name": "Children Bedroom", "room_type": "bedroom", "count": 2},
+            {"name": "Shared Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Guest Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Living Room", "room_type": "living", "count": 1},
+            {"name": "Dining Room", "room_type": "living", "count": 1},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+            {"name": "Laundry", "room_type": "bathroom", "count": 1},
+            {"name": "Storage", "room_type": "corridor", "count": 1},
+        ],
+        "constraints": {
+            "notes": ["Single floor", "Practical circulation"],
+            "adjacency_preferences": [["kitchen", "living"], ["bedroom", "bathroom"]],
+        },
+    }
+
+    async def _fake_generate_with_hf(_: str, *, request_id: str) -> str:
+        return json.dumps(extracted, separators=(",", ":"))
+
+    provider = _ORCHESTRATOR._providers[ParseDesignModel.HUGGINGFACE]  # type: ignore[attr-defined]
+    monkeypatch.setattr(provider, "generate", _fake_generate_with_hf)
+
+    _, data = asyncio.run(
+        parse_design_prompt(
+            prompt=(
+                "Design a single-floor 24x16 meter family house for 5 people. Include: "
+                "1 master bedroom with private bathroom, 2 children bedrooms, 1 shared bathroom, "
+                "1 guest bathroom, 1 living room, 1 dining room, 1 kitchen, 1 laundry, and 1 storage room."
+            ),
+            model_choice=ParseDesignModel.HUGGINGFACE,
+        )
     )
 
+    names = {room["name"] for room in data["rooms"]}
+    assert data["boundary"] == {"width": 24.0, "height": 16.0}
+    assert len(data["rooms"]) >= 11
+    assert "Master Bedroom" in names
+    assert "Children Bedroom 1" in names
+    assert "Children Bedroom 2" in names
+    assert "Shared Bathroom" in names
+    assert "Guest Bathroom" in names
+    assert "Laundry" in names
+    assert "Storage" in names
+    assert "Main Corridor" in names
+
+
+def test_parse_design_fails_when_area_constraints_are_impossible(monkeypatch: pytest.MonkeyPatch) -> None:
+    impossible = {
+        "boundary": {"width": 6.0, "height": 6.0},
+        "room_program": [
+            {"name": "Living Room", "room_type": "living", "count": 1, "min_area": 30.0},
+            {"name": "Bedroom", "room_type": "bedroom", "count": 1, "min_area": 30.0},
+        ],
+        "constraints": {"notes": [], "adjacency_preferences": []},
+    }
+
     async def _fake_generate_with_ollama(_: str, *, request_id: str) -> str:
-        return wrong_boundary
+        return json.dumps(impossible, separators=(",", ":"))
 
     provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
     monkeypatch.setattr(provider, "generate", _fake_generate_with_ollama)
 
+    with pytest.raises(ParseDesignServiceError) as exc_info:
+        asyncio.run(
+            parse_design_prompt(
+                prompt="Create a 6x6 house with large rooms.",
+                model_choice=ParseDesignModel.OLLAMA,
+            )
+        )
+
+    assert exc_info.value.code == "LAYOUT_PLANNING_FAILED"
+
+
+def test_parse_design_retries_with_prompt_program_derivation(monkeypatch: pytest.MonkeyPatch) -> None:
+    sparse_extracted = {
+        "boundary": {"width": 24.0, "height": 16.0},
+        "room_program": [
+            {"name": "Bedroom", "room_type": "bedroom", "count": 2},
+            {"name": "Bathroom", "room_type": "bathroom", "count": 1},
+        ],
+        "constraints": {"notes": [], "adjacency_preferences": []},
+    }
+
+    async def _fake_generate_with_hf(_: str, *, request_id: str) -> str:
+        return json.dumps(sparse_extracted, separators=(",", ":"))
+
+    provider = _ORCHESTRATOR._providers[ParseDesignModel.HUGGINGFACE]  # type: ignore[attr-defined]
+    monkeypatch.setattr(provider, "generate", _fake_generate_with_hf)
+
     _, data = asyncio.run(
         parse_design_prompt(
-            prompt="Create a 20x12 house with one living room and one kitchen.",
-            model_choice=ParseDesignModel.OLLAMA,
-            recovery_mode=RecoveryMode.REPAIR,
+            prompt=(
+                "Design a single-floor 24x16 meter family house for 5 people. Include: "
+                "1 master bedroom with private bathroom, 2 children bedrooms, 1 shared bathroom, "
+                "1 guest bathroom, 1 living room, 1 dining room, 1 kitchen, 1 laundry, and 1 storage room."
+            ),
+            model_choice=ParseDesignModel.HUGGINGFACE,
         )
     )
 
-    assert data["boundary"]["width"] == 20.0
-    assert data["boundary"]["height"] == 12.0
+    names = {room["name"] for room in data["rooms"]}
+    assert "Living Room" in names
+    assert "Kitchen" in names
+    assert "Master Bedroom" in names
+    assert "Children Bedroom 1" in names
+    assert "Children Bedroom 2" in names
