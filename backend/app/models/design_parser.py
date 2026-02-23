@@ -30,7 +30,7 @@ class ParseDesignRequest(BaseModel):
 
     prompt: str = Field(min_length=1, max_length=12000)
     model: ParseDesignModel
-    recovery_mode: RecoveryMode = RecoveryMode.REPAIR
+    recovery_mode: RecoveryMode = RecoveryMode.STRICT
 
     model_config = ConfigDict(extra="forbid")
 
@@ -59,6 +59,104 @@ class BoundaryIntent(BaseModel):
     height: float = Field(gt=0)
 
     model_config = ConfigDict(extra="forbid")
+
+
+_ALLOWED_ROOM_TYPES = {"living", "bedroom", "kitchen", "bathroom", "corridor", "stairs"}
+_ROOM_TYPE_SYNONYMS: dict[str, str] = {
+    "living": "living",
+    "lounge": "living",
+    "family": "living",
+    "dining": "living",
+    "hall": "living",
+    "bedroom": "bedroom",
+    "master bedroom": "bedroom",
+    "children bedroom": "bedroom",
+    "kids bedroom": "bedroom",
+    "guest room": "bedroom",
+    "study": "bedroom",
+    "office": "bedroom",
+    "kitchen": "kitchen",
+    "bathroom": "bathroom",
+    "toilet": "bathroom",
+    "wc": "bathroom",
+    "laundry": "bathroom",
+    "corridor": "corridor",
+    "hallway": "corridor",
+    "passage": "corridor",
+    "storage": "corridor",
+    "stairs": "stairs",
+    "stair": "stairs",
+}
+
+
+class RoomProgramItem(BaseModel):
+    """Room program item extracted from prompt (no geometry)."""
+
+    name: str = Field(min_length=1)
+    room_type: str = Field(min_length=1)
+    count: int = Field(default=1, ge=1, le=64)
+    preferred_area: float | None = Field(default=None, gt=0)
+    min_area: float | None = Field(default=None, gt=0)
+    max_area: float | None = Field(default=None, gt=0)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("name")
+    @classmethod
+    def _clean_name(cls, value: str) -> str:
+        cleaned = " ".join(value.strip().split())
+        if not cleaned:
+            raise ValueError("name must not be empty")
+        return cleaned
+
+    @field_validator("room_type")
+    @classmethod
+    def _normalize_room_type(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        if cleaned in _ALLOWED_ROOM_TYPES:
+            return cleaned
+        if cleaned in _ROOM_TYPE_SYNONYMS:
+            return _ROOM_TYPE_SYNONYMS[cleaned]
+        for token, canonical in _ROOM_TYPE_SYNONYMS.items():
+            if token in cleaned:
+                return canonical
+        raise ValueError(f"unsupported room_type: {value}")
+
+    @model_validator(mode="after")
+    def _validate_area_bounds(self) -> "RoomProgramItem":
+        if (
+            self.min_area is not None
+            and self.max_area is not None
+            and self.min_area - self.max_area > _EPSILON
+        ):
+            raise ValueError("min_area cannot exceed max_area")
+        return self
+
+
+class ExtractionConstraints(BaseModel):
+    """Optional high-level constraints extracted from prompt."""
+
+    notes: list[str] = Field(default_factory=list)
+    adjacency_preferences: list[list[str]] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ExtractedDesignIntent(BaseModel):
+    """LLM extraction contract (program only, no spatial geometry)."""
+
+    boundary: BoundaryIntent
+    room_program: list[RoomProgramItem] = Field(min_length=1)
+    constraints: ExtractionConstraints = Field(default_factory=ExtractionConstraints)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def _validate_program_size(self) -> "ExtractedDesignIntent":
+        room_count = sum(item.count for item in self.room_program)
+        if room_count > 128:
+            raise ValueError("room program is too large")
+        return self
 
 
 class RoomIntent(BaseModel):
@@ -287,7 +385,26 @@ class ParseErrorBody(BaseModel):
 
     code: str
     message: str
+    reason: str | None = None
+    violated_rule: str | None = None
+    room: str | None = None
     details: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class LayoutMetrics(BaseModel):
+    """Deterministic layout quality metrics."""
+
+    area_balance: float = Field(ge=0, le=1)
+    zoning: float = Field(ge=0, le=1)
+    circulation: float = Field(ge=0, le=1)
+    daylight: float = Field(ge=0, le=1)
+    structural: float = Field(ge=0, le=1)
+    furniture: float = Field(ge=0, le=1)
+    efficiency: float = Field(ge=0, le=1)
+    total_score: float = Field(ge=0, le=1)
+    selected_topology: str = Field(min_length=1)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -301,6 +418,22 @@ class ParseDesignSuccessResponse(BaseModel):
     failover_triggered: bool = False
     latency_ms: float = Field(ge=0)
     data: ParsedDesignIntent
+    metrics: LayoutMetrics
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ParseDesignAndDxfSuccessResponse(BaseModel):
+    """Successful parse + DXF generation response."""
+
+    success: Literal[True]
+    model_used: str
+    provider_used: str
+    failover_triggered: bool = False
+    latency_ms: float = Field(ge=0)
+    dxf_path: str = Field(min_length=1)
+    data: ParsedDesignIntent
+    metrics: LayoutMetrics
 
     model_config = ConfigDict(extra="forbid")
 

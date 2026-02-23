@@ -18,6 +18,7 @@ from app.services.design_parser.config import (
     MAX_NEW_TOKENS,
     OLLAMA_GENERATE_URL,
     OLLAMA_MODEL_ID,
+    OLLAMA_NUM_CTX,
     REQUEST_TIMEOUT_SECONDS,
 )
 from app.services.design_parser.errors import ParseDesignServiceError
@@ -50,6 +51,7 @@ class OllamaProviderClient(ProviderClient):
                 "temperature": 0,
                 "top_p": 0.9,
                 "num_predict": MAX_NEW_TOKENS,
+                "num_ctx": OLLAMA_NUM_CTX,
             },
         }
 
@@ -162,7 +164,7 @@ class HuggingFaceProviderClient(ProviderClient):
 
     async def startup(self) -> None:
         if not HF_EAGER_LOAD:
-            logger.info("HuggingFace eager-load disabled; model will load lazily")
+            logger.info("provider=%s model=%s event=eager_load_disabled", self.key, self.model_id)
             return
         if self._preload_task is None or self._preload_task.done():
             self._preload_task = asyncio.create_task(self._preload_bundle())
@@ -216,7 +218,12 @@ class HuggingFaceProviderClient(ProviderClient):
                 model_used=self.model_id,
                 provider_used=self.model_id,
             )
-        logger.info("request_id=%s provider=%s event=generated", request_id, self.model_id)
+        logger.info(
+            "request_id=%s provider=%s model=%s event=generated",
+            request_id,
+            self.key,
+            self.model_id,
+        )
         return generated
 
     async def _get_bundle(self) -> _HuggingFaceBundle:
@@ -226,9 +233,9 @@ class HuggingFaceProviderClient(ProviderClient):
         async with self._load_lock:
             if self._bundle is not None:
                 return self._bundle
-            logger.info("Loading HuggingFace model: %s", self.model_id)
+            logger.info("provider=%s model=%s event=load_start", self.key, self.model_id)
             self._bundle = await asyncio.to_thread(self._load_bundle_sync)
-            logger.info("HuggingFace model loaded: %s", self.model_id)
+            logger.info("provider=%s model=%s event=load_complete", self.key, self.model_id)
         return self._bundle
 
     async def _preload_bundle(self) -> None:
@@ -266,12 +273,22 @@ class HuggingFaceProviderClient(ProviderClient):
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         try:
             tokenizer = AutoTokenizer.from_pretrained(self.model_id)
-            model = AutoModelForCausalLM.from_pretrained(
-                self.model_id,
-                torch_dtype=dtype,
-                device_map="auto",
-                low_cpu_mem_usage=True,
-            )
+            model_kwargs = {
+                "device_map": "auto",
+                "low_cpu_mem_usage": True,
+            }
+            try:
+                model = AutoModelForCausalLM.from_pretrained(
+                    self.model_id,
+                    dtype=dtype,
+                    **model_kwargs,
+                )
+            except TypeError:
+                model = AutoModelForCausalLM.from_pretrained(
+                    self.model_id,
+                    torch_dtype=dtype,
+                    **model_kwargs,
+                )
         except Exception as exc:
             raise ParseDesignServiceError(
                 code="HUGGINGFACE_LOAD_ERROR",
@@ -310,7 +327,7 @@ class HuggingFaceProviderClient(ProviderClient):
         kwargs = {
             "max_new_tokens": MAX_NEW_TOKENS,
             "do_sample": False,
-            "temperature": 0.0,
+            "top_p": 1.0,
             "num_beams": 1,
             "pad_token_id": tokenizer.pad_token_id,
             "eos_token_id": tokenizer.eos_token_id,

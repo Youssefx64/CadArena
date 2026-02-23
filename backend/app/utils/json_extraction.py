@@ -8,7 +8,7 @@ from typing import Any
 
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.IGNORECASE | re.DOTALL)
-_EXPECTED_TOP_LEVEL_KEYS = {"boundary", "rooms", "walls", "openings"}
+_DEFAULT_EXPECTED_TOP_LEVEL_KEYS = {"boundary", "rooms", "walls", "openings"}
 
 
 def strip_markdown_fences(text: str) -> str:
@@ -30,6 +30,12 @@ def strip_markdown_fences(text: str) -> str:
 def extract_json_object(raw_text: str) -> dict[str, Any]:
     """Extract one strict JSON object with exact top-level schema keys."""
 
+    return extract_json_object_with_keys(raw_text, _DEFAULT_EXPECTED_TOP_LEVEL_KEYS)
+
+
+def extract_json_object_with_keys(raw_text: str, expected_top_level_keys: set[str]) -> dict[str, Any]:
+    """Extract one strict JSON object with exact provided top-level schema keys."""
+
     cleaned = strip_markdown_fences(raw_text)
     try:
         parsed = json.loads(cleaned)
@@ -40,11 +46,12 @@ def extract_json_object(raw_text: str) -> dict[str, Any]:
         raise ValueError("Top-level JSON value must be an object")
 
     keys = set(parsed.keys())
-    if keys != _EXPECTED_TOP_LEVEL_KEYS:
-        missing = sorted(_EXPECTED_TOP_LEVEL_KEYS - keys)
-        extra = sorted(keys - _EXPECTED_TOP_LEVEL_KEYS)
+    if keys != expected_top_level_keys:
+        missing = sorted(expected_top_level_keys - keys)
+        extra = sorted(keys - expected_top_level_keys)
+        required = ", ".join(sorted(expected_top_level_keys))
         raise ValueError(
-            "Top-level keys must be exactly boundary, rooms, walls, openings; "
+            f"Top-level keys must be exactly {required}; "
             f"missing={missing} extra={extra}"
         )
 
@@ -86,7 +93,7 @@ def _score_candidate(candidate: dict[str, Any]) -> tuple[int, int, int, int, int
     has_rooms = isinstance(candidate.get("rooms"), list)
     has_walls = isinstance(candidate.get("walls"), list)
     has_openings = isinstance(candidate.get("openings"), list)
-    exact_keys = set(candidate.keys()) == _EXPECTED_TOP_LEVEL_KEYS
+    exact_keys = set(candidate.keys()) == _DEFAULT_EXPECTED_TOP_LEVEL_KEYS
 
     top_level_score = int(has_boundary) + int(has_rooms) + int(has_walls) + int(has_openings)
     room_count = len(candidate.get("rooms", [])) if has_rooms else 0

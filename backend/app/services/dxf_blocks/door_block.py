@@ -5,9 +5,6 @@ This module provides functions to create DXF blocks (reusable symbols)
 for doors that can be inserted multiple times in a drawing.
 """
 
-import math
-
-
 def create_single_door_block(doc):
     """
     Create a reusable door block in the DXF document.

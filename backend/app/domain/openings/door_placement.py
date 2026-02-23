@@ -6,7 +6,7 @@ including inside placement and user preference-based placement.
 """
 
 from app.domain.entities import Room
-from app.domain.entities import RectangleGeometry, Point
+from app.domain.entities import Point
 from app.domain.entities import Opening
 
 

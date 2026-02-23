@@ -5,11 +5,12 @@ from __future__ import annotations
 from app.models.design_parser import ParseDesignModel, RecoveryMode
 from app.services.design_parser import (
     DesignParseOrchestrator,
-    ParseDesignServiceError,
+    ParseDesignServiceError as _ParseDesignServiceError,
     ParseOrchestrationResult,
 )
 
 _ORCHESTRATOR = DesignParseOrchestrator()
+ParseDesignServiceError = _ParseDesignServiceError
 
 
 async def startup_design_parser_service() -> None:
@@ -57,4 +58,3 @@ async def parse_design_prompt(
         request_id=request_id,
     )
     return result.model_used, result.data
-

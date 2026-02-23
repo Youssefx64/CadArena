@@ -11,16 +11,24 @@ from pydantic import ValidationError
 from app.core.logging import get_logger
 from app.models.design_parser import ParseDesignModel, RecoveryMode
 from app.services.design_parser.config import ENABLE_OLLAMA_TO_HF_FAILOVER
+from app.services.design_parser.extracted_intent_validator import ExtractedIntentValidator
 from app.services.design_parser.errors import ParseDesignServiceError
 from app.services.design_parser.intent_validator import IntentValidator
+from app.services.design_parser.layout_planner import (
+    DeterministicLayoutPlanner,
+    LayoutPlanningError,
+)
+from app.services.design_parser.layout_validator import LayoutValidator
+from app.services.design_parser.opening_planner import DeterministicOpeningPlanner
 from app.services.design_parser.output_parser import OutputParser
 from app.services.design_parser.prompt_compiler import PromptCompiler
+from app.services.design_parser.prompt_program_deriver import PromptProgramDeriver
 from app.services.design_parser.provider_client import (
     HuggingFaceProviderClient,
     OllamaProviderClient,
     ProviderClient,
 )
-from app.services.design_parser.recovery_policy import RecoveryPolicy
+from app.services.design_parser.rule_violation import RuleViolationError
 
 logger = get_logger(__name__)
 
@@ -41,6 +49,7 @@ class ParseOrchestrationResult:
     provider_used: str
     failover_triggered: bool
     data: dict[str, Any]
+    metrics: dict[str, Any]
 
 
 class DesignParseOrchestrator:
@@ -49,8 +58,12 @@ class DesignParseOrchestrator:
     def __init__(self) -> None:
         self._prompt_compiler = PromptCompiler()
         self._output_parser = OutputParser()
+        self._extracted_intent_validator = ExtractedIntentValidator()
+        self._prompt_program_deriver = PromptProgramDeriver()
+        self._layout_planner = DeterministicLayoutPlanner()
+        self._opening_planner = DeterministicOpeningPlanner()
+        self._layout_validator = LayoutValidator()
         self._intent_validator = IntentValidator()
-        self._recovery_policy = RecoveryPolicy()
 
         self._providers: dict[ParseDesignModel, ProviderClient] = {
             ParseDesignModel.OLLAMA: OllamaProviderClient(),
@@ -71,6 +84,7 @@ class DesignParseOrchestrator:
         recovery_mode: RecoveryMode,
         request_id: str,
     ) -> ParseOrchestrationResult:
+        _ = recovery_mode  # Kept for API compatibility; silent repair paths are disabled.
         requested_provider = self._providers[model_choice]
         self._validate_prompt_language(prompt, requested_provider.model_id)
         compiled_prompt = self._prompt_compiler.compile(prompt)
@@ -106,47 +120,21 @@ class DesignParseOrchestrator:
         try:
             parsed_payload = self._output_parser.parse(raw_output)
         except ValueError as exc:
-            if recovery_mode == RecoveryMode.REPAIR:
-                try:
-                    parsed_payload = self._output_parser.parse_permissive(raw_output)
-                    logger.warning(
-                        "request_id=%s provider=%s event=json_repair_fallback reason=%s",
-                        request_id,
-                        provider.model_id,
-                        str(exc),
-                    )
-                except ValueError:
-                    logger.warning(
-                        "request_id=%s provider=%s event=json_rejected reason=%s",
-                        request_id,
-                        provider.model_id,
-                        str(exc),
-                    )
-                    raise ParseDesignServiceError(
-                        code="INVALID_JSON_OUTPUT",
-                        message="Model output is not strict JSON",
-                        status_code=502,
-                        model_used=provider.model_id,
-                        provider_used=provider.model_id,
-                        failover_triggered=failover_triggered,
-                        details=[str(exc)],
-                    ) from exc
-            else:
-                logger.warning(
-                    "request_id=%s provider=%s event=json_rejected reason=%s",
-                    request_id,
-                    provider.model_id,
-                    str(exc),
-                )
-                raise ParseDesignServiceError(
-                    code="INVALID_JSON_OUTPUT",
-                    message="Model output is not strict JSON",
-                    status_code=502,
-                    model_used=provider.model_id,
-                    provider_used=provider.model_id,
-                    failover_triggered=failover_triggered,
-                    details=[str(exc)],
-                ) from exc
+            logger.warning(
+                "request_id=%s provider=%s event=json_rejected reason=%s",
+                request_id,
+                provider.model_id,
+                str(exc),
+            )
+            raise ParseDesignServiceError(
+                code="INVALID_JSON_OUTPUT",
+                message="Model output is not strict JSON",
+                status_code=502,
+                model_used=provider.model_id,
+                provider_used=provider.model_id,
+                failover_triggered=failover_triggered,
+                details=[str(exc)],
+            ) from exc
         except Exception as exc:
             logger.warning(
                 "request_id=%s provider=%s event=json_rejected reason=%s",
@@ -164,31 +152,78 @@ class DesignParseOrchestrator:
                 details=[str(exc)],
             ) from exc
 
-        candidate_payload = self._recovery_policy.apply(parsed_payload, prompt, recovery_mode)
+        try:
+            validated_extracted_payload = self._extracted_intent_validator.validate(parsed_payload)
+        except ValidationError as exc:
+            raise ParseDesignServiceError(
+                code="INVALID_STRUCTURED_OUTPUT",
+                message="Model output failed extraction schema validation",
+                status_code=422,
+                model_used=provider.model_id,
+                provider_used=provider.model_id,
+                failover_triggered=failover_triggered,
+                details=self._extracted_intent_validator.to_error_details(exc),
+            ) from exc
+
+        try:
+            effective_extracted_payload = validated_extracted_payload
+            selected_topology = "unknown"
+            try:
+                candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(effective_extracted_payload)
+                selected_topology = str(planner_meta.get("selected_topology", "unknown"))
+            except LayoutPlanningError as primary_layout_exc:
+                derived_extracted_payload = self._prompt_program_deriver.derive(
+                    prompt=prompt,
+                    extracted_payload=effective_extracted_payload,
+                )
+                if derived_extracted_payload != effective_extracted_payload:
+                    logger.warning(
+                        "request_id=%s provider=%s event=program_derivation_retry reason=%s",
+                        request_id,
+                        provider.model_id,
+                        str(primary_layout_exc),
+                    )
+                    effective_extracted_payload = derived_extracted_payload
+                    candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(effective_extracted_payload)
+                    selected_topology = str(planner_meta.get("selected_topology", "unknown"))
+                else:
+                    raise
+
+            candidate_payload = self._opening_planner.plan(
+                extracted_payload=effective_extracted_payload,
+                layout_payload=candidate_payload,
+            )
+            validated_extracted_payload = effective_extracted_payload
+        except LayoutPlanningError as exc:
+            raise ParseDesignServiceError(
+                code="LAYOUT_PLANNING_FAILED",
+                message="Deterministic layout planning failed",
+                status_code=422,
+                model_used=provider.model_id,
+                provider_used=provider.model_id,
+                failover_triggered=failover_triggered,
+                details=[str(exc)],
+            ) from exc
+        except RuleViolationError as exc:
+            raise ParseDesignServiceError(
+                code=exc.code,
+                message="Deterministic opening/layout rule failed",
+                status_code=422,
+                model_used=provider.model_id,
+                provider_used=provider.model_id,
+                failover_triggered=failover_triggered,
+                reason=exc.reason,
+                violated_rule=exc.violated_rule,
+                room=exc.room,
+                details=[exc.to_detail_message()],
+            ) from exc
+
         try:
             validated_payload = self._intent_validator.validate(candidate_payload)
         except ValidationError as exc:
-            if recovery_mode == RecoveryMode.REPAIR:
-                try:
-                    synthesized_payload = self._recovery_policy.apply({}, prompt, RecoveryMode.REPAIR)
-                    validated_payload = self._intent_validator.validate(synthesized_payload)
-                    logger.warning(
-                        "request_id=%s provider=%s event=repair_synthesized_fallback reason=%s",
-                        request_id,
-                        provider.model_id,
-                        self._intent_validator.to_error_details(exc)[0] if exc.errors() else "validation_error",
-                    )
-                    return ParseOrchestrationResult(
-                        model_used=provider.model_id,
-                        provider_used=provider.model_id,
-                        failover_triggered=failover_triggered,
-                        data=validated_payload,
-                    )
-                except ValidationError:
-                    pass
             raise ParseDesignServiceError(
                 code="INVALID_STRUCTURED_OUTPUT",
-                message="Model output failed schema validation",
+                message="Deterministic layout failed schema validation",
                 status_code=422,
                 model_used=provider.model_id,
                 provider_used=provider.model_id,
@@ -196,11 +231,86 @@ class DesignParseOrchestrator:
                 details=self._intent_validator.to_error_details(exc),
             ) from exc
 
+        try:
+            metrics = self._layout_validator.validate(
+                extracted_payload=validated_extracted_payload,
+                planned_payload=validated_payload,
+                selected_topology=selected_topology,
+            )
+        except RuleViolationError as exc:
+            if exc.code == "LAYOUT_EFFICIENCY_FAILED":
+                try:
+                    candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(
+                        validated_extracted_payload,
+                        optimize_efficiency=True,
+                    )
+                    selected_topology = str(planner_meta.get("selected_topology", selected_topology))
+                    candidate_payload = self._opening_planner.plan(
+                        extracted_payload=validated_extracted_payload,
+                        layout_payload=candidate_payload,
+                    )
+                    validated_payload = self._intent_validator.validate(candidate_payload)
+                    metrics = self._layout_validator.validate(
+                        extracted_payload=validated_extracted_payload,
+                        planned_payload=validated_payload,
+                        selected_topology=selected_topology,
+                    )
+                    exc = None
+                except (LayoutPlanningError, ValidationError, RuleViolationError) as rebalance_exc:
+                    if isinstance(rebalance_exc, RuleViolationError):
+                        exc = rebalance_exc
+                    else:
+                        raise ParseDesignServiceError(
+                            code="LAYOUT_PLANNING_FAILED",
+                            message="Deterministic layout planning failed",
+                            status_code=422,
+                            model_used=provider.model_id,
+                            provider_used=provider.model_id,
+                            failover_triggered=failover_triggered,
+                            details=[str(rebalance_exc)],
+                        ) from rebalance_exc
+
+            if exc is not None:
+                raise ParseDesignServiceError(
+                    code=exc.code,
+                    message="Deterministic layout failed semantic validation",
+                    status_code=422,
+                    model_used=provider.model_id,
+                    provider_used=provider.model_id,
+                    failover_triggered=failover_triggered,
+                    reason=exc.reason,
+                    violated_rule=exc.violated_rule,
+                    room=exc.room,
+                    details=[exc.to_detail_message()],
+                ) from exc
+
+        except ValueError as exc:
+            raise ParseDesignServiceError(
+                code="LAYOUT_VALIDATION_FAILED",
+                message="Deterministic layout failed semantic validation",
+                status_code=422,
+                model_used=provider.model_id,
+                provider_used=provider.model_id,
+                failover_triggered=failover_triggered,
+                details=[str(exc)],
+            ) from exc
+
         return ParseOrchestrationResult(
             model_used=provider.model_id,
             provider_used=provider.model_id,
             failover_triggered=failover_triggered,
             data=validated_payload,
+            metrics={
+                "area_balance": metrics.area_balance,
+                "zoning": metrics.zoning,
+                "circulation": metrics.circulation,
+                "daylight": metrics.daylight,
+                "structural": metrics.structural,
+                "furniture": metrics.furniture,
+                "efficiency": metrics.efficiency,
+                "total_score": metrics.total_score,
+                "selected_topology": metrics.selected_topology,
+            },
         )
 
     @staticmethod

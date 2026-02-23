@@ -20,6 +20,7 @@ class DesignIntentValidator:
 
     def __init__(self):
         self.logger = get_logger("IntentValidator")
+        self._tol = 1e-6
 
     def validate(self, intent: DesignIntent) -> None:
         self._validate_boundary(intent)
@@ -53,11 +54,11 @@ class DesignIntentValidator:
                 raise IntentValidationError(f"Room {room.name} exceeds boundary size")
 
             if room.origin is not None:
-                if room.origin.x < 0 or room.origin.y < 0:
+                if room.origin.x < -self._tol or room.origin.y < -self._tol:
                     raise IntentValidationError(f"Room {room.name} origin must be >= 0")
-                if room.origin.x + room.width > boundary_width:
+                if room.origin.x + room.width > boundary_width + self._tol:
                     raise IntentValidationError(f"Room {room.name} is out of boundary")
-                if room.origin.y + room.height > boundary_height:
+                if room.origin.y + room.height > boundary_height + self._tol:
                     raise IntentValidationError(f"Room {room.name} is out of boundary")
 
         self._validate_fixed_room_overlap(rooms)
@@ -72,11 +73,12 @@ class DesignIntentValidator:
                     )
 
     def _rooms_overlap(self, a: RoomIntent, b: RoomIntent) -> bool:
+        tol = self._tol
         return not (
-            a.origin.x + a.width <= b.origin.x
-            or a.origin.x >= b.origin.x + b.width
-            or a.origin.y + a.height <= b.origin.y
-            or a.origin.y >= b.origin.y + b.height
+            a.origin.x + a.width <= b.origin.x + tol
+            or a.origin.x >= b.origin.x + b.width - tol
+            or a.origin.y + a.height <= b.origin.y + tol
+            or a.origin.y >= b.origin.y + b.height - tol
         )
 
     def _validate_openings(

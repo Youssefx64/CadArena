@@ -8,6 +8,8 @@ with each other.
 from app.domain.constraints.base import Constraint
 from app.domain.entities import Room
 
+_EPSILON = 1e-6
+
 
 class OverlapConstraint(Constraint):
     """
@@ -57,8 +59,8 @@ class OverlapConstraint(Constraint):
         """
         # Check if rectangles are separated (no overlap)
         return not (
-            a.origin.x + a.width <= b.origin.x
-            or a.origin.x >= b.origin.x + b.width
-            or a.origin.y + a.height <= b.origin.y
-            or a.origin.y >= b.origin.y + b.height
+            a.origin.x + a.width <= b.origin.x + _EPSILON
+            or a.origin.x >= b.origin.x + b.width - _EPSILON
+            or a.origin.y + a.height <= b.origin.y + _EPSILON
+            or a.origin.y >= b.origin.y + b.height - _EPSILON
         )
