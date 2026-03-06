@@ -5,6 +5,10 @@ Environment-aware application settings.
 from dataclasses import dataclass
 import os
 
+from app.core.env_loader import load_backend_env
+
+load_backend_env()
+
 
 @dataclass(frozen=True)
 class AppSettings:

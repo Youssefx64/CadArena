@@ -1,0 +1,60 @@
+<svg
+  width="256"
+  height="256"
+  viewBox="0 0 128 128"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">CadArena Mark</title>
+  <desc id="desc">Compact CadArena emblem for navigation headers.</desc>
+  <defs>
+    <linearGradient id="strokeA" x1="20" y1="16" x2="110" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e9ffff" />
+      <stop offset="0.55" stop-color="#72f0ff" />
+      <stop offset="1" stop-color="#35caea" />
+    </linearGradient>
+    <linearGradient id="strokeB" x1="16" y1="26" x2="102" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" />
+      <stop offset="1" stop-color="#5adfff" />
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(64 64) rotate(90) scale(54)">
+      <stop stop-color="#132c31" />
+      <stop offset="1" stop-color="#09171b" />
+    </radialGradient>
+    <filter id="iconGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#bgGlow)" />
+  <g filter="url(#iconGlow)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 20V14" stroke="url(#strokeA)" stroke-width="3.2" />
+    <circle cx="64" cy="30" r="7.5" stroke="url(#strokeA)" stroke-width="3" />
+    <circle cx="64" cy="30" r="2.6" fill="#79f2ff" />
+
+    <path d="M26 50L50 36" stroke="url(#strokeB)" stroke-width="2.7" />
+    <path d="M24 54V74L31 79" stroke="url(#strokeB)" stroke-width="2.7" />
+
+    <path d="M102 50L78 36" stroke="url(#strokeA)" stroke-width="2.7" />
+    <path d="M104 54V76L96 80" stroke="url(#strokeA)" stroke-width="2.7" />
+
+    <path d="M57 40L44 80L47 91L64 44" stroke="url(#strokeB)" stroke-width="3.3" />
+    <path d="M71 40L84 79L81 91L64 44" stroke="url(#strokeA)" stroke-width="3.3" />
+
+    <path d="M47 74L64 83L81 74" stroke="url(#strokeA)" stroke-width="2.8" />
+
+    <path d="M77 49L94 59V76L80 84" stroke="url(#strokeA)" stroke-width="2.4" />
+    <circle cx="83" cy="57" r="1.9" fill="#73f1ff" />
+    <circle cx="88" cy="64" r="1.9" fill="#73f1ff" />
+    <circle cx="92" cy="72" r="1.9" fill="#73f1ff" />
+
+    <path d="M50 63H78" stroke="url(#strokeB)" stroke-width="2.5" />
+    <path d="M64 58V67" stroke="url(#strokeB)" stroke-width="2.4" />
+  </g>
+</svg>

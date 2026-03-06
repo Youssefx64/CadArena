@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import os
 
+from app.core.env_loader import load_backend_env
+
+load_backend_env()
+
 
 def _env_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CadArena Blog | Project Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="/static/assets/cadarena-mark.svg" />
+    <link rel="shortcut icon" href="/static/assets/cadarena-mark.svg" />
+    <script>
+      (() => {
+        const key = "cadarena_theme";
+        try {
+          const stored = localStorage.getItem(key);
+          const preferred =
+            stored === "dark" || stored === "light"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", preferred);
+        } catch (_error) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/static/styles/blog.css?v=4" />
+    <link rel="stylesheet" href="/static/styles/back-nav.css?v=1" />
+  </head>
+  <body>
+    <header class="blog-nav">
+      <div class="blog-nav-inner">
+        <a class="brand" href="/">
+          <img class="brand-logo" src="/static/assets/cadarena-mark.svg" alt="CadArena" />
+          <span>CadArena</span>
+        </a>
+
+        <nav class="blog-links">
+          <a href="/">Home</a>
+          <a href="/blog" aria-current="page">Blog</a>
+          <a href="/docs">Docs</a>
+        </nav>
+
+        <a class="cta-outline" href="/app/">Open Studio</a>
+      </div>
+    </header>
+
+    <main class="blog-main">
+      <section class="blog-hero motion-reveal">
+        <p class="kicker">Project Writing Space</p>
+        <h1>CadArena Blog</h1>
+        <p>
+          Write project updates, architecture notes, release stories, and feature deep dives.
+        </p>
+      </section>
+
+      <section class="blog-editor motion-reveal">
+        <h2>Write New Post</h2>
+        <form id="blog-form" class="blog-form">
+          <label>
+            <span>Title</span>
+            <input type="text" id="post-title" maxlength="120" placeholder="Example: How we improved DXF preview speed" required />
+          </label>
+
+          <label>
+            <span>Project Name</span>
+            <input type="text" id="post-project" maxlength="80" placeholder="Example: CadArena Workspace" required />
+          </label>
+
+          <label>
+            <span>Short Summary</span>
+            <input type="text" id="post-summary" maxlength="180" placeholder="One-line summary for this blog post" />
+          </label>
+
+          <label>
+            <span>Content</span>
+            <textarea
+              id="post-content"
+              rows="9"
+              maxlength="8000"
+              placeholder="Write your project blog content here..."
+              required
+            ></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Publish Post</button>
+            <button type="button" id="clear-form" class="btn-secondary">Clear Form</button>
+          </div>
+          <p id="form-status" class="form-status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="blog-posts motion-reveal">
+        <div class="posts-head">
+          <h2>Published Posts</h2>
+          <button type="button" id="clear-all" class="btn-danger">Clear All</button>
+        </div>
+        <div id="posts-list" class="posts-list"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer-bar motion-reveal">
+      <div class="site-footer-inner">
+        <div class="site-footer-top">
+          <div class="site-footer-icons" aria-label="Social links">
+            <a
+              class="site-footer-icon-link"
+              href="https://www.linkedin.com/company/cadarena"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="LinkedIn"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6.4 8.4a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4Zm-1.5 2H8v8.6H4.9V10.4Zm5.1 0h3v1.2h.1c.4-.8 1.5-1.5 3-1.5 3.2 0 3.8 2.1 3.8 4.8v4.1h-3.1v-3.6c0-.9 0-2-1.3-2s-1.5 1-1.5 1.9v3.7H10V10.4Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </a>
+            <a class="site-footer-icon-link" href="https://github.com/CadArena" target="_blank" rel="noreferrer" aria-label="GitHub">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11 11 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </a>
+            <a class="site-footer-icon-link" href="mailto:cadarena.ai@gmail.com" aria-label="Email">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3.8 7.2A2.2 2.2 0 0 1 6 5h12a2.2 2.2 0 0 1 2.2 2.2v9.6A2.2 2.2 0 0 1 18 19H6a2.2 2.2 0 0 1-2.2-2.2V7.2Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="m4.7 8.1 6.2 4.9a1.8 1.8 0 0 0 2.2 0l6.2-4.9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="site-footer-bottom">
+          <span class="site-footer-copy">CadArena © 2026</span>
+          <div class="site-footer-legal" aria-label="Legal links">
+            <span>Privacy</span>
+            <span>Terms of Use</span>
+            <span>SaaS Agreement</span>
+            <span>Manage Cookies</span>
+            <span class="site-footer-lang">
+              <span>English</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/static/scripts/back-nav.js?v=1" defer></script>
+    <script type="module" src="/static/scripts/blog.js?v=2"></script>
+  </body>
+</html>

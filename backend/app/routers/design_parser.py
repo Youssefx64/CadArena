@@ -13,11 +13,13 @@ from app.core.logging import get_logger
 from app.models.design_parser import (
     ParseDesignAndDxfSuccessResponse,
     ParseDesignErrorResponse,
+    ParseDesignModel,
     ParseDesignRequest,
     ParseDesignSuccessResponse,
     ParseErrorBody,
 )
 from app.schemas.design_intent import DesignIntent
+from app.services.design_parser.config import HF_MODEL_ID, OLLAMA_MODEL_ID
 from app.services.design_parser_service import (
     ParseDesignServiceError,
     parse_design_prompt_with_metadata,
@@ -26,6 +28,28 @@ from app.utils.parse_output_storage import save_parse_design_output
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+@router.get("/parse-design-models")
+def parse_design_models():
+    """Return selectable parse-design backends with their concrete model ids."""
+    return {
+        "default_model": ParseDesignModel.OLLAMA.value,
+        "models": [
+            {
+                "request_value": ParseDesignModel.OLLAMA.value,
+                "provider": "ollama",
+                "model_id": OLLAMA_MODEL_ID,
+                "display_name": f"Ollama ({OLLAMA_MODEL_ID})",
+            },
+            {
+                "request_value": ParseDesignModel.HUGGINGFACE.value,
+                "provider": "huggingface",
+                "model_id": HF_MODEL_ID,
+                "display_name": f"HuggingFace ({HF_MODEL_ID})",
+            },
+        ],
+    }
 
 
 @router.post(

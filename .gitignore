@@ -1,4 +1,25 @@
-backend/output
+backend/output/
+backend/data/
+
+# SQLite runtime databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Sensitive local files (keep templates only)
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
 
 # ======================================================================================
 # Byte-compiled / optimized / DLL files
@@ -151,7 +172,6 @@ activemq-data/
 *.sage.py
 
 # Environments
-.env
 .envrc
 .venv
 env/

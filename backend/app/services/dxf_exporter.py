@@ -136,25 +136,71 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
     fig = None
     try:
         doc = ezdxf.readfile(source_path)
+        modelspace = doc.modelspace()
 
         # Create figure with high DPI for quality
-        fig = plt.figure(figsize=(12, 8), dpi=300)
+        fig = plt.figure(figsize=(16, 10), dpi=360)
         ax = fig.add_axes([0, 0, 1, 1])
         ax.set_axis_off()
         ax.set_aspect("equal", adjustable="box")
+        # Dark background with brighter foreground gives better DXF readability in browser previews.
+        ax.set_facecolor("#0f1d24")
+        fig.patch.set_facecolor("#0f1d24")
+
+        render_context = RenderContext(doc)
+        backend = MatplotlibBackend(ax)
+
+        frontend_kwargs = {}
+        try:
+            from ezdxf.addons.drawing.config import ColorPolicy, Configuration
+
+            config = Configuration.defaults()
+            if hasattr(config, "with_changes"):
+                config = config.with_changes(
+                    color_policy=ColorPolicy.MONOCHROME,
+                    custom_fg_color="#ecf6f3",
+                    lineweight_scaling=1.8,
+                    min_lineweight=0.28,
+                )
+            frontend_kwargs["config"] = config
+        except Exception:
+            # Support multiple ezdxf versions; default rendering still works if config API differs.
+            frontend_kwargs = {}
+
+        try:
+            frontend = Frontend(render_context, backend, **frontend_kwargs)
+        except TypeError:
+            frontend = Frontend(render_context, backend)
 
         # Render DXF modelspace to matplotlib axes
-        Frontend(RenderContext(doc), MatplotlibBackend(ax)).draw_layout(
-            doc.modelspace(),
-            finalize=True,
-        )
+        frontend.draw_layout(modelspace, finalize=True)
+
+        # Tighten viewport around actual DXF entities so preview fills the canvas.
+        try:
+            from ezdxf import bbox
+
+            ext = bbox.extents(modelspace)
+            if getattr(ext, "has_data", False):
+                min_x = float(ext.extmin.x)
+                min_y = float(ext.extmin.y)
+                max_x = float(ext.extmax.x)
+                max_y = float(ext.extmax.y)
+                span_x = max(max_x - min_x, 1.0)
+                span_y = max(max_y - min_y, 1.0)
+                pad_x = max(span_x * 0.08, 0.5)
+                pad_y = max(span_y * 0.08, 0.5)
+                ax.set_xlim(min_x - pad_x, max_x + pad_x)
+                ax.set_ylim(min_y - pad_y, max_y + pad_y)
+        except Exception:
+            # Bounding-box fitting is best-effort; rendering must continue even if this fails.
+            pass
 
         export_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(
             export_path,
             format=export_path.suffix.lstrip("."),
             bbox_inches="tight",
-            pad_inches=0.05,
+            pad_inches=0.01,
         )
     except DxfExportError:
         raise

@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CadArena Chat Workspace</title>
+    <link rel="icon" type="image/svg+xml" href="/static/assets/cadarena-mark.svg" />
+    <link rel="shortcut icon" href="/static/assets/cadarena-mark.svg" />
+    <script>
+      (() => {
+        const key = "cadarena_theme";
+        try {
+          const stored = localStorage.getItem(key);
+          const preferred =
+            stored === "dark" || stored === "light"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", preferred);
+        } catch (_error) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="stylesheet" href="/static/styles/styles.css?v=theme47" />
+    <link rel="stylesheet" href="/static/styles/back-nav.css?v=1" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-one"></div>
+      <div class="ambient ambient-two"></div>
+
+      <header class="topbar">
+        <a class="topbar-brand" href="/" aria-label="CadArena home">
+          <img class="topbar-logo" src="/static/assets/cadarena-mark.svg" alt="CadArena" />
+          <div class="topbar-copy">
+            <span class="topbar-title">CadArena Studio</span>
+            <span class="topbar-subtitle">AI Layout Workspace</span>
+          </div>
+        </a>
+        <div class="topbar-auth">
+          <button
+            class="topbar-theme-btn"
+            id="theme-toggle-btn"
+            type="button"
+            aria-label="Toggle mode"
+            title="Toggle mode"
+          >
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 4.3v2.4M12 17.3v2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M4.3 12h2.4M17.3 12h2.4M6.6 17.4l1.7-1.7M15.7 8.3l1.7-1.7M15.4 12a3.4 3.4 0 1 1-6.8 0 3.4 3.4 0 0 1 6.8 0Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20 14.2A7.8 7.8 0 1 1 9.8 4a6.3 6.3 0 1 0 10.2 10.2Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            class="topbar-layout-btn"
+            id="toggle-preview-btn"
+            type="button"
+            aria-label="Hide live preview"
+            title="Hide live preview"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4.5 5.5h15v13h-15v-13Zm9.2 3.7 2.2 2.8-2.2 2.8M9.5 9.2 7.3 12l2.2 2.8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button class="topbar-user topbar-user-link" id="topbar-user-label" type="button" hidden>
+            <img class="topbar-user-avatar" id="topbar-user-avatar" src="/static/assets/cadarena-mark.svg" alt="Profile image" />
+            <span class="topbar-user-name" id="topbar-user-name">Not signed in</span>
+          </button>
+          <button class="topbar-btn" id="topbar-auth-btn" type="button">
+            <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10M14 8l4 4-4 4M18 12H9"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>Sign in</span>
+          </button>
+          <button class="topbar-btn" id="topbar-logout-btn" type="button" hidden>
+            <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M14 4h3.5A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20H14M10 8l-4 4 4 4M6 12h9"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>Logout</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="auth-gate" id="auth-gate" aria-live="polite" hidden>
+        <div class="auth-card">
+          <div class="auth-switch" role="tablist" aria-label="Authentication tabs">
+            <button class="auth-tab active" id="auth-login-tab" type="button" role="tab" aria-selected="true">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10M14 8l4 4-4 4M18 12H9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Login</span>
+            </button>
+            <button class="auth-tab" id="auth-register-tab" type="button" role="tab" aria-selected="false">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 13.2a4.1 4.1 0 1 0-4.1-4.1 4.1 4.1 0 0 0 4.1 4.1Zm0 1.8c-3.8 0-6.8 1.9-6.8 4.2M19.5 8v5M17 10.5h5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Sign Up</span>
+            </button>
+          </div>
+
+          <p class="auth-copy">Use your account to keep each workspace isolated and synced to your user profile.</p>
+
+          <div class="auth-social">
+            <div class="google-auth-container" id="google-auth-container" hidden>
+              <div class="google-auth-button" id="google-auth-button"></div>
+            </div>
+          </div>
+
+          <form class="auth-form" id="auth-login-form" autocomplete="on">
+            <label>
+              <span>Email</span>
+              <input
+                id="login-email-input"
+                type="email"
+                name="login_email"
+                autocomplete="username"
+                maxlength="320"
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+            <label>
+              <span>Password</span>
+              <input
+                id="login-password-input"
+                type="password"
+                name="login_password"
+                autocomplete="current-password"
+                maxlength="72"
+                placeholder="Enter your password"
+                required
+              />
+            </label>
+            <button class="auth-submit" id="auth-login-btn" type="submit">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10M14 8l4 4-4 4M18 12H9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Login</span>
+            </button>
+          </form>
+
+          <form class="auth-form" id="auth-register-form" autocomplete="off" hidden>
+            <label>
+              <span>Name</span>
+              <input
+                id="register-name-input"
+                type="text"
+                name="register_name"
+                autocomplete="name"
+                maxlength="120"
+                placeholder="Your full name"
+                required
+              />
+            </label>
+            <label>
+              <span>Email</span>
+              <input
+                id="register-email-input"
+                type="email"
+                name="register_email"
+                autocomplete="off"
+                maxlength="320"
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+            <label>
+              <span>Password</span>
+              <input
+                id="register-password-input"
+                type="password"
+                name="register_password"
+                autocomplete="new-password"
+                maxlength="72"
+                minlength="8"
+                placeholder="Create a strong password"
+                required
+              />
+            </label>
+            <button class="auth-submit" id="auth-register-btn" type="submit">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 13.2a4.1 4.1 0 1 0-4.1-4.1 4.1 4.1 0 0 0 4.1 4.1Zm0 1.8c-3.8 0-6.8 1.9-6.8 4.2M19.5 8v5M17 10.5h5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Create account</span>
+            </button>
+          </form>
+
+          <p class="auth-feedback" id="auth-feedback" role="status"></p>
+        </div>
+      </section>
+
+      <main class="workspace" id="workspace-shell">
+        <aside class="panel sidebar">
+          <header class="sidebar-topbar">
+            <a class="sidebar-mark" href="/" aria-label="CadArena home">
+              <img src="/static/assets/cadarena-mark.svg" alt="CadArena" />
+            </a>
+            <button class="sidebar-top-icon-btn" id="sidebar-quick-hide-btn" type="button" aria-label="Hide sidebar" title="Hide sidebar">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5 6.4A1.4 1.4 0 0 1 6.4 5h11.2A1.4 1.4 0 0 1 19 6.4v11.2A1.4 1.4 0 0 1 17.6 19H6.4A1.4 1.4 0 0 1 5 17.6V6.4Zm7-1.4v14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </header>
+
+          <nav class="sidebar-switch" aria-label="Workspace sections">
+            <button
+              class="sidebar-switch-btn active"
+              id="sidebar-chat-tab-btn"
+              data-sidebar-tab="chat"
+              type="button"
+              aria-current="true"
+              aria-label="New chat"
+              title="New chat"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M7 18.4 4.2 20V7.8A2.8 2.8 0 0 1 7 5h10a2.8 2.8 0 0 1 2.8 2.8v6.8a2.8 2.8 0 0 1-2.8 2.8H7Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M8.2 10h7.6M8.2 13.3h5.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>New chat</span>
+            </button>
+            <button
+              class="sidebar-switch-btn"
+              id="sidebar-projects-tab-btn"
+              data-sidebar-tab="projects"
+              type="button"
+              aria-label="Search chats"
+              title="Search chats"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M10.9 18a7.1 7.1 0 1 0 0-14.2 7.1 7.1 0 0 0 0 14.2Zm8.1 2.2-4.2-4.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Search chats</span>
+            </button>
+            <button
+              class="sidebar-switch-btn"
+              id="sidebar-dxf-upload-trigger-btn"
+              type="button"
+              aria-label="Open DXF render"
+              title="Open DXF render"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5.5 5.5h13v13h-13v-13Zm2.8 3h7.4m-7.4 3h5.1m-6 5.3 2.1-2.1 1.8 1.8 3.2-3.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>DXF Render</span>
+            </button>
+          </nav>
+          <input id="sidebar-dxf-upload-input" type="file" accept=".dxf" hidden />
+
+          <section class="project-picker sidebar-section sidebar-tab-panel" id="sidebar-projects-panel">
+            <div class="sidebar-panel-header">
+              <h2>Projects</h2>
+              <span class="pill" id="project-count-pill">0 projects</span>
+            </div>
+            <div class="sidebar-search-wrap">
+              <input
+                id="sidebar-chat-search-input"
+                type="search"
+                placeholder="Search chats..."
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="Search chats"
+              />
+            </div>
+            <form class="project-create-form" id="project-create-form">
+              <input
+                id="project-name-input"
+                name="project_name"
+                type="text"
+                maxlength="120"
+                placeholder="New project name"
+                required
+              />
+              <button type="submit" id="project-create-btn">Create new project</button>
+            </form>
+
+            <p class="sidebar-mini-heading">Chat History</p>
+            <div class="project-list" id="project-list" role="list"></div>
+          </section>
+        </aside>
+
+        <div
+          class="workspace-resizer workspace-resizer--left"
+          id="workspace-resizer-left"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar and chat"
+        ></div>
+
+        <section class="panel chat">
+          <header class="chat-header">
+            <div class="header-main">
+              <span class="header-icon-badge header-icon-chat" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M7 18.4 4.2 20V7.8A2.8 2.8 0 0 1 7 5h10a2.8 2.8 0 0 1 2.8 2.8v6.8a2.8 2.8 0 0 1-2.8 2.8H7Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M8.2 10h7.6M8.2 13.3h5.2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+              <div>
+                <p class="eyebrow">Chat</p>
+                <h2 id="active-project-title">Loading project...</h2>
+                <p class="chat-subtitle" id="chat-subtitle">Project conversation</p>
+              </div>
+            </div>
+            <span class="status-badge ready" id="status-badge">Ready</span>
+          </header>
+
+          <div class="chat-thread" id="chat-thread" aria-live="polite"></div>
+          <button class="chat-scroll-bottom-btn" id="chat-scroll-bottom-btn" type="button" aria-label="Scroll to latest messages">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6.5 10.5 5.5 5.5 5.5-5.5" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <form class="chat-form" id="chat-form">
+            <div class="chat-composer-main">
+              <label class="input-wrap chat-composer-input-wrap" for="prompt-input">
+                <textarea
+                  id="prompt-input"
+                  name="prompt"
+                  placeholder="Ask anything about your CAD layout..."
+                  rows="1"
+                  required
+                ></textarea>
+              </label>
+
+              <div class="chat-controls">
+                <label class="model-select compact-model" for="model-select">
+                  <select id="model-select" name="model">
+                    <option value="ollama">Loading models...</option>
+                  </select>
+                </label>
+
+                <button class="send-btn icon-send" id="send-btn" type="submit" aria-label="Send prompt">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <p class="chat-composer-note">CadArena can make mistakes. Check important dimensions before export.</p>
+            <small id="model-hint" class="chat-model-hint">Loading available models...</small>
+          </form>
+        </section>
+
+        <div
+          class="workspace-resizer workspace-resizer--right"
+          id="workspace-resizer-right"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize chat and preview"
+        ></div>
+
+        <aside class="panel preview">
+          <header class="preview-header">
+            <div class="header-main">
+              <span class="header-icon-badge header-icon-preview" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M3.5 12s3.1-5.2 8.5-5.2 8.5 5.2 8.5 5.2-3.1 5.2-8.5 5.2-8.5-5.2-8.5-5.2Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="2.3" fill="none" stroke="currentColor" stroke-width="1.9" />
+                </svg>
+              </span>
+              <div>
+                <p class="eyebrow">Live Preview</p>
+                <h2>DXF Render</h2>
+              </div>
+            </div>
+            <div class="preview-tools">
+              <button class="preview-tool refresh-tool" id="preview-refresh-btn" type="button" title="Refresh preview">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M19 12a7 7 0 0 1-12 4.9M5 12a7 7 0 0 1 12-4.9M17 4v3.7h-3.7M7 20v-3.7h3.7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Refresh</span>
+              </button>
+              <button class="preview-tool refresh-tool" id="preview-download-png-btn" type="button" title="Download PNG" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 3.8v9.1m0 0 3.2-3.2M12 12.9 8.8 9.7M4.9 16.6v1.8A1.8 1.8 0 0 0 6.7 20h10.6a1.8 1.8 0 0 0 1.8-1.6v-1.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>PNG</span>
+              </button>
+              <button class="preview-tool refresh-tool" id="preview-download-pdf-btn" type="button" title="Download PDF" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 4.8h8.8L19 9v10.2H6V4.8Zm8.8 0V9H19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>PDF</span>
+              </button>
+              <button class="preview-tool" id="preview-zoom-out-btn" type="button" title="Zoom out" aria-label="Zoom out">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm7 2-3.1-3.1M8 11h6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                class="preview-tool zoom-level"
+                id="preview-zoom-reset-btn"
+                type="button"
+                title="Reset zoom"
+                aria-label="Reset zoom"
+              >
+                100%
+              </button>
+              <button class="preview-tool" id="preview-zoom-in-btn" type="button" title="Zoom in" aria-label="Zoom in">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm7 2-3.1-3.1M11 8v6M8 11h6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="preview-canvas" id="preview-canvas">
+            <div class="preview-empty" id="preview-empty">
+              Generate a DXF from chat to see its live preview here.
+            </div>
+            <img id="preview-image" alt="Generated DXF preview" />
+          </div>
+        </aside>
+
+        <section class="panel dxf-render-panel" id="dxf-render-panel" hidden>
+          <header class="preview-header dxf-render-header">
+            <div class="header-main">
+              <span class="header-icon-badge header-icon-preview" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M5 6h10l4 4v8H5V6Zm10 0v4h4M9 13h6m-6 3h4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <div>
+                <p class="eyebrow">DXF Render</p>
+                <h2>Standalone Renderer</h2>
+              </div>
+            </div>
+            <div class="preview-tools">
+              <button class="preview-tool refresh-tool" id="dxf-render-upload-btn" type="button" title="Upload DXF file">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 4.2v8.5m0 0 3.1-3.1M12 12.7 8.9 9.6M5.2 16.2v1.7A1.9 1.9 0 0 0 7.1 20h9.8a1.9 1.9 0 0 0 1.9-2.1v-1.7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Upload DXF</span>
+              </button>
+              <button class="preview-tool refresh-tool" id="dxf-render-refresh-btn" type="button" title="Refresh DXF render">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M19 12a7 7 0 0 1-12 4.9M5 12a7 7 0 0 1 12-4.9M17 4v3.7h-3.7M7 20v-3.7h3.7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Refresh</span>
+              </button>
+              <button class="preview-tool refresh-tool" id="dxf-render-download-png-btn" type="button" title="Download PNG" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 3.8v9.1m0 0 3.2-3.2M12 12.9 8.8 9.7M4.9 16.6v1.8A1.8 1.8 0 0 0 6.7 20h10.6a1.8 1.8 0 0 0 1.8-1.6v-1.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>PNG</span>
+              </button>
+              <button class="preview-tool refresh-tool" id="dxf-render-download-pdf-btn" type="button" title="Download PDF" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 4.8h8.8L19 9v10.2H6V4.8Zm8.8 0V9H19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>PDF</span>
+              </button>
+              <button class="preview-tool" id="dxf-render-zoom-out-btn" type="button" title="Zoom out" aria-label="Zoom out">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm7 2-3.1-3.1M8 11h6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button class="preview-tool zoom-level" id="dxf-render-zoom-reset-btn" type="button" title="Reset zoom" aria-label="Reset zoom">
+                100%
+              </button>
+              <button class="preview-tool" id="dxf-render-zoom-in-btn" type="button" title="Zoom in" aria-label="Zoom in">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm7 2-3.1-3.1M11 8v6M8 11h6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="preview-canvas dxf-render-canvas" id="dxf-render-canvas">
+            <div class="preview-empty" id="dxf-render-empty">Upload a DXF file to render it in this standalone view.</div>
+            <img id="dxf-render-image" alt="Standalone DXF render preview" />
+          </div>
+        </section>
+      </main>
+
+    </div>
+
+    <script src="/static/scripts/back-nav.js?v=1" defer></script>
+    <script type="module" src="/static/scripts/app.js?v=theme38"></script>
+  </body>
+</html>

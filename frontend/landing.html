@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CadArena | Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="/static/assets/cadarena-mark.svg" />
+    <link rel="shortcut icon" href="/static/assets/cadarena-mark.svg" />
+    <script>
+      (() => {
+        const key = "cadarena_theme";
+        try {
+          const stored = localStorage.getItem(key);
+          const preferred =
+            stored === "dark" || stored === "light"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", preferred);
+        } catch (_error) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/static/styles/landing.css?v=workflow20" />
+    <link rel="stylesheet" href="/static/styles/back-nav.css?v=1" />
+  </head>
+  <body>
+    <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+    <div class="background-grid" aria-hidden="true"></div>
+    <div class="orb orb-one" id="orb-one" aria-hidden="true"></div>
+    <div class="orb orb-two" id="orb-two" aria-hidden="true"></div>
+
+    <header class="top-nav">
+      <div class="top-nav-inner">
+        <a class="brand" href="/">
+          <img class="brand-logo" src="/static/assets/cadarena-mark.svg" alt="CadArena" />
+          <span>CadArena</span>
+        </a>
+
+        <nav class="nav-links">
+          <a href="#about">About</a>
+          <a href="#features">Features</a>
+          <a href="#advantages">Advantages</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#use-cases">Use Cases</a>
+          <a href="#audience">Audience</a>
+          <a href="#future-work">Future Work</a>
+          <a href="#blog">Blog</a>
+          <a href="#docs">Docs</a>
+        </nav>
+
+        <div class="top-nav-actions">
+          <button
+            class="top-nav-theme-btn"
+            id="landing-theme-toggle"
+            type="button"
+            aria-label="Toggle mode"
+            title="Toggle mode"
+          >
+            <svg class="top-nav-theme-icon top-nav-theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 4.3v2.4M12 17.3v2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M4.3 12h2.4M17.3 12h2.4M6.6 17.4l1.7-1.7M15.7 8.3l1.7-1.7M15.4 12a3.4 3.4 0 1 1-6.8 0 3.4 3.4 0 0 1 6.8 0Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg class="top-nav-theme-icon top-nav-theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20 14.2A7.8 7.8 0 1 1 9.8 4a6.3 6.3 0 1 0 10.2 10.2Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <div class="top-nav-auth" id="landing-auth-links" aria-label="Authentication actions">
+            <a class="top-nav-auth-link top-nav-auth-login" id="landing-login-link" href="/app/?auth=login">Login</a>
+            <a class="top-nav-auth-link top-nav-auth-register" id="landing-register-link" href="/app/?auth=register">Sign Up</a>
+            <a class="top-nav-auth-link top-nav-auth-open" id="landing-open-studio-link" href="/app/">Open Studio</a>
+          </div>
+          <div class="landing-user-menu" id="landing-user-menu" hidden>
+            <button
+              class="landing-user-trigger"
+              id="landing-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-label="Open account menu"
+              title="Account"
+            >
+              <img
+                class="landing-user-avatar"
+                id="landing-user-avatar"
+                src="/static/assets/cadarena-mark.svg"
+                alt="Profile image"
+              />
+              <svg class="landing-user-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M7 10.2 12 15l5-4.8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <div class="landing-user-dropdown" id="landing-user-dropdown" role="menu" hidden>
+              <div class="landing-user-dropdown-list">
+                <a class="landing-user-dropdown-item" href="/app/profile.html" role="menuitem">
+                  <span class="landing-user-item-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path
+                        d="M12 12.4a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 1.8c-3.8 0-6.8 1.9-6.8 4.2"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.9"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span>My Profile</span>
+                </a>
+                <button class="landing-user-dropdown-item is-danger" id="landing-user-logout-btn" type="button" role="menuitem">
+                <span class="landing-user-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M14 4h3.5A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20H14M10 8l-4 4 4 4M6 12h9"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span>Log Out</span>
+              </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="landing-main">
+      <section class="hero" id="about">
+        <div class="hero-copy reveal">
+          <p class="hero-kicker">CadArena AI Platform</p>
+          <h1>
+            Design better spaces.
+            <span class="hero-dynamic-line" id="dynamic-headline-host">
+              <span id="dynamic-headline">Generate build-ready DXF.</span>
+            </span>
+          </h1>
+          <p class="hero-subtext">
+            Turn natural language into structured plans, preview them instantly, and download DXF
+            files per project with persistent conversation history.
+          </p>
+
+          <div class="hero-actions">
+            <a class="cta-solid" href="/app/">Start now</a>
+            <a class="cta-link" href="/docs">View API docs</a>
+          </div>
+
+          <div class="hero-stats">
+            <article class="stat-card reveal">
+              <span class="stat-value" data-target="300">0</span>
+              <span class="stat-label">Prompt Runs / Day</span>
+            </article>
+            <article class="stat-card reveal">
+              <span class="stat-value" data-target="24">0</span>
+              <span class="stat-label">Live Preview FPS</span>
+            </article>
+            <article class="stat-card reveal">
+              <span class="stat-value" data-target="99">0</span>
+              <span class="stat-label">Project Uptime %</span>
+            </article>
+          </div>
+        </div>
+        <aside class="hero-visual reveal" aria-label="CadArena workflow illustration">
+          <img
+            class="hero-visual-image"
+            src="/static/assets/hero-cad-workflow.svg"
+            alt="CadArena converts prompts into validated DXF layouts with browser preview."
+            loading="lazy"
+          />
+          <div class="hero-visual-badges">
+            <span class="hero-visual-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4.5 5.5h15v4h-15v-4Zm0 9h9v4h-9v-4Zm11 0h4v4h-4v-4Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Prompt to JSON
+            </span>
+            <span class="hero-visual-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 4.5 5.8 7v5a8 8 0 0 0 6.2 7.5A8 8 0 0 0 18.2 12V7L12 4.5Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Rule Validation
+            </span>
+            <span class="hero-visual-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 19h12M6 8h12M8.5 8V5h7v3m-6.5 11V8m6 11V8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              DXF Output
+            </span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="quick-prompts" id="features">
+        <button class="prompt-card reveal" type="button">
+          <span class="prompt-card-top">
+            <span class="prompt-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M5 19h14M7 19V9.5m10 9.5V9.5M9.5 9.5V6.7a2.5 2.5 0 0 1 5 0v2.8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="prompt-card-title">Daylight Apartment</span>
+          </span>
+          <span class="prompt-card-text">Design a 2-bedroom apartment with daylight optimization.</span>
+        </button>
+        <button class="prompt-card reveal" type="button">
+          <span class="prompt-card-top">
+            <span class="prompt-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M4.8 4.8h14.4v14.4H4.8V4.8Zm4.8 0v14.4M4.8 10h14.4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="prompt-card-title">Office Core</span>
+          </span>
+          <span class="prompt-card-text">Generate a compact office core with meeting rooms and service areas.</span>
+        </button>
+        <button class="prompt-card reveal" type="button">
+          <span class="prompt-card-top">
+            <span class="prompt-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M4.5 18h15M6.5 18v-6l5.5-3.5 5.5 3.5v6M12 8.5V5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="prompt-card-title">Duplex Concept</span>
+          </span>
+          <span class="prompt-card-text">Plan a modern duplex layout with practical circulation and privacy.</span>
+        </button>
+        <button class="prompt-card reveal" type="button">
+          <span class="prompt-card-top">
+            <span class="prompt-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M5 19h14M8 5.5v8.5M11 5.5v8.5M8 9h3m5-3.5v13"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="prompt-card-title">Restaurant Plan</span>
+          </span>
+          <span class="prompt-card-text">Create a restaurant floor plan with kitchen adjacency constraints.</span>
+        </button>
+        <button class="prompt-card reveal" type="button">
+          <span class="prompt-card-top">
+            <span class="prompt-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 4.5v15M4.5 12h15M7.5 6.5h9v11h-9z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="prompt-card-title">Clinic Flow</span>
+          </span>
+          <span class="prompt-card-text">Build a clinic plan with clear patient flow and waiting zones.</span>
+        </button>
+        <button class="prompt-card reveal" type="button">
+          <span class="prompt-card-top">
+            <span class="prompt-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M4.8 4.8h14.4v14.4H4.8V4.8Zm4.5 4.5h5.4v5.4H9.3V9.3Zm-4.5 2.7h4.5m9.9 0h-4.5m-2.7-7.2v4.5m0 9.9v-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <span class="prompt-card-title">Courtyard Villa</span>
+          </span>
+          <span class="prompt-card-text">Draft a villa with inner courtyard and cross ventilation strategy.</span>
+        </button>
+      </section>
+
+      <section class="feature-band reveal">
+        <article class="feature-card grad-a">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M4.8 5.5h14.4v13H4.8v-13Zm4.8 0v13M4.8 10.5h14.4M14.4 5.5v13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <h2>Prompt to Plan</h2>
+          <p>Strict geometry planning from plain-language intent.</p>
+        </article>
+        <article class="feature-card grad-b">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M4.8 7h7.8v10H4.8V7Zm9.6 0h4.8M14.4 12h4.8M14.4 17h4.8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <h2>Model Choice</h2>
+          <p>Switch model backend per task and compare outcomes quickly.</p>
+        </article>
+        <article class="feature-card grad-c">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M8 3.8h5l4.4 4.4v11A1.8 1.8 0 0 1 15.6 21H8A1.8 1.8 0 0 1 6.2 19.2V5.6A1.8 1.8 0 0 1 8 3.8Zm4.8.1v4.1h4.1M12 12v5m0 0 2.2-2.2M12 17l-2.2-2.2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <h2>DXF Delivery</h2>
+          <p>Download generated files directly from the assistant response.</p>
+        </article>
+      </section>
+
+      <section class="competitive-edge" id="advantages">
+        <div class="competitive-shell reveal">
+          <p class="competitive-kicker reveal">Why CadArena</p>
+          <h2 class="section-title competitive-title reveal">Project Strengths and Competitive Edge</h2>
+          <p class="section-copy competitive-copy reveal">
+            CadArena is built as an engineering workflow, not just a text-to-image concept tool. It combines controlled
+            AI generation with deterministic geometry checks, project memory, and production-ready export.
+          </p>
+
+          <div class="competitive-columns">
+            <article class="competitive-panel reveal">
+              <h3>Core Product Features</h3>
+              <ul class="competitive-list">
+                <li>Natural language to structured planning schema with strict validation.</li>
+                <li>Project-based workspace with isolated history and design timeline.</li>
+                <li>Direct DXF generation and in-browser preview in one continuous flow.</li>
+                <li>Arabic and English prompt support for regional and global teams.</li>
+                <li>Secure account-based access and user-linked project ownership.</li>
+              </ul>
+            </article>
+
+            <article class="competitive-panel competitive-panel-highlight reveal">
+              <h3>What Differentiates Us from Competitors</h3>
+              <ul class="competitive-list">
+                <li>Deterministic geometry checks reduce invalid outputs before export.</li>
+                <li>Constraint-aware planning balances design intent with feasibility.</li>
+                <li>Workflow is production-oriented, not limited to conceptual visualization.</li>
+                <li>Prompt, validation, generation, preview, and download are unified in one platform.</li>
+                <li>Designed for architecture and engineering operations, not generic chatbot usage.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="workflow" id="workflow">
+        <div class="workflow-shell reveal">
+          <p class="workflow-kicker reveal">How It Works</p>
+          <h2 class="section-title workflow-title reveal">From Prompt to Production-Ready DXF in 5 Smart Steps</h2>
+          <p class="section-copy workflow-copy reveal">
+            CadArena transforms plain language into constrained geometry, validates the result, and delivers
+            a CAD-ready file with a live browser preview for fast iteration.
+          </p>
+
+          <div class="workflow-grid">
+            <article class="workflow-step reveal">
+              <div class="workflow-step-top">
+                <span class="workflow-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M6 18.2 3.6 20V7.5A2.5 2.5 0 0 1 6.1 5h11.8a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5H6Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="workflow-index">01</span>
+              </div>
+              <h3>Natural Language Prompt</h3>
+              <p>Describe room program, dimensions, circulation, and design intent in Arabic or English.</p>
+              <span class="workflow-chip">Multilingual NLP</span>
+            </article>
+
+            <article class="workflow-step reveal">
+              <div class="workflow-step-top">
+                <span class="workflow-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="m8 8-4 4 4 4m8-8 4 4-4 4M13 6l-2 12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="workflow-index">02</span>
+              </div>
+              <h3>AI to Structured JSON</h3>
+              <p>Model output is converted to strict, validated planning schema for reliable automation.</p>
+              <span class="workflow-chip">Schema-Controlled Output</span>
+            </article>
+
+            <article class="workflow-step reveal">
+              <div class="workflow-step-top">
+                <span class="workflow-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M12 4.8 5.8 7.3v5.1A8 8 0 0 0 12 20a8 8 0 0 0 6.2-7.6V7.3L12 4.8Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="workflow-index">03</span>
+              </div>
+              <h3>Validation and Planning</h3>
+              <p>Geometry engine enforces boundaries, spacing, and feasibility before committing the layout.</p>
+              <span class="workflow-chip">Constraint-Aware Engine</span>
+            </article>
+
+            <article class="workflow-step reveal">
+              <div class="workflow-step-top">
+                <span class="workflow-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M8 3.8h5l4.4 4.4v11A1.8 1.8 0 0 1 15.6 21H8A1.8 1.8 0 0 1 6.2 19.2V5.6A1.8 1.8 0 0 1 8 3.8Zm4.8.1v4.1h4.1M9.5 12.5h5M9.5 15.5h5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="workflow-index">04</span>
+              </div>
+              <h3>DXF Generation</h3>
+              <p>A clean CAD file is generated with stable naming, metadata, and project-linked history.</p>
+              <span class="workflow-chip">AutoCAD-Compatible DXF</span>
+            </article>
+
+            <article class="workflow-step reveal">
+              <div class="workflow-step-top">
+                <span class="workflow-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M3.5 12s3-5 8.5-5 8.5 5 8.5 5-3 5-8.5 5-8.5-5-8.5-5Zm8.5-2.3a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="workflow-index">05</span>
+              </div>
+              <h3>Browser Preview and Iterate</h3>
+              <p>Preview results instantly, compare runs, and refine prompts until the layout is exactly right.</p>
+              <span class="workflow-chip">Live Render Feedback</span>
+            </article>
+          </div>
+
+          <div class="workflow-proof">
+            <article class="reveal">
+              <h4>Built for Real Constraints</h4>
+              <p>Adjacency wishes, area targets, and room logic are checked before export.</p>
+            </article>
+            <article class="reveal">
+              <h4>Project-Scoped Memory</h4>
+              <p>Every run stays tied to its project timeline for traceable design decisions.</p>
+            </article>
+            <article class="reveal">
+              <h4>Production Speed</h4>
+              <p>Move from concept prompt to downloadable DXF in one guided pipeline.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="use-cases" id="use-cases">
+        <div class="use-cases-shell reveal">
+          <h2 class="section-title use-cases-title reveal">Use Cases</h2>
+          <p class="section-copy use-cases-copy reveal">From concept to construction-ready drawings</p>
+          <div class="use-cases-media reveal" aria-label="Use case previews">
+            <img src="/static/assets/usecase-apartment.svg" alt="Apartment layout preview" loading="lazy" />
+            <img src="/static/assets/usecase-structure.svg" alt="Structural grid preview" loading="lazy" />
+            <img src="/static/assets/usecase-export.svg" alt="DXF export preview" loading="lazy" />
+          </div>
+
+          <div class="use-cases-grid">
+            <article class="use-case-card reveal">
+              <span class="use-case-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M4.8 4.8h14.4v14.4H4.8V4.8Zm4.8 0v14.4M14.4 4.8v14.4M4.8 9.6h14.4M4.8 14.4h14.4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <h3>Apartment Floor Plans</h3>
+              <p>Generate complete residential layouts with rooms, doors, windows, and furniture-ready zones.</p>
+              <span class="use-case-chip">Residential Design</span>
+            </article>
+
+            <article class="use-case-card reveal">
+              <span class="use-case-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="m6 17 6-3.5 6 3.5-6 3.5L6 17Zm0-5.5L12 8l6 3.5-6 3.5L6 11.5Zm6-7 6 3.5-6 3.5L6 8l6-3.5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <h3>Structural Layouts</h3>
+              <p>Draft column grids, slab zones, and foundation planning concepts with engineering precision.</p>
+              <span class="use-case-chip">Engineering Schemes</span>
+            </article>
+
+            <article class="use-case-card reveal">
+              <span class="use-case-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M5 12h14M13 6l6 6-6 6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <h3>Concept-to-DXF Workflows</h3>
+              <p>Move rapidly from sketch intent to production-ready CAD files with auditable project history.</p>
+              <span class="use-case-chip">Fast Iteration Loop</span>
+            </article>
+
+            <article class="use-case-card reveal">
+              <span class="use-case-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="m12 4 1.8 3.8 4.2.7-3 3 .7 4.2-3.7-2-3.7 2 .7-4.2-3-3 4.2-.7L12 4Zm6.2 2.5v3.2m-1.6-1.6h3.2M5.8 15.5v2.8m-1.4-1.4h2.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <h3>AI-Assisted Drafting</h3>
+              <p>Speed up repetitive drafting while maintaining deterministic constraints and design intent.</p>
+              <span class="use-case-chip">Productivity Boost</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="audience" id="audience">
+        <h2 class="section-title reveal">Who Is CadArena For?</h2>
+        <p class="section-copy reveal">
+          Built for teams and professionals who need faster concept-to-CAD delivery without losing engineering control.
+        </p>
+        <div class="audience-grid">
+          <article class="audience-card reveal">
+            <span class="audience-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M4 19.2h16M6 19.2V9.8m12 9.4V9.8M9 9.8v-2a3 3 0 0 1 6 0v2M8 9.8h8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <h3>Architects and Interior Designers</h3>
+            <p>Translate design intent into plan-ready geometry and iterate layout options faster.</p>
+            <span class="audience-chip">Concept Development</span>
+          </article>
+
+          <article class="audience-card reveal">
+            <span class="audience-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M4 18h16M6 18l2-8h8l2 8M9 10V6h6v4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <h3>Structural and Civil Engineers</h3>
+            <p>Apply constraints early and keep generated plans aligned with practical build rules.</p>
+            <span class="audience-chip">Constraint-Driven Planning</span>
+          </article>
+
+          <article class="audience-card reveal">
+            <span class="audience-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M4.5 7.2h6.7v6.7H4.5V7.2Zm8.3 0h6.7v6.7h-6.7V7.2ZM8 17.3h8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <h3>CAD and BIM Teams</h3>
+            <p>Create production-ready DXF baselines and reduce repetitive drafting operations.</p>
+            <span class="audience-chip">Production Workflows</span>
+          </article>
+
+          <article class="audience-card reveal">
+            <span class="audience-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M5 7.5 12 4l7 3.5v9L12 20l-7-3.5v-9Zm7-3.5v16m-7-12.5 7 3.5 7-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <h3>Students and Training Labs</h3>
+            <p>Learn spatial planning, constraints, and CAD pipeline logic using real project scenarios.</p>
+            <span class="audience-chip">Education and Upskilling</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="future-work" id="future-work">
+        <div class="future-work-shell reveal">
+          <h2 class="section-title future-work-title reveal">Future Work</h2>
+          <p class="section-copy future-work-copy reveal">
+            Upcoming capabilities planned to expand automation depth, collaboration, and enterprise readiness.
+          </p>
+
+          <div class="future-work-grid">
+            <article class="future-work-card reveal">
+              <span class="future-work-step">01</span>
+              <h3>Smart Constraint Presets</h3>
+              <p>Reusable rule packs for residential, office, and mixed-use planning standards.</p>
+            </article>
+
+            <article class="future-work-card reveal">
+              <span class="future-work-step">02</span>
+              <h3>IFC and BIM Data Exchange</h3>
+              <p>Native export bridge between generated plans and BIM coordination workflows.</p>
+            </article>
+
+            <article class="future-work-card reveal">
+              <span class="future-work-step">03</span>
+              <h3>Team Collaboration Layer</h3>
+              <p>Shared projects, role-based access, and review checkpoints for design teams.</p>
+            </article>
+
+            <article class="future-work-card reveal">
+              <span class="future-work-step">04</span>
+              <h3>Generative Optimization Loop</h3>
+              <p>Automatic multi-option generation scored by area efficiency and circulation quality.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-blog" id="blog">
+        <h2 class="section-title reveal">Project Blog</h2>
+        <p class="section-copy reveal">
+          Share release notes, design decisions, and implementation stories for your CAD workflows.
+        </p>
+        <div class="home-blog-grid">
+          <article class="home-mini-card reveal">
+            <h3>Release Notes</h3>
+            <p>Document each feature release and improvements in generation quality.</p>
+          </article>
+          <article class="home-mini-card reveal">
+            <h3>Architecture Logs</h3>
+            <p>Explain backend and frontend decisions with clear technical context.</p>
+          </article>
+          <article class="home-mini-card reveal">
+            <h3>Project Stories</h3>
+            <p>Publish case studies from prompt input to final DXF delivery.</p>
+          </article>
+        </div>
+        <div class="home-section-action reveal">
+          <a class="cta-link" href="/blog">Open Full Blog Page</a>
+        </div>
+      </section>
+
+      <section class="faq-section" id="faq">
+        <h2 class="section-title reveal">FAQ (Questions & Answers)</h2>
+        <div class="faq-grid">
+          <details class="faq-item reveal">
+            <summary>How do I start a new project in CadArena?</summary>
+            <p>Create a project from the workspace sidebar, give it a name, and start prompting in its chat.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>Can I switch between different AI models?</summary>
+            <p>Yes. Choose the available model from the selector before generation to compare outcomes.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>How does DXF download work?</summary>
+            <p>After successful generation, the assistant message includes a file card with a direct download action.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>What happens if layout generation fails?</summary>
+            <p>CadArena applies fallback planning strategies to improve success on strict or complex constraints.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>Are project chats saved?</summary>
+            <p>Yes. Each project keeps its own chat timeline and generated outputs so you can continue later.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="home-docs" id="docs">
+        <h2 class="section-title reveal">Documentation</h2>
+        <p class="section-copy reveal">
+          API references, endpoint details, and integration guides for CadArena services.
+        </p>
+        <div class="home-section-action reveal">
+          <a class="cta-link" href="/docs">Open API Docs</a>
+        </div>
+      </section>
+
+      <section class="cta-banner reveal">
+        <p>Ship your next CAD concept with an AI workflow designed for speed.</p>
+        <a href="/app/">Launch Workspace</a>
+      </section>
+    </main>
+
+    <footer class="site-footer-bar reveal">
+      <div class="site-footer-inner">
+        <div class="site-footer-top">
+          <div class="site-footer-icons" aria-label="Social links">
+            <a
+              class="site-footer-icon-link"
+              href="https://www.linkedin.com/company/cadarena"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="LinkedIn"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6.4 8.4a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4Zm-1.5 2H8v8.6H4.9V10.4Zm5.1 0h3v1.2h.1c.4-.8 1.5-1.5 3-1.5 3.2 0 3.8 2.1 3.8 4.8v4.1h-3.1v-3.6c0-.9 0-2-1.3-2s-1.5 1-1.5 1.9v3.7H10V10.4Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </a>
+            <a class="site-footer-icon-link" href="https://github.com/CadArena" target="_blank" rel="noreferrer" aria-label="GitHub">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11 11 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </a>
+            <a class="site-footer-icon-link" href="mailto:cadarena.ai@gmail.com" aria-label="Email">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3.8 7.2A2.2 2.2 0 0 1 6 5h12a2.2 2.2 0 0 1 2.2 2.2v9.6A2.2 2.2 0 0 1 18 19H6a2.2 2.2 0 0 1-2.2-2.2V7.2Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+                <path
+                  d="m4.7 8.1 6.2 4.9a1.8 1.8 0 0 0 2.2 0l6.2-4.9"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="site-footer-bottom">
+          <span class="site-footer-copy" id="year-label"></span>
+          <div class="site-footer-legal" aria-label="Legal links">
+            <span>Privacy</span>
+            <span>Terms of Use</span>
+            <span>SaaS Agreement</span>
+            <span>Manage Cookies</span>
+            <span class="site-footer-lang">
+              <span>English</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <a class="scroll-to-top" id="scroll-to-top" href="#about" aria-label="Back to top">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M12 19V5m0 0-5 5m5-5 5 5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+
+    <script src="/static/scripts/back-nav.js?v=1" defer></script>
+    <script type="module" src="/static/scripts/landing.js?v=workflow20"></script>
+  </body>
+</html>

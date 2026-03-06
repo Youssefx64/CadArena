@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title desc">
+  <title id="title">DXF export preview</title>
+  <desc id="desc">Illustrated file export panel with CAD metadata.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#12313a" />
+      <stop offset="100%" stop-color="#162830" />
+    </linearGradient>
+    <linearGradient id="btn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5de6c7" />
+      <stop offset="100%" stop-color="#5daeff" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" rx="24" fill="url(#bg)" />
+  <rect x="42" y="42" width="556" height="276" rx="16" fill="#0b1418" stroke="#3c6571" stroke-opacity="0.7" />
+  <rect x="74" y="76" width="492" height="74" rx="12" fill="#121f24" stroke="#2f5058" />
+  <text x="98" y="112" fill="#d8ecf3" font-size="20" font-family="Manrope, Arial, sans-serif" font-weight="700">layout_v5.dxf</text>
+  <text x="98" y="136" fill="#8eb3bf" font-size="14" font-family="Manrope, Arial, sans-serif">Project: Residential_Block_A | Units: mm | Layers: 28</text>
+  <rect x="74" y="168" width="492" height="118" rx="12" fill="#0f1c20" stroke="#2e4b53" />
+  <path d="M98 198h170M98 220h240M98 242h210M98 264h194" stroke="#8eacb8" stroke-width="5" stroke-linecap="round" />
+  <rect x="372" y="196" width="166" height="62" rx="13" fill="url(#btn)" />
+  <text x="455" y="234" text-anchor="middle" fill="#03222b" font-size="19" font-family="Manrope, Arial, sans-serif" font-weight="800">Download</text>
+  <circle cx="554" cy="102" r="14" fill="#163935" stroke="#6ef2d3" stroke-opacity="0.9" />
+  <path d="M548 102l4 4 8-10" fill="none" stroke="#84f8dd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="56" y="338" fill="#b8dce7" font-size="20" font-family="Manrope, Arial, sans-serif" font-weight="700">DXF Export Preview</text>
+</svg>

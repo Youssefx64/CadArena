@@ -1,0 +1,68 @@
+.ca-back-btn {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid rgba(13, 99, 84, 0.34);
+  border-radius: 999px;
+  padding: 0 14px 0 12px;
+  background: linear-gradient(140deg, rgba(248, 255, 252, 0.97), rgba(227, 248, 240, 0.95));
+  color: #0f5c4f;
+  box-shadow: 0 10px 22px rgba(7, 43, 37, 0.18);
+  cursor: pointer;
+  font: 700 0.9rem/1 "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.ca-back-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ca-back-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(10, 112, 94, 0.56);
+  box-shadow: 0 14px 28px rgba(7, 43, 37, 0.24);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.99), rgba(227, 248, 240, 0.98));
+}
+
+.ca-back-btn:focus-visible {
+  outline: 2px solid rgba(12, 123, 104, 0.52);
+  outline-offset: 2px;
+}
+
+html[data-theme="dark"] .ca-back-btn {
+  border-color: rgba(111, 170, 158, 0.44);
+  background: linear-gradient(145deg, rgba(18, 26, 31, 0.96), rgba(14, 34, 31, 0.93));
+  color: #d8f5ee;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.42);
+}
+
+html[data-theme="dark"] .ca-back-btn:hover {
+  border-color: rgba(131, 198, 184, 0.58);
+  background: linear-gradient(145deg, rgba(20, 30, 35, 0.98), rgba(16, 37, 34, 0.96));
+}
+
+@media (max-width: 720px) {
+  .ca-back-btn {
+    left: 12px;
+    bottom: 12px;
+    min-height: 38px;
+    padding: 0 12px 0 10px;
+    font-size: 0.84rem;
+  }
+
+  .ca-back-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+}
