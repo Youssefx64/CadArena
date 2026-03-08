@@ -1,0 +1,18 @@
+services:
+  cadarena-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: cadarena-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../backend/.env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      MPLBACKEND: Agg
+      CADARENA_ENV: dev
+    volumes:
+      - ../backend/data:/app/backend/data
+      - ../backend/output:/app/backend/output
+    restart: unless-stopped
