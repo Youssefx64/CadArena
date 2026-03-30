@@ -24,7 +24,14 @@
       })();
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <link rel="stylesheet" href="/static/styles/styles.css?v=theme47" />
+    <!-- FIX 9: missing font import -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles/styles.css?v=theme50" />
     <link rel="stylesheet" href="/static/styles/back-nav.css?v=1" />
   </head>
   <body>
@@ -73,8 +80,8 @@
             class="topbar-layout-btn"
             id="toggle-preview-btn"
             type="button"
-            aria-label="Hide live preview"
-            title="Hide live preview"
+            aria-label="Hide DXF render"
+            title="Hide DXF render"
             aria-pressed="false"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -331,6 +338,7 @@
               id="sidebar-dxf-upload-trigger-btn"
               type="button"
               aria-label="Open DXF render"
+              aria-pressed="false"
               title="Open DXF render"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -346,7 +354,6 @@
               <span>DXF Render</span>
             </button>
           </nav>
-          <input id="sidebar-dxf-upload-input" type="file" accept=".dxf" hidden />
 
           <section class="project-picker sidebar-section sidebar-tab-panel" id="sidebar-projects-panel">
             <div class="sidebar-panel-header">
@@ -466,7 +473,7 @@
           aria-label="Resize chat and preview"
         ></div>
 
-        <aside class="panel preview">
+        <aside class="panel preview" hidden>
           <header class="preview-header">
             <div class="header-main">
               <span class="header-icon-badge header-icon-preview" aria-hidden="true">
@@ -571,7 +578,7 @@
           </div>
         </aside>
 
-        <section class="panel dxf-render-panel" id="dxf-render-panel" hidden>
+        <section class="panel dxf-render-panel" id="dxf-render-panel">
           <header class="preview-header dxf-render-header">
             <div class="header-main">
               <span class="header-icon-badge header-icon-preview" aria-hidden="true">
@@ -588,23 +595,10 @@
               </span>
               <div>
                 <p class="eyebrow">DXF Render</p>
-                <h2>Standalone Renderer</h2>
+                <h2>Chat-Side Renderer</h2>
               </div>
             </div>
             <div class="preview-tools">
-              <button class="preview-tool refresh-tool" id="dxf-render-upload-btn" type="button" title="Upload DXF file">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M12 4.2v8.5m0 0 3.1-3.1M12 12.7 8.9 9.6M5.2 16.2v1.7A1.9 1.9 0 0 0 7.1 20h9.8a1.9 1.9 0 0 0 1.9-2.1v-1.7"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                <span>Upload DXF</span>
-              </button>
               <button class="preview-tool refresh-tool" id="dxf-render-refresh-btn" type="button" title="Refresh DXF render">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -675,8 +669,8 @@
           </header>
 
           <div class="preview-canvas dxf-render-canvas" id="dxf-render-canvas">
-            <div class="preview-empty" id="dxf-render-empty">Upload a DXF file to render it in this standalone view.</div>
-            <img id="dxf-render-image" alt="Standalone DXF render preview" />
+            <div class="preview-empty" id="dxf-render-empty">Generate a DXF from chat to render it here.</div>
+            <img id="dxf-render-image" alt="DXF render preview" />
           </div>
         </section>
       </main>
@@ -684,6 +678,6 @@
     </div>
 
     <script src="/static/scripts/back-nav.js?v=1" defer></script>
-    <script type="module" src="/static/scripts/app.js?v=theme38"></script>
+    <script type="module" src="/static/scripts/app.js?v=theme41"></script>
   </body>
 </html>

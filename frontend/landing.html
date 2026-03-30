@@ -193,11 +193,15 @@
           </div>
         </div>
         <aside class="hero-visual reveal" aria-label="CadArena workflow illustration">
+          <!-- FIX 4: hero image LCP -->
           <img
             class="hero-visual-image"
             src="/static/assets/hero-cad-workflow.svg"
             alt="CadArena converts prompts into validated DXF layouts with browser preview."
-            loading="lazy"
+            fetchpriority="high"
+            decoding="async"
+            width="600"
+            height="480"
           />
           <div class="hero-visual-badges">
             <span class="hero-visual-badge">
