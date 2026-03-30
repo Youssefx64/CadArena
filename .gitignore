@@ -1,5 +1,6 @@
 backend/output/
 backend/data/
+.codex
 
 # SQLite runtime databases
 *.db
