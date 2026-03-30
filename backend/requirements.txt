@@ -9,5 +9,8 @@ accelerate>=0.30.0
 sentencepiece>=0.2.0
 pytest==9.0.2
 bcrypt>=4.0.1,<5
+cryptography>=43.0.0,<46
 google-auth>=2.38.0,<3
 python-multipart>=0.0.9,<1
+langchain>=0.2.0
+langchain-ollama>=0.2.0
