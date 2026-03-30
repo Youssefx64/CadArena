@@ -50,6 +50,8 @@ let lineIndex = 0;
 let frameId = null;
 let landingUserMenuOpen = false;
 let landingUserMenuHideTimer = null;
+/* FIX 5: RAF scroll handler */
+let _scrollRAF = null;
 
 function readStoredFlag(key) {
   try {
@@ -401,8 +403,8 @@ function updateScrollProgress() {
 
   const doc = document.documentElement;
   const scrollHeight = doc.scrollHeight - doc.clientHeight;
-  const progress = scrollHeight <= 0 ? 0 : (window.scrollY / scrollHeight) * 100;
-  scrollProgress.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+  const progress = scrollHeight <= 0 ? 0 : window.scrollY / scrollHeight;
+  scrollProgress.style.transform = `scaleX(${Math.max(0, Math.min(1, progress))})`;
 }
 
 function updateScrollToTopButton() {
@@ -564,10 +566,16 @@ document.addEventListener("keydown", (event) => {
 setupRevealObserver();
 setupSectionSpy();
 window.addEventListener("scroll", () => {
-  updateTopNav();
-  updateScrollProgress();
-  updateScrollToTopButton();
-  updateActiveSectionByScroll();
+  if (_scrollRAF) {
+    return;
+  }
+  _scrollRAF = window.requestAnimationFrame(() => {
+    updateTopNav();
+    updateScrollProgress();
+    updateScrollToTopButton();
+    updateActiveSectionByScroll();
+    _scrollRAF = null;
+  });
 }, { passive: true });
 window.addEventListener("resize", () => {
   updateScrollProgress();

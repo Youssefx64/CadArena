@@ -43,7 +43,6 @@ const dxfRenderPanel = document.getElementById("dxf-render-panel");
 const dxfRenderCanvas = document.getElementById("dxf-render-canvas");
 const dxfRenderImage = document.getElementById("dxf-render-image");
 const dxfRenderEmpty = document.getElementById("dxf-render-empty");
-const dxfRenderUploadButton = document.getElementById("dxf-render-upload-btn");
 const dxfRenderRefreshButton = document.getElementById("dxf-render-refresh-btn");
 const dxfRenderDownloadPngButton = document.getElementById("dxf-render-download-png-btn");
 const dxfRenderDownloadPdfButton = document.getElementById("dxf-render-download-pdf-btn");
@@ -67,6 +66,8 @@ const authLoginTab = document.getElementById("auth-login-tab");
 const authRegisterTab = document.getElementById("auth-register-tab");
 const authLoginForm = document.getElementById("auth-login-form");
 const authRegisterForm = document.getElementById("auth-register-form");
+const authLoginButton = document.getElementById("auth-login-btn");
+const authRegisterButton = document.getElementById("auth-register-btn");
 const loginEmailInput = document.getElementById("login-email-input");
 const loginPasswordInput = document.getElementById("login-password-input");
 const registerNameInput = document.getElementById("register-name-input");
@@ -78,7 +79,6 @@ const googleAuthButton = document.getElementById("google-auth-button");
 const sidebarChatTabButton = document.getElementById("sidebar-chat-tab-btn");
 const sidebarProjectsTabButton = document.getElementById("sidebar-projects-tab-btn");
 const sidebarDxfUploadTriggerButton = document.getElementById("sidebar-dxf-upload-trigger-btn");
-const sidebarDxfUploadInput = document.getElementById("sidebar-dxf-upload-input");
 const sidebarChatSearchInput = document.getElementById("sidebar-chat-search-input");
 const sidebarChatPanel = document.getElementById("sidebar-chat-panel");
 const sidebarProjectsPanel = document.getElementById("sidebar-projects-panel");
@@ -96,10 +96,12 @@ const WORKSPACE_LAYOUT_STORAGE_KEY = "cadarena_workspace_layout_v1";
 const DEFAULT_PROFILE_AVATAR = "/static/assets/cadarena-mark.svg";
 const WORKSPACE_TOGGLE_ANIMATION_MS = 220;
 const WHEEL_ZOOM_HINT = "Use Ctrl/Cmd + mouse wheel to zoom";
+const DXF_RENDER_EMPTY_MESSAGE = "Generate a DXF from chat to render it here.";
 
 const state = {
   userId: getOrCreateUserId(),
   activeProjectId: null,
+  currentLayout: null,
   sidebarTab: "chat",
   projectSearchQuery: "",
   projects: [],
@@ -107,7 +109,7 @@ const state = {
   modelLoading: false,
   messageCount: 0,
   serverMessageCount: 0,
-  lastPreviewDxfPath: null,
+  lastPreviewFileToken: null,
   previewScale: 1,
   previewPanX: 0,
   previewPanY: 0,
@@ -128,8 +130,11 @@ const state = {
   dxfRenderPanY: 0,
   dxfRenderBaseWidth: 0,
   dxfRenderBaseHeight: 0,
-  dxfRenderPath: null,
+  dxfRenderFileToken: null,
   dxfRenderFileName: null,
+  dxfRenderSource: null,
+  dxfRenderProjectId: null,
+  latestProjectDxfToken: null,
   authMode: "unknown",
   authUser: null,
   profile: null,
@@ -218,6 +223,13 @@ function resolvePreferredAuthTab() {
 }
 
 let activeWorkspaceResizeSession = null;
+// FIX 1: double-submit guard
+let _loginPending = false;
+let _registerPending = false;
+let _projectCreatePending = false;
+// FIX 6: RAF panel resize and spotlight updates
+let _resizeRAF = null;
+let _pendingResizeClientX = null;
 
 function clamp(value, minimum, maximum) {
   if (!Number.isFinite(value)) {
@@ -284,9 +296,14 @@ function updateLayoutToggleButtons() {
     const hidden = state.workspaceLayout.previewHidden;
     togglePreviewButton.classList.toggle("is-active", hidden);
     togglePreviewButton.setAttribute("aria-pressed", String(hidden));
-    const label = hidden ? "Show live preview" : "Hide live preview";
+    const label = hidden ? "Show DXF render" : "Hide DXF render";
     togglePreviewButton.setAttribute("aria-label", label);
     togglePreviewButton.title = label;
+  }
+
+  if (sidebarDxfUploadTriggerButton) {
+    sidebarDxfUploadTriggerButton.classList.remove("active", "is-open");
+    sidebarDxfUploadTriggerButton.setAttribute("aria-pressed", "false");
   }
 
   if (sidebarQuickHideButton) {
@@ -351,6 +368,7 @@ function beginWorkspaceResize(side, event) {
   }
 
   event.preventDefault();
+  _pendingResizeClientX = event.clientX;
   activeWorkspaceResizeSession = {
     side,
     startX: event.clientX,
@@ -359,6 +377,7 @@ function beginWorkspaceResize(side, event) {
   };
 
   document.body.classList.add("is-resizing-workspace");
+  workspaceShell.classList.add("is-dragging");
   if (workspaceLeftResizer) {
     workspaceLeftResizer.classList.toggle("is-active", side === "left");
   }
@@ -371,12 +390,12 @@ function beginWorkspaceResize(side, event) {
   window.addEventListener("pointercancel", endWorkspaceResize);
 }
 
-function handleWorkspaceResizeDrag(event) {
-  if (!activeWorkspaceResizeSession) {
+function flushWorkspaceResizeDrag() {
+  if (!activeWorkspaceResizeSession || _pendingResizeClientX === null) {
     return;
   }
 
-  const deltaX = event.clientX - activeWorkspaceResizeSession.startX;
+  const deltaX = _pendingResizeClientX - activeWorkspaceResizeSession.startX;
   if (activeWorkspaceResizeSession.side === "left") {
     state.workspaceLayout.sidebarWidth = activeWorkspaceResizeSession.sidebarWidth + deltaX;
   } else {
@@ -386,13 +405,35 @@ function handleWorkspaceResizeDrag(event) {
   applyWorkspaceLayout({ persist: false });
 }
 
+function handleWorkspaceResizeDrag(event) {
+  if (!activeWorkspaceResizeSession) {
+    return;
+  }
+  _pendingResizeClientX = event.clientX;
+  if (_resizeRAF) {
+    return;
+  }
+  _resizeRAF = window.requestAnimationFrame(() => {
+    flushWorkspaceResizeDrag();
+    _resizeRAF = null;
+  });
+}
+
 function endWorkspaceResize() {
   if (!activeWorkspaceResizeSession) {
     return;
   }
 
+  if (_resizeRAF) {
+    window.cancelAnimationFrame(_resizeRAF);
+    _resizeRAF = null;
+  }
+  flushWorkspaceResizeDrag();
+  _pendingResizeClientX = null;
+
   activeWorkspaceResizeSession = null;
   document.body.classList.remove("is-resizing-workspace");
+  workspaceShell?.classList.remove("is-dragging");
   if (workspaceLeftResizer) {
     workspaceLeftResizer.classList.remove("is-active");
   }
@@ -429,6 +470,25 @@ function togglePreviewVisibility() {
   triggerWorkspaceToggleAnimation();
   state.workspaceLayout.previewHidden = !state.workspaceLayout.previewHidden;
   applyWorkspaceLayout({ persist: true });
+}
+
+function revealDxfRenderPanel({ scrollIntoView = true } = {}) {
+  if (state.workspaceLayout.previewHidden) {
+    triggerWorkspaceToggleAnimation();
+    state.workspaceLayout.previewHidden = false;
+    applyWorkspaceLayout({ persist: true });
+  }
+
+  if (!dxfRenderPanel) {
+    return;
+  }
+
+  if (!isDesktopWorkspaceLayout() && scrollIntoView && typeof dxfRenderPanel.scrollIntoView === "function") {
+    dxfRenderPanel.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
 }
 
 function initializeWorkspaceLayout() {
@@ -508,19 +568,35 @@ function setupPanelSpotlight() {
     return;
   }
 
+  /* FIX 6: RAF panel resize and spotlight updates */
   for (const panel of panelNodes) {
+    let spotlightRAF = null;
+    let pendingClientX = 0;
+    let pendingClientY = 0;
     panel.addEventListener(
       "pointermove",
       (event) => {
-        const bounds = panel.getBoundingClientRect();
-        panel.style.setProperty("--spot-x", `${event.clientX - bounds.left}px`);
-        panel.style.setProperty("--spot-y", `${event.clientY - bounds.top}px`);
-        panel.classList.add("is-spotlit");
+        pendingClientX = event.clientX;
+        pendingClientY = event.clientY;
+        if (spotlightRAF) {
+          return;
+        }
+        spotlightRAF = window.requestAnimationFrame(() => {
+          const bounds = panel.getBoundingClientRect();
+          panel.style.setProperty("--spot-x", `${pendingClientX - bounds.left}px`);
+          panel.style.setProperty("--spot-y", `${pendingClientY - bounds.top}px`);
+          panel.classList.add("is-spotlit");
+          spotlightRAF = null;
+        });
       },
       { passive: true },
     );
 
     panel.addEventListener("pointerleave", () => {
+      if (spotlightRAF) {
+        window.cancelAnimationFrame(spotlightRAF);
+        spotlightRAF = null;
+      }
       panel.classList.remove("is-spotlit");
     });
   }
@@ -553,6 +629,7 @@ function resetWorkspaceState() {
   removeTypingIndicator();
   state.projects = [];
   state.activeProjectId = null;
+  state.currentLayout = null;
   state.projectSearchQuery = "";
   state.sidebarTab = "chat";
   state.serverMessageCount = 0;
@@ -628,9 +705,8 @@ function setSidebarTab(tab) {
   const normalized = tab === "projects" ? "projects" : "chat";
   state.sidebarTab = normalized;
   const hasSearchQuery = Boolean(state.projectSearchQuery.trim());
-  const isDxfMode = state.workspaceMode === "dxf";
-  const chatActive = !isDxfMode && normalized === "chat";
-  const projectsActive = !isDxfMode && (normalized === "projects" || hasSearchQuery);
+  const chatActive = normalized === "chat" && !hasSearchQuery;
+  const projectsActive = normalized === "projects" || hasSearchQuery;
 
   if (sidebarChatTabButton) {
     sidebarChatTabButton.classList.toggle("active", chatActive);
@@ -653,26 +729,14 @@ function setWorkspaceMode(mode) {
   if (!workspaceShell) {
     return;
   }
-  const normalized = mode === "dxf" ? "dxf" : "studio";
-  const isDxfMode = normalized === "dxf";
-  state.workspaceMode = normalized;
-
-  workspaceShell.classList.toggle("is-dxf-render-mode", isDxfMode);
-  if (dxfRenderPanel) {
-    dxfRenderPanel.hidden = !isDxfMode;
-  }
-
-  if (sidebarDxfUploadTriggerButton) {
-    sidebarDxfUploadTriggerButton.classList.toggle("active", isDxfMode);
-    sidebarDxfUploadTriggerButton.setAttribute("aria-current", isDxfMode ? "true" : "false");
-  }
+  state.workspaceMode = "studio";
+  workspaceShell.classList.remove("is-dxf-render-mode");
 
   if (togglePreviewButton) {
-    togglePreviewButton.disabled = isDxfMode;
-    togglePreviewButton.setAttribute("aria-disabled", String(isDxfMode));
+    togglePreviewButton.disabled = false;
+    togglePreviewButton.setAttribute("aria-disabled", "false");
   }
 
-  // Keep sidebar switch states mutually exclusive.
   setSidebarTab(state.sidebarTab);
   keepWorkspaceViewportStable();
 }
@@ -823,12 +887,12 @@ function sanitizeExportBaseName(rawValue, fallback = "design_export") {
   return normalized || fallback;
 }
 
-function buildDxfExportUrl(dxfPath, format, filenameBase) {
+function buildDxfExportUrl(fileToken, format, filenameBase) {
   const normalizedFormat = format === "pdf" ? "pdf" : "image";
   const extension = normalizedFormat === "pdf" ? ".pdf" : ".png";
   const filename = `${sanitizeExportBaseName(filenameBase)}${extension}`;
   return (
-    `/api/v1/dxf/export?dxf_path=${encodeURIComponent(dxfPath)}` +
+    `/api/v1/dxf/export?file_token=${encodeURIComponent(fileToken)}` +
     `&format=${encodeURIComponent(normalizedFormat)}` +
     `&filename=${encodeURIComponent(filename)}`
   );
@@ -870,15 +934,15 @@ function previewExportBaseName() {
 }
 
 function dxfRenderExportBaseName() {
-  const hintedName = state.dxfRenderFileName || "standalone_dxf";
-  return sanitizeExportBaseName(hintedName, "standalone_dxf");
+  const hintedName = state.dxfRenderFileName || "dxf_render";
+  return sanitizeExportBaseName(hintedName, "dxf_render");
 }
 
-function downloadDxfExport(dxfPath, format, filenameBase) {
-  if (!dxfPath) {
+function downloadDxfExport(fileToken, format, filenameBase) {
+  if (!fileToken) {
     return;
   }
-  const downloadUrl = buildDxfExportUrl(dxfPath, format, filenameBase);
+  const downloadUrl = buildDxfExportUrl(fileToken, format, filenameBase);
   triggerFileDownload(downloadUrl);
 }
 
@@ -912,7 +976,7 @@ function resetPreview() {
   state.previewPanY = 0;
   state.previewBaseWidth = 0;
   state.previewBaseHeight = 0;
-  state.lastPreviewDxfPath = null;
+  state.lastPreviewFileToken = null;
   setPreviewExportButtonsEnabled(false);
   previewEmpty.style.display = "grid";
   previewEmpty.textContent = "Generate a DXF from chat to see its live preview here.";
@@ -1079,22 +1143,22 @@ function endCanvasPan(event) {
   }
 }
 
-function updatePreview({ fileName, dxfPath }) {
+function updatePreview({ fileName, fileToken }) {
   if (previewFilename) {
     previewFilename.textContent = fileName;
   }
   if (previewSource) {
-    previewSource.textContent = dxfPath;
+    previewSource.textContent = fileToken ? `Session token: ${fileToken}` : "-";
   }
-  state.lastPreviewDxfPath = dxfPath;
-  setPreviewExportButtonsEnabled(Boolean(dxfPath));
+  state.lastPreviewFileToken = fileToken;
+  setPreviewExportButtonsEnabled(Boolean(fileToken));
   previewEmpty.textContent = "Rendering preview...";
   previewEmpty.style.display = "grid";
   previewImage.style.display = "none";
   previewImage.classList.remove("is-visible");
   previewCanvas.classList.add("loading");
 
-  const previewUrl = `/api/v1/dxf/preview?dxf_path=${encodeURIComponent(dxfPath)}&v=${Date.now()}`;
+  const previewUrl = `/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
 
   previewImage.onload = () => {
     previewCanvas.classList.remove("loading");
@@ -1127,7 +1191,10 @@ function updatePreview({ fileName, dxfPath }) {
   previewImage.src = previewUrl;
 }
 
-function resetDxfRenderPreview() {
+function resetDxfRenderPreview({
+  emptyMessage = DXF_RENDER_EMPTY_MESSAGE,
+  projectId = state.activeProjectId,
+} = {}) {
   if (!dxfRenderCanvas || !dxfRenderImage || !dxfRenderEmpty) {
     return;
   }
@@ -1137,17 +1204,21 @@ function resetDxfRenderPreview() {
   dxfRenderImage.removeAttribute("src");
   dxfRenderImage.style.transform = "translate(0px, 0px) scale(1)";
   dxfRenderEmpty.style.display = "grid";
-  dxfRenderEmpty.textContent = "Upload a DXF file to render it in this standalone view.";
+  dxfRenderEmpty.textContent = emptyMessage;
   state.dxfRenderScale = 1;
   state.dxfRenderPanX = 0;
   state.dxfRenderPanY = 0;
   state.dxfRenderBaseWidth = 0;
   state.dxfRenderBaseHeight = 0;
-  state.dxfRenderPath = null;
+  state.dxfRenderFileToken = null;
   state.dxfRenderFileName = null;
+  state.dxfRenderSource = null;
+  state.dxfRenderProjectId = projectId || null;
+  state.latestProjectDxfToken = null;
   setDxfRenderExportButtonsEnabled(false);
   updateDxfRenderCanvasInteractionState();
   updateDxfRenderZoomLabel();
+  syncFilePreviewActionState();
 }
 
 function clampDxfRenderPan() {
@@ -1220,21 +1291,29 @@ function panDxfRenderBy(deltaX, deltaY) {
   applyDxfRenderScale();
 }
 
-function updateStandaloneDxfRender({ fileName, dxfPath }) {
+function updateStandaloneDxfRender({
+  fileName,
+  fileToken,
+  projectId = state.activeProjectId,
+  source = "chat",
+}) {
   if (!dxfRenderCanvas || !dxfRenderImage || !dxfRenderEmpty) {
     return;
   }
 
-  state.dxfRenderPath = dxfPath;
-  state.dxfRenderFileName = fileName || "uploaded_file.dxf";
-  setDxfRenderExportButtonsEnabled(Boolean(dxfPath));
+  state.dxfRenderFileToken = fileToken;
+  state.dxfRenderFileName = fileName || "generated_file.dxf";
+  state.dxfRenderSource = source;
+  state.dxfRenderProjectId = projectId || null;
+  setDxfRenderExportButtonsEnabled(Boolean(fileToken));
+  syncFilePreviewActionState();
   dxfRenderEmpty.textContent = "Rendering DXF...";
   dxfRenderEmpty.style.display = "grid";
   dxfRenderImage.style.display = "none";
   dxfRenderImage.classList.remove("is-visible");
   dxfRenderCanvas.classList.add("loading");
 
-  const previewUrl = `/api/v1/dxf/preview?dxf_path=${encodeURIComponent(dxfPath)}&v=${Date.now()}`;
+  const previewUrl = `/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
 
   dxfRenderImage.onload = () => {
     dxfRenderCanvas.classList.remove("loading");
@@ -1254,7 +1333,7 @@ function updateStandaloneDxfRender({ fileName, dxfPath }) {
     dxfRenderImage.style.display = "none";
     dxfRenderImage.classList.remove("is-visible");
     dxfRenderEmpty.style.display = "grid";
-    dxfRenderEmpty.textContent = "Standalone DXF render is unavailable right now.";
+    dxfRenderEmpty.textContent = "DXF render is unavailable right now.";
     state.dxfRenderPanX = 0;
     state.dxfRenderPanY = 0;
     state.dxfRenderBaseWidth = 0;
@@ -1272,6 +1351,15 @@ function createDownloadIcon() {
   icon.setAttribute("aria-hidden", "true");
   icon.innerHTML =
     '<path d="M12 3v11m0 0 4-4m-4 4-4-4m-5 8h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />';
+  return icon;
+}
+
+function createEyeIcon() {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML =
+    '<path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6zm9.5-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
   return icon;
 }
 
@@ -1322,7 +1410,8 @@ function scrollChatToBottom({ behavior = "auto" } = {}) {
   updateChatScrollBottomButton();
 }
 
-function appendMessage(role, text, { isError = false, createdAt = null } = {}) {
+// FIX 2: preserve user scroll position during polling
+function appendMessage(role, text, { isError = false, createdAt = null, autoScroll = true } = {}) {
   const bubbleRole = role === "user" ? "user" : "assistant";
   const message = document.createElement("article");
   message.className = `message ${bubbleRole}${isError ? " error" : ""}`;
@@ -1335,11 +1424,13 @@ function appendMessage(role, text, { isError = false, createdAt = null } = {}) {
   message.appendChild(stamp);
 
   chatThread.appendChild(message);
-  scrollChatToBottom({ behavior: "auto" });
+  if (autoScroll) {
+    scrollChatToBottom({ behavior: "smooth" });
+  }
   return message;
 }
 
-function appendTypingIndicator() {
+function appendTypingIndicator({ autoScroll = true } = {}) {
   removeTypingIndicator();
   const message = document.createElement("article");
   message.className = "message assistant typing";
@@ -1348,7 +1439,9 @@ function appendTypingIndicator() {
   dots.innerHTML = "<span></span><span></span><span></span>";
   message.appendChild(dots);
   chatThread.appendChild(message);
-  scrollChatToBottom({ behavior: "auto" });
+  if (autoScroll) {
+    scrollChatToBottom({ behavior: "smooth" });
+  }
   state.typingIndicator = message;
   return message;
 }
@@ -1361,30 +1454,59 @@ function removeTypingIndicator() {
   updateChatScrollBottomButton();
 }
 
-function syncBusyIndicator(messages) {
+function syncBusyIndicator(messages, { autoScroll = true } = {}) {
   if (!state.busy) {
     removeTypingIndicator();
     return;
   }
   const last = messages[messages.length - 1];
   if (!last || last.role === "user") {
-    appendTypingIndicator();
+    appendTypingIndicator({ autoScroll });
     return;
   }
   removeTypingIndicator();
 }
 
-function buildDownloadUrl(dxfPath, dxfName) {
+function syncFilePreviewActionState() {
+  if (!chatThread) {
+    return;
+  }
+  const previewButtons = chatThread.querySelectorAll("[data-dxf-preview-token]");
+  for (const button of previewButtons) {
+    const isActive = button.dataset.dxfPreviewToken === state.dxfRenderFileToken;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    button.setAttribute("title", isActive ? "Currently shown in DXF render" : "Show in DXF render");
+    const label = button.querySelector("[data-file-action-label]");
+    if (label) {
+      label.textContent = isActive ? "Showing" : "View";
+    }
+  }
+}
+
+function buildDownloadUrl(fileToken, dxfName) {
   return (
-    `/api/v1/dxf/download?dxf_path=${encodeURIComponent(dxfPath)}` +
+    `/api/v1/dxf/download?file_token=${encodeURIComponent(fileToken)}` +
     `&filename=${encodeURIComponent(dxfName)}`
   );
 }
 
-function appendFileMessage(message) {
+function buildIterativeEditHint(message) {
+  const changedRooms = Array.isArray(message?.changed_rooms)
+    ? message.changed_rooms.map((room) => String(room || "").trim()).filter(Boolean)
+    : [];
+  if (message?.is_new_design === false && changedRooms.length) {
+    return `✦ Edited — ${changedRooms.join(", ")} updated`;
+  }
+  return "";
+}
+
+function appendFileMessage(message, { autoScroll = true } = {}) {
   const wrapper = appendMessage("assistant", message.text, {
     createdAt: message.created_at,
+    autoScroll,
   });
+  const dxfName = message.dxf_name || "generated_file.dxf";
 
   const card = document.createElement("div");
   card.className = "file-card";
@@ -1394,31 +1516,112 @@ function appendFileMessage(message) {
 
   const name = document.createElement("span");
   name.className = "file-name";
-  name.textContent = message.dxf_name || "generated_file.dxf";
+  name.textContent = dxfName;
+
+  const actions = document.createElement("div");
+  actions.className = "file-actions";
+
+  const previewButton = document.createElement("button");
+  previewButton.type = "button";
+  previewButton.className = "file-action file-preview-btn";
+  previewButton.dataset.dxfPreviewToken = message.file_token;
+  previewButton.setAttribute("aria-label", `Show ${dxfName} in DXF render`);
+  const previewLabel = document.createElement("span");
+  previewLabel.dataset.fileActionLabel = "true";
+  previewLabel.textContent = "View";
+  previewButton.append(previewLabel, createEyeIcon());
+  previewButton.addEventListener("click", () => {
+    revealDxfRenderPanel({ scrollIntoView: true });
+    updateStandaloneDxfRender({
+      fileName: dxfName,
+      fileToken: message.file_token,
+      projectId: state.activeProjectId,
+      source: "chat",
+    });
+  });
 
   const link = document.createElement("a");
-  link.className = "file-link";
-  link.href = buildDownloadUrl(message.dxf_path, message.dxf_name || "generated_file.dxf");
-  link.setAttribute("download", message.dxf_name || "generated_file.dxf");
+  link.className = "file-action file-link";
+  link.href = buildDownloadUrl(message.file_token, dxfName);
+  link.setAttribute("download", dxfName);
   link.setAttribute("title", "Download DXF");
   link.append("Download");
   link.append(createDownloadIcon());
 
-  main.append(name, link);
+  actions.append(previewButton, link);
+  main.append(name, actions);
 
   const pathHint = document.createElement("p");
   pathHint.className = "file-hint";
-  pathHint.textContent = `Source: ${message.dxf_path}`;
+  pathHint.textContent = `Session token: ${message.file_token}`;
 
-  const modelHintLine = document.createElement("p");
-  modelHintLine.className = "file-hint";
-  modelHintLine.textContent = `Model: ${message.model_used || "unknown"} | Provider: ${message.provider_used || "unknown"}`;
+  const modelHintText = message.model_used || message.provider_used
+    ? `Model: ${message.model_used || "unknown"} | Provider: ${message.provider_used || "unknown"}`
+    : "";
 
-  card.append(main, pathHint, modelHintLine);
+  card.append(main, pathHint);
+  if (modelHintText) {
+    const modelHintLine = document.createElement("p");
+    modelHintLine.className = "file-hint";
+    modelHintLine.textContent = modelHintText;
+    card.append(modelHintLine);
+  }
+
+  const iterativeHintText = buildIterativeEditHint(message);
+  if (iterativeHintText) {
+    const iterativeHintLine = document.createElement("p");
+    iterativeHintLine.className = "file-hint";
+    iterativeHintLine.textContent = iterativeHintText;
+    card.append(iterativeHintLine);
+  }
+
   wrapper.appendChild(card);
 }
 
+function appendIterativeResponseMessage(response) {
+  const fileToken = response?.preview_token || response?.file_token || null;
+  const dxfName = `${previewExportBaseName()}.dxf`;
+
+  if (fileToken) {
+    appendFileMessage(
+      {
+        text: response?.is_new_design ? "DXF generated successfully." : "DXF updated successfully.",
+        created_at: new Date().toISOString(),
+        dxf_name: dxfName,
+        file_token: fileToken,
+        changed_rooms: Array.isArray(response?.changed_rooms) ? response.changed_rooms : [],
+        is_new_design: Boolean(response?.is_new_design),
+      },
+      { autoScroll: true }
+    );
+    updatePreview({
+      fileName: dxfName,
+      fileToken,
+    });
+    state.latestProjectDxfToken = fileToken;
+    updateStandaloneDxfRender({
+      fileName: dxfName,
+      fileToken,
+      projectId: state.activeProjectId,
+      source: "chat",
+    });
+    syncFilePreviewActionState();
+    return;
+  }
+
+  appendMessage(
+    "assistant",
+    response?.is_new_design
+      ? "Design generated, but DXF preview is unavailable right now."
+      : "Design updated, but DXF preview is unavailable right now.",
+    { autoScroll: true }
+  );
+}
+
 function renderChatHistory(messages) {
+  const shouldAutoScroll =
+    !chatThread || chatThread.scrollHeight - chatThread.scrollTop - chatThread.clientHeight < 120;
+
   state.messageCount = 0;
   chatThread.innerHTML = "";
   if (chatPanel) {
@@ -1428,39 +1631,82 @@ function renderChatHistory(messages) {
   if (!messages.length) {
     appendMessage(
       "assistant",
-      "This project is empty. Write your first prompt and the project conversation will be saved automatically."
+      "This project is empty. Write your first prompt and the project conversation will be saved automatically.",
+      { autoScroll: false }
     );
-    return;
+  } else {
+    for (const message of messages) {
+      if (message.role === "user") {
+        appendMessage("user", message.text, {
+          createdAt: message.created_at,
+          autoScroll: false,
+        });
+        continue;
+      }
+      if (message.file_token) {
+        appendFileMessage(message, { autoScroll: false });
+        continue;
+      }
+      appendMessage("assistant", message.text, {
+        isError: message.role === "error",
+        createdAt: message.created_at,
+        autoScroll: false,
+      });
+    }
   }
 
-  for (const message of messages) {
-    if (message.role === "user") {
-      appendMessage("user", message.text, { createdAt: message.created_at });
-      continue;
-    }
-    if (message.dxf_path) {
-      appendFileMessage(message);
-      continue;
-    }
-    appendMessage("assistant", message.text, {
-      isError: message.role === "error",
-      createdAt: message.created_at,
-    });
+  syncBusyIndicator(messages, { autoScroll: shouldAutoScroll });
+  syncFilePreviewActionState();
+  if (shouldAutoScroll) {
+    scrollChatToBottom({ behavior: "auto" });
+  } else {
+    updateChatScrollBottomButton();
   }
+}
 
-  syncBusyIndicator(messages);
+function getLatestDxfMessage(messages) {
+  return [...messages].reverse().find((item) => Boolean(item.file_token)) || null;
 }
 
 function syncPreviewFromMessages(messages) {
-  const latestWithDxf = [...messages].reverse().find((item) => Boolean(item.dxf_path));
+  const latestWithDxf = getLatestDxfMessage(messages);
   if (!latestWithDxf) {
     resetPreview();
     return;
   }
   updatePreview({
     fileName: latestWithDxf.dxf_name || "generated_file.dxf",
-    dxfPath: latestWithDxf.dxf_path,
+    fileToken: latestWithDxf.file_token,
   });
+}
+
+function syncDxfRenderFromMessages(messages, projectId) {
+  const latestWithDxf = getLatestDxfMessage(messages);
+  const latestFileToken = latestWithDxf ? latestWithDxf.file_token : null;
+  const projectChanged = state.dxfRenderProjectId !== projectId;
+  const latestTokenChanged = latestFileToken !== state.latestProjectDxfToken;
+  state.latestProjectDxfToken = latestFileToken;
+
+  if (!latestWithDxf) {
+    if (projectChanged || state.dxfRenderSource === "chat") {
+      resetDxfRenderPreview({ projectId });
+      return;
+    }
+    syncFilePreviewActionState();
+    return;
+  }
+
+  if (projectChanged || latestTokenChanged) {
+    updateStandaloneDxfRender({
+      fileName: latestWithDxf.dxf_name || "generated_file.dxf",
+      fileToken: latestWithDxf.file_token,
+      projectId,
+      source: "chat",
+    });
+    return;
+  }
+
+  syncFilePreviewActionState();
 }
 
 function findModelMeta(modelValue) {
@@ -1539,22 +1785,25 @@ function applyConversationPayload(payload, { forceRender = true } = {}) {
   }
   state.serverMessageCount = messages.length;
 
-  const latestWithDxf = [...messages].reverse().find((item) => Boolean(item.dxf_path));
-  const latestDxfPath = latestWithDxf ? latestWithDxf.dxf_path : null;
-  const shouldRefreshPreview = latestDxfPath && latestDxfPath !== state.lastPreviewDxfPath;
+  const latestWithDxf = getLatestDxfMessage(messages);
+  const latestFileToken = latestWithDxf ? latestWithDxf.file_token : null;
+  const shouldRefreshPreview = latestFileToken && latestFileToken !== state.lastPreviewFileToken;
   if (forceRender) {
     renderProjectList();
     renderChatHistory(messages);
     syncPreviewFromMessages(messages);
+    syncDxfRenderFromMessages(messages, updatedProject.id);
     return;
   }
 
   if (shouldRefreshPreview) {
     updatePreview({
       fileName: latestWithDxf.dxf_name || "generated_file.dxf",
-      dxfPath: latestWithDxf.dxf_path,
+      fileToken: latestWithDxf.file_token,
     });
   }
+
+  syncDxfRenderFromMessages(messages, updatedProject.id);
 }
 
 function renderProjectList() {
@@ -1664,6 +1913,7 @@ async function createNewChatProject() {
   try {
     const createdProject = await createProjectRequest(nextName);
     state.projects.unshift(createdProject);
+    state.currentLayout = null;
     state.projectSearchQuery = "";
     if (sidebarChatSearchInput) {
       sidebarChatSearchInput.value = "";
@@ -1721,8 +1971,23 @@ async function fetchProjectMessages(projectId) {
 }
 
 async function sendPrompt(projectId, prompt) {
+  const useIterative = Boolean(state.currentLayout);
+
+  if (useIterative) {
+    const payload = await apiFetch(`/api/v1/workspace/${encodeURIComponent(projectId)}/iterate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: state.userId,
+        prompt,
+        current_layout: state.currentLayout,
+      }),
+    });
+    return { ...payload, _requestMode: "iterate" };
+  }
+
   if (isAuthenticatedMode()) {
-    return apiFetch(`/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}/generate-dxf`, {
+    const payload = await apiFetch(`/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}/generate-dxf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1731,9 +1996,10 @@ async function sendPrompt(projectId, prompt) {
         recovery_mode: "repair",
       }),
     });
+    return { ...payload, _requestMode: "generate" };
   }
 
-  return apiFetch(`/api/v1/workspace/projects/${encodeURIComponent(projectId)}/generate-dxf`, {
+  const payload = await apiFetch(`/api/v1/workspace/projects/${encodeURIComponent(projectId)}/generate-dxf`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1743,6 +2009,7 @@ async function sendPrompt(projectId, prompt) {
       recovery_mode: "repair",
     }),
   });
+  return { ...payload, _requestMode: "generate" };
 }
 
 async function fetchCurrentUser() {
@@ -1801,15 +2068,6 @@ async function logoutRequest() {
   });
 }
 
-async function uploadDxfRequest(file) {
-  const formData = new FormData();
-  formData.append("file", file);
-  return apiFetch("/api/v1/dxf/upload", {
-    method: "POST",
-    body: formData,
-  });
-}
-
 async function googleLoginRequest(credential) {
   return apiFetch("/api/v1/auth/google", {
     method: "POST",
@@ -1862,47 +2120,6 @@ async function handleGoogleCredentialResponse(response) {
     setAuthFeedback("");
   } catch (error) {
     setAuthFeedback(error.message, "error");
-  }
-}
-
-async function handleSidebarDxfUpload(file) {
-  if (!file || !dxfRenderCanvas || !dxfRenderEmpty) {
-    return;
-  }
-  setWorkspaceMode("dxf");
-  keepWorkspaceViewportStable();
-
-  const name = (file.name || "").toLowerCase();
-  if (!name.endsWith(".dxf")) {
-    dxfRenderCanvas.classList.remove("loading");
-    dxfRenderEmpty.style.display = "grid";
-    dxfRenderEmpty.textContent = "Only .dxf files are supported for standalone render.";
-    setStatus("Error", "error");
-    return;
-  }
-
-  setStatus("DXF Rendering", "pending");
-  dxfRenderCanvas.classList.add("loading");
-  dxfRenderEmpty.style.display = "grid";
-  dxfRenderEmpty.textContent = "Uploading DXF...";
-
-  try {
-    const payload = await uploadDxfRequest(file);
-    updateStandaloneDxfRender({
-      fileName: payload.stored_filename || file.name,
-      dxfPath: payload.dxf_path,
-    });
-    setStatus("Ready", "ready");
-    keepWorkspaceViewportStable();
-  } catch (error) {
-    dxfRenderCanvas.classList.remove("loading");
-    dxfRenderEmpty.style.display = "grid";
-    dxfRenderEmpty.textContent = `Upload failed: ${error.message}`;
-    setStatus("Error", "error");
-  } finally {
-    if (sidebarDxfUploadInput) {
-      sidebarDxfUploadInput.value = "";
-    }
   }
 }
 
@@ -2160,6 +2377,9 @@ async function ensureDefaultProject() {
 
 function setActiveProject(projectId) {
   const project = projectById(projectId);
+  if (state.activeProjectId !== (project ? project.id : null)) {
+    state.currentLayout = null;
+  }
   state.activeProjectId = project ? project.id : null;
   activeProjectTitle.textContent = project ? project.name : "No project selected";
   chatSubtitle.textContent = project ? "Loading conversation..." : "No project selected";
@@ -2179,6 +2399,7 @@ async function selectProject(projectId) {
   } catch (error) {
     renderChatHistory([]);
     resetPreview();
+    resetDxfRenderPreview({ projectId });
     appendMessage("assistant", `Failed to load project chat: ${error.message}`, {
       isError: true,
     });
@@ -2343,6 +2564,9 @@ async function handleProfileSubmit(event) {
 
 async function handleLoginSubmit(event) {
   event.preventDefault();
+  if (_loginPending) {
+    return;
+  }
   const email = loginEmailInput.value.trim().toLowerCase();
   const password = loginPasswordInput.value;
   if (!email || !password) {
@@ -2350,6 +2574,10 @@ async function handleLoginSubmit(event) {
     return;
   }
 
+  _loginPending = true;
+  if (authLoginButton) {
+    authLoginButton.disabled = true;
+  }
   setAuthFeedback("Signing in...");
   try {
     const payload = await loginRequest({ email, password });
@@ -2360,11 +2588,19 @@ async function handleLoginSubmit(event) {
     setAuthFeedback("");
   } catch (error) {
     setAuthFeedback(error.message, "error");
+  } finally {
+    _loginPending = false;
+    if (authLoginButton) {
+      authLoginButton.disabled = false;
+    }
   }
 }
 
 async function handleRegisterSubmit(event) {
   event.preventDefault();
+  if (_registerPending) {
+    return;
+  }
   const name = registerNameInput.value.trim();
   const email = registerEmailInput.value.trim().toLowerCase();
   const password = registerPasswordInput.value;
@@ -2373,6 +2609,10 @@ async function handleRegisterSubmit(event) {
     return;
   }
 
+  _registerPending = true;
+  if (authRegisterButton) {
+    authRegisterButton.disabled = true;
+  }
   setAuthFeedback("Creating account...");
   try {
     const payload = await registerRequest({ name, email, password });
@@ -2383,6 +2623,47 @@ async function handleRegisterSubmit(event) {
     setAuthFeedback("");
   } catch (error) {
     setAuthFeedback(error.message, "error");
+  } finally {
+    _registerPending = false;
+    if (authRegisterButton) {
+      authRegisterButton.disabled = false;
+    }
+  }
+}
+
+// FIX 1: double-submit guard
+async function handleProjectCreateSubmit(event) {
+  event.preventDefault();
+  if (_projectCreatePending) {
+    return;
+  }
+  const projectName = projectNameInput.value.trim();
+  if (!projectName) {
+    return;
+  }
+
+  _projectCreatePending = true;
+  if (projectCreateButton) {
+    projectCreateButton.disabled = true;
+  }
+
+  try {
+    const createdProject = await createProjectRequest(projectName);
+    state.projects.unshift(createdProject);
+    projectNameInput.value = "";
+    state.projectSearchQuery = "";
+    if (sidebarChatSearchInput) {
+      sidebarChatSearchInput.value = "";
+    }
+    setSidebarTab("chat");
+    await selectProject(createdProject.id);
+  } catch (error) {
+    appendMessage("assistant", `Project creation failed: ${error.message}`, { isError: true });
+  } finally {
+    _projectCreatePending = false;
+    if (projectCreateButton) {
+      projectCreateButton.disabled = state.busy;
+    }
   }
 }
 
@@ -2554,24 +2835,19 @@ if (sidebarManageProjectsButton) {
   });
 }
 
-if (sidebarDxfUploadTriggerButton && sidebarDxfUploadInput) {
+if (sidebarDxfUploadTriggerButton) {
   sidebarDxfUploadTriggerButton.addEventListener("click", () => {
-    setWorkspaceMode("dxf");
-  });
-
-  sidebarDxfUploadInput.addEventListener("change", () => {
-    const [file] = sidebarDxfUploadInput.files || [];
-    if (!file) {
-      return;
+    revealDxfRenderPanel({ scrollIntoView: true });
+    keepWorkspaceViewportStable();
+    if (state.dxfRenderFileToken) {
+      updateStandaloneDxfRender({
+        fileName: state.dxfRenderFileName || "generated_file.dxf",
+        fileToken: state.dxfRenderFileToken,
+        projectId: state.dxfRenderProjectId,
+        source: state.dxfRenderSource || "chat",
+      });
+      dxfRenderRefreshButton?.focus({ preventScroll: true });
     }
-    void handleSidebarDxfUpload(file);
-  });
-}
-
-if (dxfRenderUploadButton && sidebarDxfUploadInput) {
-  dxfRenderUploadButton.addEventListener("click", () => {
-    setWorkspaceMode("dxf");
-    sidebarDxfUploadInput.click();
   });
 }
 
@@ -2600,27 +2876,7 @@ topbarLogoutButton.addEventListener("click", () => {
   handleLogout();
 });
 
-projectCreateForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const projectName = projectNameInput.value.trim();
-  if (!projectName) {
-    return;
-  }
-
-  try {
-    const createdProject = await createProjectRequest(projectName);
-    state.projects.unshift(createdProject);
-    projectNameInput.value = "";
-    state.projectSearchQuery = "";
-    if (sidebarChatSearchInput) {
-      sidebarChatSearchInput.value = "";
-    }
-    setSidebarTab("chat");
-    await selectProject(createdProject.id);
-  } catch (error) {
-    appendMessage("assistant", `Project creation failed: ${error.message}`, { isError: true });
-  }
-});
+projectCreateForm.addEventListener("submit", handleProjectCreateSubmit);
 
 previewRefreshButton.addEventListener("click", async () => {
   if (!state.activeProjectId) {
@@ -2636,13 +2892,13 @@ previewRefreshButton.addEventListener("click", async () => {
 
 if (previewDownloadPngButton) {
   previewDownloadPngButton.addEventListener("click", () => {
-    downloadDxfExport(state.lastPreviewDxfPath, "image", previewExportBaseName());
+    downloadDxfExport(state.lastPreviewFileToken, "image", previewExportBaseName());
   });
 }
 
 if (previewDownloadPdfButton) {
   previewDownloadPdfButton.addEventListener("click", () => {
-    downloadDxfExport(state.lastPreviewDxfPath, "pdf", previewExportBaseName());
+    downloadDxfExport(state.lastPreviewFileToken, "pdf", previewExportBaseName());
   });
 }
 
@@ -2707,25 +2963,27 @@ previewCanvas.addEventListener("pointercancel", endCanvasPan);
 
 if (dxfRenderRefreshButton) {
   dxfRenderRefreshButton.addEventListener("click", () => {
-    if (!state.dxfRenderPath) {
+    if (!state.dxfRenderFileToken) {
       return;
     }
     updateStandaloneDxfRender({
-      fileName: state.dxfRenderFileName || "uploaded_file.dxf",
-      dxfPath: state.dxfRenderPath,
+      fileName: state.dxfRenderFileName || "generated_file.dxf",
+      fileToken: state.dxfRenderFileToken,
+      projectId: state.dxfRenderProjectId,
+      source: state.dxfRenderSource || "chat",
     });
   });
 }
 
 if (dxfRenderDownloadPngButton) {
   dxfRenderDownloadPngButton.addEventListener("click", () => {
-    downloadDxfExport(state.dxfRenderPath, "image", dxfRenderExportBaseName());
+    downloadDxfExport(state.dxfRenderFileToken, "image", dxfRenderExportBaseName());
   });
 }
 
 if (dxfRenderDownloadPdfButton) {
   dxfRenderDownloadPdfButton.addEventListener("click", () => {
-    downloadDxfExport(state.dxfRenderPath, "pdf", dxfRenderExportBaseName());
+    downloadDxfExport(state.dxfRenderFileToken, "pdf", dxfRenderExportBaseName());
   });
 }
 
@@ -2833,16 +3091,39 @@ chatForm.addEventListener("submit", async (event) => {
   startPreviewPolling();
 
   try {
-    await sendPrompt(state.activeProjectId, prompt);
+    const response = await sendPrompt(state.activeProjectId, prompt);
+    const requestMode = response?._requestMode === "iterate" ? "iterate" : "generate";
     removeTypingIndicator();
-    await loadProjectConversation(state.activeProjectId);
+    if (requestMode === "generate") {
+      if (response?.data) {
+        state.currentLayout = response.data;
+      }
+      await loadProjectConversation(state.activeProjectId);
+      setStatus("Ready", "ready");
+      return;
+    }
+
+    if (Array.isArray(response?.error) && response.error.length) {
+      appendMessage("assistant", `Update failed: ${response.error.join(" | ")}`, { isError: true });
+      setStatus("Error", "error");
+      return;
+    }
+
+    if (response?.layout) {
+      state.currentLayout = response.layout;
+    }
+    appendIterativeResponseMessage(response);
     setStatus("Ready", "ready");
   } catch (error) {
     removeTypingIndicator();
-    try {
-      await loadProjectConversation(state.activeProjectId);
-    } catch (_innerError) {
-      appendMessage("assistant", `Generation failed: ${error.message}`, { isError: true });
+    if (state.currentLayout) {
+      appendMessage("assistant", `Update failed: ${error.message}`, { isError: true });
+    } else {
+      try {
+        await loadProjectConversation(state.activeProjectId);
+      } catch (_innerError) {
+        appendMessage("assistant", `Generation failed: ${error.message}`, { isError: true });
+      }
     }
     setStatus("Error", "error");
   } finally {
