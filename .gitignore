@@ -1,6 +1,8 @@
 backend/output/
 backend/data/
 .codex
+CadArena_codebase_onefile.txt
+
 
 # SQLite runtime databases
 *.db
