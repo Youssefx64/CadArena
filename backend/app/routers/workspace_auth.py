@@ -92,10 +92,12 @@ async def me_generate_dxf(
     request: WorkspaceGenerateDxfForCurrentUserRequest,
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
+    # Hydrate the authenticated request into the shared guest-compatible shape, including cloud model ids.
     hydrated_request = WorkspaceGenerateDxfRequest(
         user_id=current_user.id,
         prompt=request.prompt,
         model=request.model,
+        model_id=request.model_id,
         recovery_mode=request.recovery_mode,
     )
     return await workspace_generate_dxf(project_id, hydrated_request)

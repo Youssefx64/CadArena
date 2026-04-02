@@ -23,6 +23,7 @@ const chatPanel = document.querySelector(".chat");
 const promptInput = document.getElementById("prompt-input");
 const modelSelect = document.getElementById("model-select");
 const modelHint = document.getElementById("model-hint");
+const iterativeModeIndicator = document.getElementById("iterative-mode-indicator");
 const sendButton = document.getElementById("send-btn");
 const activeProjectTitle = document.getElementById("active-project-title");
 const chatSubtitle = document.getElementById("chat-subtitle");
@@ -93,6 +94,7 @@ const THEME_STORAGE_KEY = "cadarena_theme";
 const AUTH_VISITED_STORAGE_KEY = "cadarena_auth_visited";
 const AUTH_KNOWN_ACCOUNT_STORAGE_KEY = "cadarena_has_registered_account";
 const WORKSPACE_LAYOUT_STORAGE_KEY = "cadarena_workspace_layout_v1";
+const PROJECT_LAYOUTS_STORAGE_KEY_PREFIX = "cadarena_project_layouts_v1"; // LAYOUT-FIX: namespace persisted per-project layouts by workspace identity
 const DEFAULT_PROFILE_AVATAR = "/static/assets/cadarena-mark.svg";
 const WORKSPACE_TOGGLE_ANIMATION_MS = 220;
 const WHEEL_ZOOM_HINT = "Use Ctrl/Cmd + mouse wheel to zoom";
@@ -101,7 +103,8 @@ const DXF_RENDER_EMPTY_MESSAGE = "Generate a DXF from chat to render it here.";
 const state = {
   userId: getOrCreateUserId(),
   activeProjectId: null,
-  currentLayout: null,
+  currentLayout: null, // LAYOUT-FIX: active layout pointer for the selected project
+  projectLayouts: {}, // LAYOUT-FIX: per-project layout store keyed by project id
   sidebarTab: "chat",
   projectSearchQuery: "",
   projects: [],
@@ -141,19 +144,49 @@ const state = {
 };
 
 const fallbackModelCatalog = {
-  default_model: "ollama",
+  default_model: "huggingface",
   models: [
+    {
+      request_value: "ollama_cloud::qwen3.5:397b-cloud",
+      provider: "ollama_cloud",
+      model_id: "qwen3.5:397b-cloud",
+      display_name: "Ollama Cloud (qwen3.5:397b-cloud)",
+    },
+    {
+      request_value: "ollama_cloud::gemma3:27b-cloud",
+      provider: "ollama_cloud",
+      model_id: "gemma3:27b-cloud",
+      display_name: "Ollama Cloud (gemma3:27b-cloud)",
+    },
+    {
+      request_value: "ollama_cloud::minimax-m2.7:cloud",
+      provider: "ollama_cloud",
+      model_id: "minimax-m2.7:cloud",
+      display_name: "Ollama Cloud (minimax-m2.7:cloud)",
+    },
+    {
+      request_value: "ollama_cloud::qwen3-coder-next:cloud",
+      provider: "ollama_cloud",
+      model_id: "qwen3-coder-next:cloud",
+      display_name: "Ollama Cloud (qwen3-coder-next:cloud)",
+    },
+    {
+      request_value: "ollama::qwen2.5:7b-instruct",
+      provider: "ollama",
+      model_id: "qwen2.5:7b-instruct",
+      display_name: "Ollama Local (qwen2.5:7b-instruct)",
+    },
     {
       request_value: "ollama",
       provider: "ollama",
       model_id: "llama3.1:8b",
-      display_name: "Ollama (llama3.1:8b)",
+      display_name: "Ollama Local (llama3.1:8b)",
     },
     {
       request_value: "huggingface",
       provider: "huggingface",
       model_id: "LiquidAI/LFM2-1.2B-Extract",
-      display_name: "HuggingFace (LiquidAI/LFM2-1.2B-Extract)",
+      display_name: "HuggingFace Local (LiquidAI/LFM2-1.2B-Extract)",
     },
   ],
 };
@@ -182,6 +215,43 @@ function getOrCreateUserId() {
       : fallback;
   localStorage.setItem(USER_STORAGE_KEY, generated);
   return generated;
+}
+
+function projectLayoutsStorageKey() {
+  const identityId = state.authUser?.id || state.userId; // LAYOUT-FIX: scope persisted layouts to the signed-in user or guest identity
+  const identityScope = state.authUser?.id ? "user" : "guest"; // LAYOUT-FIX: prevent guest and authenticated sessions from sharing the same storage bucket
+  return `${PROJECT_LAYOUTS_STORAGE_KEY_PREFIX}:${identityScope}:${identityId}`; // LAYOUT-FIX: build a stable localStorage key for the current workspace identity
+}
+
+function readStoredProjectLayouts() {
+  try {
+    const raw = localStorage.getItem(projectLayoutsStorageKey()); // LAYOUT-FIX: read the current identity's persisted project layouts
+    if (!raw) {
+      return {}; // LAYOUT-FIX: default to an empty project-layout map when nothing has been stored yet
+    }
+    const parsed = JSON.parse(raw); // LAYOUT-FIX: decode the persisted per-project layout map from localStorage
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {}; // LAYOUT-FIX: ignore malformed persisted layout payloads instead of breaking bootstrap
+    }
+    const normalizedLayouts = {}; // LAYOUT-FIX: rebuild only valid project-to-layout object entries
+    for (const [projectId, layout] of Object.entries(parsed)) {
+      if (!projectId || !layout || typeof layout !== "object" || Array.isArray(layout)) {
+        continue; // LAYOUT-FIX: skip invalid persisted entries so only real layout objects survive hydration
+      }
+      normalizedLayouts[projectId] = layout; // LAYOUT-FIX: keep valid persisted project layouts for runtime use
+    }
+    return normalizedLayouts; // LAYOUT-FIX: hydrate the in-memory project layout map from validated storage data
+  } catch (_error) {
+    return {}; // LAYOUT-FIX: treat storage read/parse failures as a cold start instead of surfacing UI errors
+  }
+}
+
+function writeStoredProjectLayouts() {
+  try {
+    localStorage.setItem(projectLayoutsStorageKey(), JSON.stringify(state.projectLayouts)); // LAYOUT-FIX: persist the full per-project layout map for reload recovery
+  } catch (_error) {
+    // LAYOUT-FIX: best effort persistence only
+  }
 }
 
 function readStoredFlag(key) {
@@ -230,6 +300,82 @@ let _projectCreatePending = false;
 // FIX 6: RAF panel resize and spotlight updates
 let _resizeRAF = null;
 let _pendingResizeClientX = null;
+
+/**
+ * Toggle the inline iterative-mode indicator based on current layout availability.
+ *
+ * @returns {void}
+ */
+// LAYOUT-FIX: save layout for a specific project
+function saveProjectLayout(projectId, layout) {
+  if (!projectId || !layout) return;
+  state.projectLayouts[projectId] = layout; // LAYOUT-FIX: persist layout by project id
+  writeStoredProjectLayouts(); // LAYOUT-FIX: mirror the in-memory layout update into reload-safe browser storage
+  if (projectId === state.activeProject || projectId === state.activeProjectId) { // LAYOUT-FIX: keep active pointer synced
+    state.currentLayout = layout; // LAYOUT-FIX: currentLayout remains the active project pointer
+  }
+}
+
+// LAYOUT-FIX: load layout for a specific project
+function loadProjectLayout(projectId) {
+  if (!projectId) return null;
+  return state.projectLayouts[projectId] ?? null; // LAYOUT-FIX: missing projects naturally return null
+}
+
+// LAYOUT-FIX: clear layout for a specific project
+function clearProjectLayout(projectId) {
+  if (!projectId) return;
+  delete state.projectLayouts[projectId]; // LAYOUT-FIX: remove only the targeted project's layout snapshot
+  writeStoredProjectLayouts(); // LAYOUT-FIX: persist the layout removal so deleted or reset projects stay cleared after reload
+  if (projectId === state.activeProject || projectId === state.activeProjectId) { // LAYOUT-FIX: clear active pointer only for active project
+    state.currentLayout = null; // LAYOUT-FIX: active project no longer has an iterative base layout
+  }
+}
+
+function updateIterativeModeIndicator() {
+  if (!iterativeModeIndicator) {
+    return;
+  }
+  const activeId = state.activeProject ?? state.activeProjectId; // LAYOUT-FIX: resolve the selected project before reading layout state
+  const hasLayout = Boolean(loadProjectLayout(activeId)); // LAYOUT-FIX: indicator depends on project-specific layout availability
+  iterativeModeIndicator.style.display = hasLayout ? "inline-flex" : "none"; // LAYOUT-FIX: show editing mode only when the active project has a saved layout
+}
+
+/**
+ * Store the active layout snapshot and refresh the iterative-mode UI.
+ *
+ * @param {Object|null} layout
+ * @returns {void}
+ */
+function setCurrentLayout(layout) {
+  state.currentLayout = layout ?? null;
+  updateIterativeModeIndicator();
+}
+
+/**
+ * Persist the latest successful layout returned by either prompt endpoint.
+ *
+ * @param {Object} response
+ * @param {"generate"|"iterate"} requestMode
+ * @returns {void}
+ */
+function syncCurrentLayoutFromResponse(response, requestMode) {
+  const activeId = state.activeProject ?? state.activeProjectId; // LAYOUT-FIX: resolve the active project before persisting any returned layout
+  if (requestMode === "generate") { // LAYOUT-FIX: generate-dxf may return layout at the top level or inside legacy data wrappers
+    const layout = response?.layout ?? response?.data?.layout ?? response?.data; // LAYOUT-FIX: accept top-level generate layouts while preserving legacy response support
+    if (layout && typeof layout === "object" && layout.rooms) { // LAYOUT-FIX: only persist valid layout objects that can drive iterative mode
+      saveProjectLayout(activeId, layout); // LAYOUT-FIX: save the generated layout for the active project
+      updateIterativeModeIndicator(); // LAYOUT-FIX: refresh iterative-mode UI after a successful generate response
+    }
+  }
+  if (requestMode === "iterate") { // LAYOUT-FIX: iterate responses already return layout at the top level
+    const layout = response?.layout; // LAYOUT-FIX: read the iterated layout from the current response shape
+    if (layout && typeof layout === "object" && layout.rooms) { // LAYOUT-FIX: ignore empty or malformed iterate payloads
+      saveProjectLayout(activeId, layout); // LAYOUT-FIX: save the iterated layout for the active project
+      updateIterativeModeIndicator(); // LAYOUT-FIX: refresh iterative-mode UI after a successful iterate response
+    }
+  }
+}
 
 function clamp(value, minimum, maximum) {
   if (!Number.isFinite(value)) {
@@ -624,12 +770,19 @@ function isAuthenticatedMode() {
   return state.authMode === "user" && state.authUser;
 }
 
+/**
+ * Reset in-memory workspace state before bootstrapping a fresh session.
+ *
+ * @returns {void}
+ */
 function resetWorkspaceState() {
   stopPreviewPolling();
   removeTypingIndicator();
   state.projects = [];
   state.activeProjectId = null;
-  state.currentLayout = null;
+  state.projectLayouts = {}; // LAYOUT-FIX: clear all project layouts on full workspace reset
+  state.currentLayout = null; // LAYOUT-FIX: clear the active layout pointer on full workspace reset
+  updateIterativeModeIndicator(); // LAYOUT-FIX: reflect that no active project layout remains after reset
   state.projectSearchQuery = "";
   state.sidebarTab = "chat";
   state.serverMessageCount = 0;
@@ -1721,6 +1874,23 @@ function findModelMeta(modelValue) {
   return null;
 }
 
+function parseModelSelection(selectValue) {
+  // Parse either the new provider::model_id value or the legacy provider-only value.
+  if (selectValue.includes("::")) {
+    const [provider, modelId] = selectValue.split("::");
+    return { provider, model_id: modelId };
+  }
+  return { provider: selectValue, model_id: null };
+}
+
+function normalizeIterativeModelSelection(selection) {
+  // Keep the iterative endpoint on its legacy enum until the backend accepts model_id there too.
+  if (selection.provider === "ollama_cloud") {
+    return "qwen_cloud";
+  }
+  return selection.provider;
+}
+
 function updateModelHint() {
   const selectedValue = modelSelect.value;
   const metadata = findModelMeta(selectedValue);
@@ -1746,7 +1916,7 @@ function applyModelCatalog(catalog) {
   }
 
   const values = new Set(models.map((model) => model.request_value));
-  modelSelect.value = values.has(defaultModel) ? defaultModel : models[0]?.request_value || "ollama";
+  modelSelect.value = values.has(defaultModel) ? defaultModel : models[0]?.request_value || "huggingface";
   updateModelHint();
 }
 
@@ -1905,6 +2075,11 @@ async function createProjectRequest(name) {
   });
 }
 
+/**
+ * Create a new chat project and clear the active iterative layout state.
+ *
+ * @returns {Promise<void>}
+ */
 async function createNewChatProject() {
   const nextName = suggestNextProjectName();
   if (sidebarChatTabButton) {
@@ -1913,7 +2088,7 @@ async function createNewChatProject() {
   try {
     const createdProject = await createProjectRequest(nextName);
     state.projects.unshift(createdProject);
-    state.currentLayout = null;
+    clearProjectLayout(createdProject.id); // LAYOUT-FIX: a brand-new project starts without any saved layout
     state.projectSearchQuery = "";
     if (sidebarChatSearchInput) {
       sidebarChatSearchInput.value = "";
@@ -1970,29 +2145,62 @@ async function fetchProjectMessages(projectId) {
   return apiFetch(`/api/v1/workspace/projects/${encodeURIComponent(projectId)}/messages?user_id=${encodeURIComponent(state.userId)}`);
 }
 
+function buildIterateUrl(projectId, isAuthenticated) {
+  // ITERATIVE FIX: use /me/ path for authenticated users
+  if (isAuthenticated) {
+    return `/api/v1/workspace/me/projects/${projectId}/iterate`;
+  }
+  return `/api/v1/workspace/${projectId}/iterate`;
+}
+
+/**
+ * Send either a full-generate or iterative-edit request for the active project.
+ *
+ * @param {string} projectId
+ * @param {string} prompt
+ * @returns {Promise<Object>}
+ */
 async function sendPrompt(projectId, prompt) {
-  const useIterative = Boolean(state.currentLayout);
+  const activeId = state.activeProject ?? state.activeProjectId; // LAYOUT-FIX: resolve active project before selecting iterative base layout
+  const projectLayout = loadProjectLayout(activeId); // LAYOUT-FIX: use the active project's stored layout instead of a global singleton
+  state.currentLayout = projectLayout; // LAYOUT-FIX: sync currentLayout pointer before building the request body
+  const useIterative = Boolean(projectLayout); // LAYOUT-FIX: iterative mode depends on the active project's saved layout only
+  const authenticated = isAuthenticatedMode();
+  // Split the selector value once so both request paths use the same provider/model selection.
+  const { provider, model_id } = parseModelSelection(modelSelect.value);
 
   if (useIterative) {
-    const payload = await apiFetch(`/api/v1/workspace/${encodeURIComponent(projectId)}/iterate`, {
+    const iterateUrl = buildIterateUrl(encodeURIComponent(projectId), authenticated);
+    const iterateBody = authenticated
+      ? {
+          prompt,
+          current_layout: projectLayout ?? null, // LAYOUT-FIX: send the active project's stored layout snapshot
+          model: normalizeIterativeModelSelection({ provider, model_id }),
+          recovery_mode: "repair",
+        }
+      : {
+          user_id: state.userId,
+          prompt,
+          current_layout: projectLayout ?? null, // LAYOUT-FIX: send the active project's stored layout snapshot
+          model: normalizeIterativeModelSelection({ provider, model_id }),
+          recovery_mode: "repair",
+        };
+    const payload = await apiFetch(iterateUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: state.userId,
-        prompt,
-        current_layout: state.currentLayout,
-      }),
+      body: JSON.stringify(iterateBody),
     });
     return { ...payload, _requestMode: "iterate" };
   }
 
-  if (isAuthenticatedMode()) {
+  if (authenticated) {
     const payload = await apiFetch(`/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}/generate-dxf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        model: modelSelect.value,
+        model: provider,
+        model_id,
         recovery_mode: "repair",
       }),
     });
@@ -2005,7 +2213,8 @@ async function sendPrompt(projectId, prompt) {
     body: JSON.stringify({
       user_id: state.userId,
       prompt,
-      model: modelSelect.value,
+      model: provider,
+      model_id,
       recovery_mode: "repair",
     }),
   });
@@ -2373,14 +2582,26 @@ async function ensureDefaultProject() {
   }
   const defaultProject = await createProjectRequest("New Project");
   state.projects = [defaultProject];
+  clearProjectLayout(defaultProject.id); // LAYOUT-FIX: every newly created project starts without a saved layout snapshot
 }
 
+/**
+ * Mark a project active and clear iterative edit state when switching conversations.
+ *
+ * @param {string} projectId
+ * @returns {void}
+ */
 function setActiveProject(projectId) {
   const project = projectById(projectId);
-  if (state.activeProjectId !== (project ? project.id : null)) {
-    state.currentLayout = null;
+  const previousProjectId = state.activeProject ?? state.activeProjectId; // LAYOUT-FIX: capture the old active project before switching
+  if (previousProjectId && state.currentLayout) {
+    saveProjectLayout(previousProjectId, state.currentLayout); // LAYOUT-FIX: preserve the old project's last layout before switching away
   }
   state.activeProjectId = project ? project.id : null;
+  const newProjectId = state.activeProject ?? state.activeProjectId; // LAYOUT-FIX: resolve the newly selected project id
+  const newLayout = loadProjectLayout(newProjectId); // LAYOUT-FIX: load the selected project's saved layout instead of clearing globally
+  state.currentLayout = newLayout; // LAYOUT-FIX: currentLayout now points at the selected project's stored layout
+  updateIterativeModeIndicator(); // LAYOUT-FIX: update editing-mode UI after switching projects
   activeProjectTitle.textContent = project ? project.name : "No project selected";
   chatSubtitle.textContent = project ? "Loading conversation..." : "No project selected";
   setBusy(state.busy);
@@ -2453,16 +2674,18 @@ async function deleteProjectFlow(projectId) {
   if (!confirmed) {
     return;
   }
+  const deletedProjectId = projectId; // DELETE-FIX: keep a stable project id for cleanup and state updates after the confirmed delete succeeds
 
   try {
-    await deleteProjectRequest(projectId);
-    state.projects = state.projects.filter((item) => item.id !== projectId);
+    await deleteProjectRequest(deletedProjectId);
+    clearProjectLayout(deletedProjectId); // DELETE-FIX: remove the deleted project's saved layout from memory and browser storage
+    state.projects = state.projects.filter((item) => item.id !== deletedProjectId);
     if (!state.projects.length) {
       await ensureDefaultProject();
     }
 
     const fallbackId = state.projects[0]?.id || null;
-    if (state.activeProjectId === projectId) {
+    if (state.activeProjectId === deletedProjectId) {
       setActiveProject(fallbackId);
       if (fallbackId) {
         await loadProjectConversation(fallbackId);
@@ -2482,8 +2705,23 @@ async function bootstrapWorkspace() {
   setWorkspaceIdentityLabel();
   await loadModelCatalog();
 
+  state.projectLayouts = readStoredProjectLayouts(); // LAYOUT-FIX: hydrate persisted per-project layouts before choosing the initial active project
   state.projects = await fetchProjects();
   await ensureDefaultProject();
+  const validProjectIds = new Set( // LAYOUT-FIX: collect the live workspace project ids before pruning stale stored layouts
+    state.projects
+      .map((project) => String(project?.id || "").trim())
+      .filter(Boolean)
+  );
+  const prunedProjectLayouts = {}; // LAYOUT-FIX: rebuild storage with only layouts that still belong to existing projects
+  for (const [projectId, layout] of Object.entries(state.projectLayouts)) {
+    if (!validProjectIds.has(projectId) || !layout || typeof layout !== "object" || Array.isArray(layout)) {
+      continue; // LAYOUT-FIX: skip stale or malformed stored entries so deleted projects do not retain hidden layout state
+    }
+    prunedProjectLayouts[projectId] = layout; // LAYOUT-FIX: keep only valid layouts for projects that still exist in the workspace
+  }
+  state.projectLayouts = prunedProjectLayouts; // LAYOUT-FIX: replace the in-memory map with the pruned persisted project layouts
+  writeStoredProjectLayouts(); // LAYOUT-FIX: save the pruned project layout map before the first project becomes active
   renderProjectList();
 
   const firstProjectId = state.projects[0]?.id || null;
@@ -2650,6 +2888,7 @@ async function handleProjectCreateSubmit(event) {
   try {
     const createdProject = await createProjectRequest(projectName);
     state.projects.unshift(createdProject);
+    clearProjectLayout(createdProject.id); // LAYOUT-FIX: every manually created project starts without a saved layout
     projectNameInput.value = "";
     state.projectSearchQuery = "";
     if (sidebarChatSearchInput) {
@@ -3072,7 +3311,13 @@ promptInput.addEventListener("keydown", (event) => {
   }
 });
 
-chatForm.addEventListener("submit", async (event) => {
+/**
+ * Handle chat form submission for both generate and iterative edit flows.
+ *
+ * @param {SubmitEvent} event
+ * @returns {Promise<void>}
+ */
+async function handleChatFormSubmit(event) {
   event.preventDefault();
   if (state.busy || !state.activeProjectId) {
     return;
@@ -3088,17 +3333,15 @@ chatForm.addEventListener("submit", async (event) => {
   setBusy(true);
   setStatus("Generating", "pending");
   appendTypingIndicator();
-  startPreviewPolling();
 
   try {
     const response = await sendPrompt(state.activeProjectId, prompt);
     const requestMode = response?._requestMode === "iterate" ? "iterate" : "generate";
     removeTypingIndicator();
     if (requestMode === "generate") {
-      if (response?.data) {
-        state.currentLayout = response.data;
-      }
-      await loadProjectConversation(state.activeProjectId);
+      syncCurrentLayoutFromResponse(response, requestMode); // LAYOUT-FIX: persist the top-level generate-dxf layout before refreshing chat history
+      startPreviewPolling(); // LAYOUT-FIX: begin chat refresh polling only after the saved layout is available for iterative mode
+      await loadProjectConversation(state.activeProjectId); // LAYOUT-FIX: refresh chat after layout persistence so the active project keeps its saved base layout
       setStatus("Ready", "ready");
       return;
     }
@@ -3109,9 +3352,7 @@ chatForm.addEventListener("submit", async (event) => {
       return;
     }
 
-    if (response?.layout) {
-      state.currentLayout = response.layout;
-    }
+    syncCurrentLayoutFromResponse(response, requestMode);
     appendIterativeResponseMessage(response);
     setStatus("Ready", "ready");
   } catch (error) {
@@ -3131,10 +3372,13 @@ chatForm.addEventListener("submit", async (event) => {
     removeTypingIndicator();
     setBusy(false);
   }
-});
+}
+
+chatForm.addEventListener("submit", handleChatFormSubmit);
 
 setupPanelSpotlight();
 updateChatScrollBottomButton();
+updateIterativeModeIndicator();
 
 initializeApplication().catch((error) => {
   setStatus("Error", "error");

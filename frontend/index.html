@@ -449,8 +449,20 @@
                 <label class="model-select compact-model" for="model-select">
                   <select id="model-select" name="model">
                     <option value="ollama">Loading models...</option>
+                    <optgroup label="☁️ Ollama Cloud (Free)">
+                      <option value="ollama_cloud::qwen3:235b-a22b">Qwen3 235B (Cloud)</option>
+                      <option value="ollama_cloud::qwen2.5:72b">Qwen2.5 72B (Cloud)</option>
+                      <option value="ollama_cloud::llama3.3:70b">Llama 3.3 70B (Cloud)</option>
+                      <option value="ollama_cloud::gemma3:27b">Gemma3 27B (Cloud)</option>
+                    </optgroup>
                   </select>
                 </label>
+                <span
+                  id="iterative-mode-indicator"
+                  style="display:none; align-items:center; gap:4px; font-size:11px; color:var(--color-accent); font-family:var(--font-mono);"
+                >
+                  ✦ Editing mode — next prompt edits the current plan
+                </span>
 
                 <button class="send-btn icon-send" id="send-btn" type="submit" aria-label="Send prompt">
                   <svg viewBox="0 0 24 24" aria-hidden="true">

@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
-from shutil import copy2
 from datetime import datetime, UTC
 from pathlib import Path
 from uuid import uuid4
 
+from app.core.env_loader import load_backend_env
 from app.core.file_utils import BACKEND_DIR
+from app.services.file_token_registry import issue_workspace_file_token
 
-DB_DIR = BACKEND_DIR / "data"
-DB_PATH = DB_DIR / "workspace.db"
-LEGACY_DB_PATH = BACKEND_DIR / "output" / "workspace.db"
+load_backend_env()
+
+
+def _resolve_workspace_db_path() -> Path:
+    configured_path = os.getenv("CADARENA_WORKSPACE_DB_PATH", "").strip()
+    if configured_path:
+        return Path(configured_path).expanduser()
+    return BACKEND_DIR / "data" / "workspace.db"
+
+
+DB_PATH = _resolve_workspace_db_path()
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -48,14 +58,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def _prepare_workspace_db_path() -> None:
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-    if DB_PATH.exists() or not LEGACY_DB_PATH.exists():
-        return
-    try:
-        LEGACY_DB_PATH.replace(DB_PATH)
-    except OSError:
-        # Fall back to copy when replace is not possible (e.g. cross-device).
-        copy2(LEGACY_DB_PATH, DB_PATH)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def init_workspace_db() -> None:
@@ -243,7 +246,20 @@ def list_project_messages(*, user_id: str, project_id: str) -> tuple[dict | None
             """,
             (project_id,),
         ).fetchall()
-    return project, [dict(row) for row in rows]
+    return project, [_serialize_message_row(row, user_id=normalized_user_id) for row in rows]
+
+
+def _serialize_message_row(row: sqlite3.Row, *, user_id: str) -> dict:
+    payload = dict(row)
+    dxf_path = payload.pop("dxf_path", None)
+    if dxf_path:
+        try:
+            payload["file_token"] = issue_workspace_file_token(user_id=user_id, absolute_path=dxf_path)
+        except ValueError:
+            payload["file_token"] = None
+    else:
+        payload["file_token"] = None
+    return payload
 
 
 def add_message(
