@@ -19,7 +19,13 @@ from app.models.design_parser import (
     ParseErrorBody,
 )
 from app.schemas.design_intent import DesignIntent
-from app.services.design_parser.config import HF_MODEL_ID, OLLAMA_MODEL_ID
+from app.services.design_parser.config import (
+    DEFAULT_PARSE_MODEL,
+    HF_MODEL_ID,
+    OLLAMA_CLOUD_MODELS,
+    OLLAMA_LOCAL_MODELS,
+    OLLAMA_MODEL_ID,
+)
 from app.services.design_parser_service import (
     ParseDesignServiceError,
     parse_design_prompt_with_metadata,
@@ -33,22 +39,58 @@ router = APIRouter()
 @router.get("/parse-design-models")
 def parse_design_models():
     """Return selectable parse-design backends with their concrete model ids."""
+    default_model = (
+        DEFAULT_PARSE_MODEL
+        if DEFAULT_PARSE_MODEL in {model.value for model in ParseDesignModel}
+        else ParseDesignModel.HUGGINGFACE.value
+    )
+    # Expand the public cloud provider into one selectable request value per concrete hosted model.
+    if default_model in {ParseDesignModel.OLLAMA_CLOUD.value, ParseDesignModel.QWEN_CLOUD.value} and OLLAMA_CLOUD_MODELS:
+        default_model = f"{ParseDesignModel.OLLAMA_CLOUD.value}::{OLLAMA_CLOUD_MODELS[0]}"
+
+    models = []
+
+    for model_id in OLLAMA_CLOUD_MODELS:
+        models.append(
+            {
+                "request_value": f"{ParseDesignModel.OLLAMA_CLOUD.value}::{model_id}",
+                "provider": ParseDesignModel.OLLAMA_CLOUD.value,
+                "model_id": model_id,
+                "display_name": f"Ollama Cloud ({model_id})",
+            }
+        )
+
+    ordered_local_models = [
+        model_id for model_id in OLLAMA_LOCAL_MODELS if model_id != OLLAMA_MODEL_ID
+    ] + [OLLAMA_MODEL_ID]
+
+    for model_id in ordered_local_models:
+        request_value = (
+            ParseDesignModel.OLLAMA.value
+            if model_id == OLLAMA_MODEL_ID
+            else f"{ParseDesignModel.OLLAMA.value}::{model_id}"
+        )
+        models.append(
+            {
+                "request_value": request_value,
+                "provider": ParseDesignModel.OLLAMA.value,
+                "model_id": model_id,
+                "display_name": f"Ollama Local ({model_id})",
+            }
+        )
+
+    models.append(
+        {
+            "request_value": ParseDesignModel.HUGGINGFACE.value,
+            "provider": "huggingface",
+            "model_id": HF_MODEL_ID,
+            "display_name": f"HuggingFace Local ({HF_MODEL_ID})",
+        }
+    )
+
     return {
-        "default_model": ParseDesignModel.OLLAMA.value,
-        "models": [
-            {
-                "request_value": ParseDesignModel.OLLAMA.value,
-                "provider": "ollama",
-                "model_id": OLLAMA_MODEL_ID,
-                "display_name": f"Ollama ({OLLAMA_MODEL_ID})",
-            },
-            {
-                "request_value": ParseDesignModel.HUGGINGFACE.value,
-                "provider": "huggingface",
-                "model_id": HF_MODEL_ID,
-                "display_name": f"HuggingFace ({HF_MODEL_ID})",
-            },
-        ],
+        "default_model": default_model,
+        "models": models,
     }
 
 
@@ -107,6 +149,7 @@ async def parse_design(request: ParseDesignRequest):
             model_used=model_used,
             provider_used=result.provider_used,
             failover_triggered=result.failover_triggered,
+            self_review_triggered=result.self_review_triggered,
             latency_ms=round(latency_ms, 3),
             data=parsed_data,
             metrics=result.metrics,
@@ -256,6 +299,7 @@ async def parse_design_generate_dxf(request: ParseDesignRequest):
             model_used=model_used,
             provider_used=result.provider_used,
             failover_triggered=result.failover_triggered,
+            self_review_triggered=result.self_review_triggered,
             latency_ms=round(latency_ms, 3),
             dxf_path=str(dxf_path),
             data=parsed_data,

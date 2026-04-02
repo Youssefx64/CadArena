@@ -16,6 +16,8 @@ class ParseDesignModel(str, Enum):
 
     OLLAMA = "ollama"
     HUGGINGFACE = "huggingface"
+    OLLAMA_CLOUD = "ollama_cloud"
+    QWEN_CLOUD = "qwen_cloud"
 
 
 class RecoveryMode(str, Enum):
@@ -416,6 +418,7 @@ class ParseDesignSuccessResponse(BaseModel):
     model_used: str
     provider_used: str
     failover_triggered: bool = False
+    self_review_triggered: bool = False
     latency_ms: float = Field(ge=0)
     data: ParsedDesignIntent
     metrics: LayoutMetrics
@@ -430,6 +433,7 @@ class ParseDesignAndDxfSuccessResponse(BaseModel):
     model_used: str
     provider_used: str
     failover_triggered: bool = False
+    self_review_triggered: bool = False
     latency_ms: float = Field(ge=0)
     dxf_path: str = Field(min_length=1)
     data: ParsedDesignIntent

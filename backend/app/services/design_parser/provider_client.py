@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os  # CLOUD-FIX: read the latest Ollama Cloud bearer token directly from the environment
 import socket
 import urllib.error
 import urllib.request
@@ -16,15 +17,106 @@ from app.services.design_parser.config import (
     HF_MAX_CONCURRENCY,
     HF_MODEL_ID,
     MAX_NEW_TOKENS,
+    OLLAMA_CLOUD_BASE_URL,
+    OLLAMA_CLOUD_GENERATE_URL,
     OLLAMA_GENERATE_URL,
     OLLAMA_MODEL_ID,
     OLLAMA_NUM_CTX,
+    QWEN_CLOUD_MODEL_ID,
     REQUEST_TIMEOUT_SECONDS,
 )
 from app.services.design_parser.errors import ParseDesignServiceError
 from app.services.ports.llm_provider import LLMProviderPort
 
 logger = get_logger(__name__)
+
+
+async def generate_with_ollama_cloud(
+    prompt: str,
+    model_id: str,
+    request_id: str,
+) -> str:
+    """
+    Call Ollama Cloud free tier API with the given model.
+    Uses the same REST contract as local Ollama (/api/generate).
+    Falls back to local Ollama if cloud is unreachable.
+    """
+
+    logger.info(
+        "[CloudProvider] request_id=%s model=%s event=start",
+        request_id,
+        model_id,
+    )
+
+    proxy_client = OllamaProviderClient(
+        model_id=model_id,
+        generate_url=OLLAMA_GENERATE_URL,
+        error_prefix="QWEN_CLOUD",
+    )
+    try:
+        logger.info(
+            "[CloudProvider] request_id=%s model=%s route=local_proxy event=start",
+            request_id,
+            model_id,
+        )
+        result = await proxy_client.generate(prompt, request_id=request_id)
+        logger.info(
+            "[CloudProvider] request_id=%s model=%s route=local_proxy event=complete",
+            request_id,
+            model_id,
+        )
+        return result
+    except Exception as proxy_exc:
+        logger.warning(
+            "[CloudProvider] request_id=%s model=%s route=local_proxy event=error error=%s",
+            request_id,
+            model_id,
+            proxy_exc,
+        )
+
+    base_url = OLLAMA_CLOUD_BASE_URL  # CLOUD-FIX: treat the configured cloud URL as a base URL and append the endpoint at call time
+    generate_url = f"{base_url.rstrip('/')}/api/generate"  # CLOUD-FIX: call the Ollama Cloud generate route without baking it into config defaults
+    api_key = os.getenv("OLLAMA_API_KEY", "").strip()  # CLOUD-FIX: pick up the cloud bearer token from the environment when available
+    if api_key:
+        cloud_client = OllamaProviderClient(
+            model_id=model_id,
+            generate_url=generate_url,
+            api_key=api_key,
+            error_prefix="QWEN_CLOUD",
+        )
+        try:
+            logger.info(
+                "[CloudProvider] request_id=%s model=%s route=direct_cloud event=start",
+                request_id,
+                model_id,
+            )
+            result = await cloud_client.generate(prompt, request_id=request_id)
+            logger.info(
+                "[CloudProvider] request_id=%s model=%s route=direct_cloud event=complete",
+                request_id,
+                model_id,
+            )
+            return result
+        except Exception as cloud_exc:
+            logger.warning(
+                "[CloudProvider] request_id=%s model=%s route=direct_cloud event=error error=%s",
+                request_id,
+                model_id,
+                cloud_exc,
+            )
+
+    logger.warning(
+        "[CloudProvider] request_id=%s model=%s event=fallback fallback_model=%s",
+        request_id,
+        model_id,
+        OLLAMA_MODEL_ID,
+    )
+    local_client = OllamaProviderClient(
+        model_id=OLLAMA_MODEL_ID,
+        generate_url=OLLAMA_GENERATE_URL,
+        error_prefix="OLLAMA",
+    )
+    return await local_client.generate(prompt, request_id=request_id)
 
 
 class ProviderClient(LLMProviderPort):
@@ -34,6 +126,21 @@ class ProviderClient(LLMProviderPort):
 class OllamaProviderClient(ProviderClient):
     key = "ollama"
     model_id = OLLAMA_MODEL_ID
+
+    def __init__(
+        self,
+        *,
+        model_id: str = OLLAMA_MODEL_ID,
+        generate_url: str = OLLAMA_GENERATE_URL,
+        api_key: str = "",
+        error_prefix: str = "OLLAMA",
+    ) -> None:
+        """Initialize an Ollama-compatible provider client."""
+
+        self.model_id = model_id
+        self._generate_url = generate_url
+        self._api_key = api_key.strip()
+        self._error_prefix = error_prefix
 
     async def startup(self) -> None:
         return None
@@ -62,17 +169,17 @@ class OllamaProviderClient(ProviderClient):
             )
         except asyncio.TimeoutError as exc:
             raise ParseDesignServiceError(
-                code="OLLAMA_TIMEOUT",
+                code=f"{self._error_prefix}_TIMEOUT",
                 message="Timed out while waiting for Ollama response",
                 status_code=504,
                 model_used=self.model_id,
                 provider_used=self.model_id,
             ) from exc
 
-        generated = body.get("response") if isinstance(body, dict) else None
+        generated = self._extract_generated_text(body) if isinstance(body, dict) else None
         if not isinstance(generated, str) or not generated.strip():
             raise ParseDesignServiceError(
-                code="OLLAMA_EMPTY_OUTPUT",
+                code=f"{self._error_prefix}_EMPTY_OUTPUT",
                 message="Ollama returned an empty generation",
                 status_code=502,
                 model_used=self.model_id,
@@ -84,10 +191,14 @@ class OllamaProviderClient(ProviderClient):
 
     def _request_sync(self, payload: dict[str, Any]) -> dict[str, Any]:
         request_data = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+            headers["X-API-Key"] = self._api_key
         request = urllib.request.Request(
-            OLLAMA_GENERATE_URL,
+            self._generate_url,
             data=request_data,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         try:
@@ -97,7 +208,7 @@ class OllamaProviderClient(ProviderClient):
         except urllib.error.HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="replace")
             raise ParseDesignServiceError(
-                code="OLLAMA_HTTP_ERROR",
+                code=f"{self._error_prefix}_HTTP_ERROR",
                 message=f"Ollama returned HTTP {exc.code}",
                 status_code=502,
                 model_used=self.model_id,
@@ -106,7 +217,7 @@ class OllamaProviderClient(ProviderClient):
             ) from exc
         except (urllib.error.URLError, socket.timeout, TimeoutError) as exc:
             raise ParseDesignServiceError(
-                code="OLLAMA_CONNECTION_ERROR",
+                code=f"{self._error_prefix}_CONNECTION_ERROR",
                 message="Failed to call Ollama endpoint",
                 status_code=503,
                 model_used=self.model_id,
@@ -116,7 +227,7 @@ class OllamaProviderClient(ProviderClient):
 
         if status_code >= 400:
             raise ParseDesignServiceError(
-                code="OLLAMA_HTTP_ERROR",
+                code=f"{self._error_prefix}_HTTP_ERROR",
                 message=f"Ollama returned HTTP {status_code}",
                 status_code=502,
                 model_used=self.model_id,
@@ -127,7 +238,7 @@ class OllamaProviderClient(ProviderClient):
             body = json.loads(response_body)
         except ValueError as exc:
             raise ParseDesignServiceError(
-                code="OLLAMA_INVALID_RESPONSE",
+                code=f"{self._error_prefix}_INVALID_RESPONSE",
                 message="Ollama response is not valid JSON",
                 status_code=502,
                 model_used=self.model_id,
@@ -136,13 +247,104 @@ class OllamaProviderClient(ProviderClient):
             ) from exc
         if not isinstance(body, dict):
             raise ParseDesignServiceError(
-                code="OLLAMA_INVALID_RESPONSE",
+                code=f"{self._error_prefix}_INVALID_RESPONSE",
                 message="Ollama response must be a JSON object",
                 status_code=502,
                 model_used=self.model_id,
                 provider_used=self.model_id,
             )
         return body
+
+    @staticmethod
+    def _extract_generated_text(body: dict[str, Any]) -> str | None:
+        """Extract generated text across local Ollama and Ollama-compatible cloud responses."""
+
+        direct_candidates = (
+            body.get("response"),
+            body.get("output_text"),
+            body.get("generated_text"),
+            body.get("text"),
+        )
+        for candidate in direct_candidates:
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+
+        message_obj = body.get("message")
+        if isinstance(message_obj, dict):
+            content = message_obj.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+
+        output_obj = body.get("output")
+        if isinstance(output_obj, str) and output_obj.strip():
+            return output_obj.strip()
+        if isinstance(output_obj, list):
+            chunks: list[str] = []
+            for item in output_obj:
+                if isinstance(item, str):
+                    chunks.append(item)
+                elif isinstance(item, dict):
+                    text_candidate = item.get("text") or item.get("content")
+                    if isinstance(text_candidate, str):
+                        chunks.append(text_candidate)
+            merged = "".join(chunks).strip()
+            if merged:
+                return merged
+
+        return None
+
+
+class QwenCloudProviderClient(OllamaProviderClient):
+    """Ollama-compatible cloud provider bridged through the legacy qwen_cloud key."""
+
+    key = "qwen_cloud"
+    model_id = QWEN_CLOUD_MODEL_ID
+
+    def __init__(self, *, model_id: str = QWEN_CLOUD_MODEL_ID) -> None:
+        """Initialize the Qwen cloud provider from runtime config."""
+
+        super().__init__(
+            model_id=model_id,
+            generate_url=f"{OLLAMA_CLOUD_BASE_URL.rstrip('/')}/api/generate",  # CLOUD-FIX: keep the legacy qwen_cloud client aligned with the cloud base URL contract
+            api_key=os.getenv("OLLAMA_API_KEY", "").strip(),  # CLOUD-FIX: pass the configured cloud bearer token without relying on a stale module constant
+            error_prefix="QWEN_CLOUD",
+        )
+
+    async def generate(self, compiled_prompt: str, *, request_id: str) -> str:
+        """Generate with the configured cloud model while keeping the legacy provider key."""
+
+        # Route legacy qwen-cloud calls through the new public cloud helper for a single implementation path.
+        return await generate_with_ollama_cloud(
+            prompt=compiled_prompt,
+            model_id=self.model_id,
+            request_id=request_id,
+        )
+
+    @staticmethod
+    def _extract_chat_generated_text(body: dict[str, Any]) -> str | None:
+        """Extract chat-completion text across multiple cloud response shapes."""
+
+        message_obj = body.get("message")
+        if isinstance(message_obj, dict):
+            content = message_obj.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+
+        choices = body.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                if not isinstance(choice, dict):
+                    continue
+                message = choice.get("message")
+                if isinstance(message, dict):
+                    content = message.get("content")
+                    if isinstance(content, str) and content.strip():
+                        return content.strip()
+                text = choice.get("text")
+                if isinstance(text, str) and text.strip():
+                    return text.strip()
+
+        return None
 
 
 @dataclass

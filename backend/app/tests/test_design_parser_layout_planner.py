@@ -1,4 +1,5 @@
 import pytest
+from copy import deepcopy
 from time import perf_counter
 
 from app.services.design_parser.layout_planner import (
@@ -132,3 +133,32 @@ def test_layout_planner_handles_narrow_boundary_with_structured_failure() -> Non
 
     with pytest.raises(LayoutPlanningError):
         planner.plan(extracted)
+
+
+def test_layout_planner_normalizer_fills_boundary_edges_and_keeps_rooms_inside() -> None:
+    planner = DeterministicLayoutPlanner()
+    layout = {
+        "boundary": {"width": 10.0, "height": 6.0},
+        "rooms": [
+            {"name": "Living Room", "room_type": "living", "width": 4.95, "height": 3.0, "origin": {"x": 0.0, "y": 0.0}},
+            {"name": "Kitchen", "room_type": "kitchen", "width": 5.0, "height": 3.0, "origin": {"x": 5.0, "y": 0.0}},
+            {"name": "Bedroom", "room_type": "bedroom", "width": 5.0, "height": 2.95, "origin": {"x": 0.0, "y": 3.0}},
+            {"name": "Bathroom", "room_type": "bathroom", "width": 5.0, "height": 2.95, "origin": {"x": 5.0, "y": 3.0}},
+        ],
+        "walls": [],
+        "openings": [],
+    }
+    original = deepcopy(layout)
+
+    normalized = planner.normalize_layout(layout)
+    assert layout == original
+    rooms = normalized["rooms"]
+    right_edge = max(room["origin"]["x"] + room["width"] for room in rooms)
+    top_edge = max(room["origin"]["y"] + room["height"] for room in rooms)
+    assert abs(right_edge - 10.0) < 1e-6
+    assert abs(top_edge - 6.0) < 1e-6
+    for room in rooms:
+        assert room["origin"]["x"] >= 0.0
+        assert room["origin"]["y"] >= 0.0
+        assert room["origin"]["x"] + room["width"] <= 10.0 + 1e-6
+        assert room["origin"]["y"] + room["height"] <= 6.0 + 1e-6

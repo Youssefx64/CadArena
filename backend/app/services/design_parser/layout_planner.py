@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 
 _EPSILON = 1e-6
-_CORRIDOR_MIN_SPAN = 1.1
+_CORRIDOR_MIN_SPAN = 1.2
 _CORRIDOR_MAX_SPAN = 2.0
 _CORRIDOR_MAX_AREA_RATIO = 0.18
 _CORRIDOR_VS_LARGEST_RATIO = 0.85
@@ -208,11 +208,43 @@ class DeterministicLayoutPlanner:
             )
         )
         selected_score, _, selected_topology, selected_rooms = ranked[0]
-        payload = {
+        # QUALITY FIX: run post-placement normalization before final payload serialization.
+        base_payload: dict[str, Any] = {
             "boundary": {"width": width, "height": height},
             "rooms": selected_rooms,
-            "walls": self._build_walls(selected_rooms),
+            "walls": [],
             "openings": [],
+        }
+        normalized_payload = self.normalize_layout(
+            {
+                "boundary": {"width": width, "height": height},
+                "rooms": selected_rooms,
+                "walls": [],
+                "openings": [],
+            }
+        )
+        try:
+            self._enforce_hard_constraints(
+                rooms=normalized_payload["rooms"],
+                boundary_width=width,
+                boundary_height=height,
+            )
+            payload = normalized_payload
+        except LayoutPlanningError:
+            # QUALITY FIX: keep deterministic feasible geometry if normalization introduces a constraint regression.
+            payload = base_payload
+
+        self._enforce_hard_constraints(
+            rooms=payload["rooms"],
+            boundary_width=width,
+            boundary_height=height,
+        )
+        payload["walls"] = self._build_walls(payload["rooms"])
+        payload = {
+            "boundary": payload["boundary"],
+            "rooms": payload["rooms"],
+            "walls": payload["walls"],
+            "openings": payload.get("openings", []),
         }
         metadata = {
             "selected_topology": selected_topology.key,
@@ -248,15 +280,27 @@ class DeterministicLayoutPlanner:
         )
         for item in sorted(rooms, key=lambda current: current.index):
             rect = balanced[item.index]
-            layout_rooms.append(
-                {
-                    "name": item.name,
-                    "room_type": item.room_type,
-                    "width": rect.width,
-                    "height": rect.height,
-                    "origin": {"x": rect.x, "y": rect.y},
-                }
+            room_payload = {
+                "name": item.name,
+                "room_type": item.room_type,
+                "width": rect.width,
+                "height": rect.height,
+            }
+            # Keep corridor geometry oriented by its narrow side before placement is serialized.
+            room_payload = _enforce_corridor_dimensions(
+                room_payload,
+                boundary_width,
+                boundary_height,
             )
+            if item.room_type == "corridor":
+                # Preserve the planner's exact long-axis partition line so corridor normalization
+                # does not introduce micro-overlaps before the later global normalization pass.
+                if float(room_payload.get("width", 0.0)) <= float(room_payload.get("height", 0.0)):
+                    room_payload["height"] = min(float(room_payload.get("height", rect.height)), rect.height)
+                else:
+                    room_payload["width"] = min(float(room_payload.get("width", rect.width)), rect.width)
+            room_payload["origin"] = {"x": rect.x, "y": rect.y}
+            layout_rooms.append(room_payload)
         return layout_rooms
 
     @staticmethod
@@ -1627,6 +1671,72 @@ class DeterministicLayoutPlanner:
             if rect.y + rect.height > boundary_height + _EPSILON:
                 raise LayoutPlanningError("Generated room exceeds boundary height")
 
+    # QUALITY FIX: normalize room geometry after placement to remove seams and reduce unusable leftover space.
+    def normalize_layout(self, layout: dict[str, Any]) -> dict[str, Any]:
+        return normalize_layout(layout)
+
+    # QUALITY FIX: compute available rightward growth for a room without introducing overlaps.
+    @staticmethod
+    def _available_expand_width(
+        *,
+        rooms: list[dict[str, Any]],
+        index: int,
+        boundary_width: float,
+    ) -> float:
+        room = rooms[index]
+        x0 = float(room["origin"]["x"])
+        y0 = float(room["origin"]["y"])
+        x1 = x0 + float(room["width"])
+        y1 = y0 + float(room["height"])
+        available = max(0.0, boundary_width - x1)
+
+        for other_index, other in enumerate(rooms):
+            if other_index == index:
+                continue
+            ox0 = float(other["origin"]["x"])
+            oy0 = float(other["origin"]["y"])
+            ox1 = ox0 + float(other["width"])
+            oy1 = oy0 + float(other["height"])
+            overlap_y = max(0.0, min(y1, oy1) - max(y0, oy0))
+            if overlap_y <= _EPSILON:
+                continue
+            if ox0 + _EPSILON >= x1:
+                available = min(available, max(0.0, ox0 - x1))
+            elif ox1 > x1 + _EPSILON:
+                available = 0.0
+        return max(0.0, available)
+
+    # QUALITY FIX: compute available upward growth for a room without introducing overlaps.
+    @staticmethod
+    def _available_expand_height(
+        *,
+        rooms: list[dict[str, Any]],
+        index: int,
+        boundary_height: float,
+    ) -> float:
+        room = rooms[index]
+        x0 = float(room["origin"]["x"])
+        y0 = float(room["origin"]["y"])
+        x1 = x0 + float(room["width"])
+        y1 = y0 + float(room["height"])
+        available = max(0.0, boundary_height - y1)
+
+        for other_index, other in enumerate(rooms):
+            if other_index == index:
+                continue
+            ox0 = float(other["origin"]["x"])
+            oy0 = float(other["origin"]["y"])
+            ox1 = ox0 + float(other["width"])
+            oy1 = oy0 + float(other["height"])
+            overlap_x = max(0.0, min(x1, ox1) - max(x0, ox0))
+            if overlap_x <= _EPSILON:
+                continue
+            if oy0 + _EPSILON >= y1:
+                available = min(available, max(0.0, oy0 - y1))
+            elif oy1 > y1 + _EPSILON:
+                available = 0.0
+        return max(0.0, available)
+
     @staticmethod
     def _build_walls(rooms: list[dict[str, Any]]) -> list[dict[str, Any]]:
         walls: list[dict[str, Any]] = []
@@ -2044,3 +2154,258 @@ class DeterministicLayoutPlanner:
         except (TypeError, ValueError):
             return None
         return parsed if parsed > 0 else None
+
+
+def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
+    """
+    Post-placement normalizer.
+    Snaps edges, fills boundary gaps, enforces minimum proportions.
+    Never mutates input — works on a deepcopy.
+    """
+    import copy
+
+    normalized_layout = copy.deepcopy(layout)
+    boundary = normalized_layout.get("boundary")
+    rooms = normalized_layout.get("rooms")
+    if not isinstance(boundary, dict) or not isinstance(rooms, list):
+        return normalized_layout
+
+    bw = float(boundary.get("width", 0.0))
+    bh = float(boundary.get("height", 0.0))
+    if bw <= 0.0 or bh <= 0.0 or not rooms:
+        return normalized_layout
+
+    wall = 0.20
+    snap = 0.05
+    # Preserve the original boundary contacts so normalization does not detach rooms from the building edge.
+    anchors: list[dict[str, bool]] = []
+    for room in rooms:
+        if not isinstance(room, dict):
+            anchors.append({"left": False, "right": False, "bottom": False, "top": False})
+            continue
+        x0 = float(room.get("origin", {}).get("x", 0.0))
+        y0 = float(room.get("origin", {}).get("y", 0.0))
+        x1 = x0 + float(room.get("width", 0.0))
+        y1 = y0 + float(room.get("height", 0.0))
+        anchors.append(
+            {
+                "left": abs(x0 - 0.0) <= snap,
+                "bottom": abs(y0 - 0.0) <= snap,
+                "right": abs(x1 - bw) <= snap,
+                "top": abs(y1 - bh) <= snap,
+            }
+        )
+
+    # Step 1 — snap near-shared edges so micro-gaps collapse into one shared wall line.
+    for first_index, first_room in enumerate(rooms):
+        if not isinstance(first_room, dict):
+            continue
+        for second_index in range(first_index + 1, len(rooms)):
+            second_room = rooms[second_index]
+            if not isinstance(second_room, dict):
+                continue
+
+            first_right = float(first_room.get("origin", {}).get("x", 0.0)) + float(first_room.get("width", 0.0))
+            second_left = float(second_room.get("origin", {}).get("x", 0.0))
+            gap_x = second_left - first_right
+            if 0.0 < gap_x < snap:
+                midpoint = (first_right + second_left) / 2.0
+                first_room["width"] = midpoint - float(first_room.get("origin", {}).get("x", 0.0))
+                second_room.setdefault("origin", {})["x"] = midpoint
+
+            first_top = float(first_room.get("origin", {}).get("y", 0.0)) + float(first_room.get("height", 0.0))
+            second_bottom = float(second_room.get("origin", {}).get("y", 0.0))
+            gap_y = second_bottom - first_top
+            if 0.0 < gap_y < snap:
+                midpoint = (first_top + second_bottom) / 2.0
+                first_room["height"] = midpoint - float(first_room.get("origin", {}).get("y", 0.0))
+                second_room.setdefault("origin", {})["y"] = midpoint
+
+    # Step 2 — fill small right and top boundary gaps without stretching rooms across large unused spans.
+    rightmost = max(
+        (room for room in rooms if isinstance(room, dict)),
+        key=lambda room: float(room.get("origin", {}).get("x", 0.0)) + float(room.get("width", 0.0)),
+        default=None,
+    )
+    if rightmost is not None:
+        gap = bw - (
+            float(rightmost.get("origin", {}).get("x", 0.0)) + float(rightmost.get("width", 0.0))
+        )
+        if 0.0 < gap < 1.0:
+            rightmost["width"] = float(rightmost.get("width", 0.0)) + gap
+
+    topmost = max(
+        (room for room in rooms if isinstance(room, dict)),
+        key=lambda room: float(room.get("origin", {}).get("y", 0.0)) + float(room.get("height", 0.0)),
+        default=None,
+    )
+    if topmost is not None:
+        gap = bh - (
+            float(topmost.get("origin", {}).get("y", 0.0)) + float(topmost.get("height", 0.0))
+        )
+        if 0.0 < gap < 1.0:
+            topmost["height"] = float(topmost.get("height", 0.0)) + gap
+
+    total_area = bw * bh
+    min_ratios = {"living": 0.25, "bedroom": 0.12, "kitchen": 0.08, "bathroom": 0.05}
+    # Step 3 — grow undersized rooms toward the requested minimum proportions without pushing them outside the boundary.
+    for room_index, room in enumerate(rooms):
+        if not isinstance(room, dict):
+            continue
+        room_type = str(room.get("room_type", "")).strip().lower()
+        if room_type == "corridor":
+            continue
+        width = float(room.get("width", 0.0))
+        height = float(room.get("height", 0.0))
+        current_area = width * height
+        if current_area <= _EPSILON:
+            continue
+        min_area = total_area * min_ratios.get(room_type, 0.05)
+        if current_area >= min_area:
+            continue
+
+        scale = math.sqrt(min_area / current_area)
+        width_cap = width + DeterministicLayoutPlanner._available_expand_width(
+            rooms=rooms,
+            index=room_index,
+            boundary_width=bw,
+        )
+        height_cap = height + DeterministicLayoutPlanner._available_expand_height(
+            rooms=rooms,
+            index=room_index,
+            boundary_height=bh,
+        )
+        room["width"] = min(width * scale, width_cap, bw - float(room.get("origin", {}).get("x", 0.0)) - wall)
+        room["height"] = min(height * scale, height_cap, bh - float(room.get("origin", {}).get("y", 0.0)) - wall)
+
+    # Step 4 — cap any dominant room before final corridor and boundary cleanup.
+    rooms = _cap_dominant_room(rooms, bw, bh)
+
+    # Step 5 — restore corridor rooms so their 1.2m side remains the narrow dimension.
+    for room_index, room in enumerate(rooms):
+        if not isinstance(room, dict):
+            continue
+        if room.get("room_type") == "corridor":
+            rooms[room_index] = _enforce_corridor_dimensions(room, bw, bh)
+
+    # Clamp, round, and restore edge anchors so normalized rooms stay inside the boundary and preserve exterior contacts.
+    for room_index, room in enumerate(rooms):
+        if not isinstance(room, dict):
+            continue
+        room_origin = room.setdefault("origin", {})
+        x0 = max(0.0, min(float(room_origin.get("x", 0.0)), bw))
+        y0 = max(0.0, min(float(room_origin.get("y", 0.0)), bh))
+        room_type = str(room.get("room_type", "")).strip().lower()
+        min_span = _CORRIDOR_MIN_SPAN if room_type == "corridor" else 1.5
+        width = min(max(float(room.get("width", 0.0)), min_span), max(0.01, bw - x0))
+        height = min(max(float(room.get("height", 0.0)), min_span), max(0.01, bh - y0))
+
+        room_anchor = anchors[room_index]
+        if room_anchor["left"]:
+            x0 = 0.0
+        if room_anchor["bottom"]:
+            y0 = 0.0
+        if room_anchor["right"] and not room_anchor["left"]:
+            x0 = max(0.0, bw - width)
+        if room_anchor["top"] and not room_anchor["bottom"]:
+            y0 = max(0.0, bh - height)
+        if room_anchor["left"] and room_anchor["right"]:
+            x0 = 0.0
+            width = bw
+        if room_anchor["bottom"] and room_anchor["top"]:
+            y0 = 0.0
+            height = bh
+
+        room_origin["x"] = round(x0, 4)
+        room_origin["y"] = round(y0, 4)
+        room["width"] = round(min(width, max(0.01, bw - x0)), 4)
+        room["height"] = round(min(height, max(0.01, bh - y0)), 4)
+
+    normalized_layout["rooms"] = rooms
+    return normalized_layout
+
+
+def _cap_dominant_room(
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+) -> list[dict[str, Any]]:
+    """
+    Prevent any single room from taking more than 40%
+    of the total floor area (except when there is only
+    1 non-corridor room).
+
+    When a room exceeds the cap:
+      1. Calculate how much to trim (excess area).
+      2. Trim from the longer dimension.
+      3. The freed space is NOT redistributed automatically
+         (the normalizer's gap-fill handles that).
+    """
+    area_cap_ratio = 0.40
+    total_area = boundary_w * boundary_h
+    max_area = total_area * area_cap_ratio
+
+    non_corridor = [room for room in rooms if room.get("room_type") != "corridor"]
+    if len(non_corridor) <= 1:
+        return rooms
+
+    for room in rooms:
+        if room.get("room_type") == "corridor":
+            continue
+        w = float(room.get("width", 0))
+        h = float(room.get("height", 0))
+        current_area = w * h
+        if current_area <= max_area:
+            continue
+
+        # Trim the longer dimension proportionally.
+        scale = (max_area / current_area) ** 0.5
+        new_w = max(1.8, w * scale)
+        new_h = max(1.8, h * scale)
+        room["width"] = round(new_w, 4)
+        room["height"] = round(new_h, 4)
+
+    return rooms
+
+
+def _enforce_corridor_dimensions(
+    room: dict[str, Any],
+    boundary_w: float,
+    boundary_h: float,
+) -> dict[str, Any]:
+    """
+    Enforce that corridor rooms always have their 1.2m
+    dimension as the NARROW side.
+
+    If both dimensions are > 1.5, assume the larger one
+    should span the full available length and force 1.2m
+    on the narrower axis.
+    """
+    if room.get("room_type") != "corridor":
+        return room
+    if "storage" in str(room.get("name", "")).lower():
+        return room
+
+    w = float(room.get("width", 0))
+    h = float(room.get("height", 0))
+    corridor_width = _CORRIDOR_MIN_SPAN
+
+    # Case: both are large (bug: 12.0 x 1.1 swapped)
+    if w > 2.0 and h > 2.0:
+        # Keep the larger dimension, force 1.2 on the smaller.
+        if w >= h:
+            room["width"] = round(w, 4)
+            room["height"] = corridor_width
+        else:
+            room["width"] = corridor_width
+            room["height"] = round(h, 4)
+
+    # Case: narrow dimension already set correctly.
+    elif w <= 1.5:
+        room["width"] = corridor_width
+        room["height"] = round(h, 4)
+    elif h <= 1.5:
+        room["width"] = round(w, 4)
+        room["height"] = corridor_width
+
+    return room

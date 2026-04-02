@@ -108,7 +108,7 @@ class ChatMessageRecord(BaseModel):
     role: Literal["user", "assistant", "error", "system"]
     text: str = Field(min_length=1)
     created_at: str = Field(min_length=1)
-    dxf_path: str | None = None
+    file_token: str | None = None
     dxf_name: str | None = None
     model_used: str | None = None
     provider_used: str | None = None
@@ -131,6 +131,8 @@ class WorkspaceGenerateDxfRequest(BaseModel):
     user_id: str = Field(min_length=1, max_length=128)
     prompt: str = Field(min_length=1, max_length=12000)
     model: ParseDesignModel
+    # Preserve the existing route shape while allowing concrete cloud model selection.
+    model_id: str | None = Field(default=None, min_length=1, max_length=256)
     recovery_mode: RecoveryMode = RecoveryMode.REPAIR
 
     model_config = ConfigDict(extra="forbid")
@@ -149,6 +151,8 @@ class WorkspaceGenerateDxfForCurrentUserRequest(BaseModel):
 
     prompt: str = Field(min_length=1, max_length=12000)
     model: ParseDesignModel
+    # Preserve the existing route shape while allowing concrete cloud model selection.
+    model_id: str | None = Field(default=None, min_length=1, max_length=256)
     recovery_mode: RecoveryMode = RecoveryMode.REPAIR
 
     model_config = ConfigDict(extra="forbid")
@@ -172,8 +176,9 @@ class WorkspaceGenerateDxfSuccessResponse(BaseModel):
     model_used: str
     provider_used: str
     failover_triggered: bool = False
+    self_review_triggered: bool = False
     latency_ms: float = Field(ge=0)
-    dxf_path: str = Field(min_length=1)
+    file_token: str = Field(min_length=1)
     dxf_name: str = Field(min_length=1)
     data: ParsedDesignIntent
     metrics: LayoutMetrics

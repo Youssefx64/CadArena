@@ -58,6 +58,51 @@ def extract_json_object_with_keys(raw_text: str, expected_top_level_keys: set[st
     return parsed
 
 
+def extract_json_object_with_keys_permissive(
+    raw_text: str,
+    expected_top_level_keys: set[str],
+) -> dict[str, Any]:
+    """Extract the best matching JSON object candidate with the expected top-level keys."""
+
+    cleaned = strip_markdown_fences(raw_text)
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict) and set(parsed.keys()) == expected_top_level_keys:
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    candidates: list[dict[str, Any]] = []
+    for index, char in enumerate(cleaned):
+        if char != "{":
+            continue
+        try:
+            candidate, _ = decoder.raw_decode(cleaned[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict):
+            candidates.append(candidate)
+
+    if not candidates:
+        raise ValueError("No JSON object found in model output")
+
+    candidates.sort(
+        key=lambda candidate: _score_candidate_for_keys(candidate, expected_top_level_keys),
+        reverse=True,
+    )
+    best_candidate = candidates[0]
+    if set(best_candidate.keys()) != expected_top_level_keys:
+        missing = sorted(expected_top_level_keys - set(best_candidate.keys()))
+        extra = sorted(set(best_candidate.keys()) - expected_top_level_keys)
+        required = ", ".join(sorted(expected_top_level_keys))
+        raise ValueError(
+            f"Top-level keys must be exactly {required}; "
+            f"missing={missing} extra={extra}"
+        )
+    return best_candidate
+
+
 def extract_json_object_permissive(raw_text: str) -> dict[str, Any]:
     """Extract the best JSON object candidate from mixed model output."""
 
@@ -100,3 +145,15 @@ def _score_candidate(candidate: dict[str, Any]) -> tuple[int, int, int, int, int
     wall_count = len(candidate.get("walls", [])) if has_walls else 0
     opening_count = len(candidate.get("openings", [])) if has_openings else 0
     return (int(exact_keys), top_level_score, room_count, wall_count, opening_count)
+
+
+def _score_candidate_for_keys(
+    candidate: dict[str, Any],
+    expected_top_level_keys: set[str],
+) -> tuple[int, int, int, int]:
+    candidate_keys = set(candidate.keys())
+    matching_keys = len(candidate_keys & expected_top_level_keys)
+    exact_keys = candidate_keys == expected_top_level_keys
+    missing_keys = len(expected_top_level_keys - candidate_keys)
+    extra_keys = len(candidate_keys - expected_top_level_keys)
+    return (int(exact_keys), matching_keys, -missing_keys, -extra_keys)

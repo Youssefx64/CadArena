@@ -4,6 +4,7 @@ from app.utils.json_extraction import (
     extract_json_object,
     extract_json_object_permissive,
     extract_json_object_with_keys,
+    extract_json_object_with_keys_permissive,
 )
 
 
@@ -60,3 +61,13 @@ def test_extract_json_object_with_keys_accepts_extraction_contract() -> None:
     )
     parsed = extract_json_object_with_keys(raw, {"boundary", "room_program", "constraints"})
     assert set(parsed.keys()) == {"boundary", "room_program", "constraints"}
+
+
+def test_extract_json_object_with_keys_permissive_extracts_wrapped_review_json() -> None:
+    raw = (
+        "Review result:\n"
+        '{"passed":true,"issues":[],"corrected_output":{"boundary":{"width":24,"height":16},"room_program":[],"constraints":{"notes":[],"adjacency_preferences":[]}}}\n'
+        "done."
+    )
+    parsed = extract_json_object_with_keys_permissive(raw, {"passed", "issues", "corrected_output"})
+    assert parsed["passed"] is True

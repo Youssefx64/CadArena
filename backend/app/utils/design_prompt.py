@@ -28,8 +28,51 @@ def build_design_parser_prompt(user_prompt: str) -> str:
     """Build a strict prompt that extracts room program intent only."""
 
     schema_example = json.dumps(_SCHEMA_EXAMPLE, ensure_ascii=False, separators=(",", ":"))
+    CRITICAL_RULES = """
+    CRITICAL EXTRACTION RULES — violating any rule = invalid output:
+
+    RULE ARABIC:
+      Prompts may include translated Arabic keywords.
+      Always extract room counts and dimensions from any numbers present.
+      If the prompt says "2 bedrooms" extract exactly 2 bedrooms.
+      If the prompt says "large" for a room, increase its area by 20%.
+
+    RULE 1 — ROOM COUNT IS SACRED:
+      "1 bedroom"  → exactly 1 bedroom in room_program with count=1
+      "2 bedrooms" → exactly 1 entry with count=2 OR 2 entries count=1
+      NEVER add rooms the user did not request.
+      NEVER split one requested room into two entries.
+      Synonyms: bedroom=room=chamber | bathroom=toilet=WC=restroom
+                kitchen=cooking area | living=lounge=salon=reception
+
+    RULE 2 — BOUNDARY MATH:
+      Sum of room areas must be 85%-100% of boundary area.
+      No room width < 1.8m. No room height < 1.8m.
+      No room width > boundary_width * 0.80.
+
+    RULE 3 — CANONICAL ROOM TYPES ONLY:
+      Use ONLY: bedroom, bathroom, kitchen, living, corridor, stairs
+      For master bedroom: room_type="bedroom", name="Master Bedroom"
+      For dining: room_type="living", name="Dining Area"
+      NEVER invent new room_type values.
+
+    RULE 4 — MINIMUM PROPORTIONS:
+      living room  → min 25% of total floor area
+      each bedroom → min 12% of total floor area
+      kitchen      → min 8%  of total floor area
+      bathroom     → min 5%  of total floor area
+
+    RULE 5 — OUTPUT ONLY VALID JSON. No markdown. No explanation.
+
+    RULE 6 — LIVING ROOM PROPORTION CAP:
+      Living room must NOT exceed 40% of total floor area.
+      If the user requests a large living room, still cap at 40%.
+      The remaining 60% must be distributed among other rooms.
+    """
 
     return (
+        # Keep the critical extraction rules first so room-count and boundary constraints are the highest-priority instructions.
+        f"{CRITICAL_RULES.strip()}\n\n"
         "You are an architectural intent extractor for CAD generation.\n"
         "Input is English only.\n"
         "All output text values MUST be English only.\n"
