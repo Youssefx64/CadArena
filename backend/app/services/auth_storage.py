@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 from datetime import UTC, datetime
+from functools import lru_cache
 from uuid import uuid4
 
+from cryptography.fernet import Fernet, InvalidToken
+
+from app.core.env_loader import load_backend_env
 from app.services.workspace_storage import workspace_db_path
+
+load_backend_env()
 
 _WHITESPACE_RE = re.compile(r"\s+")
 _SUPPORTED_API_KEY_PROVIDERS = (
@@ -96,6 +103,39 @@ def _mask_api_key(value: str) -> str:
     if len(value) <= 8:
         return "*" * len(value)
     return f"{value[:4]}...{value[-4:]}"
+
+
+@lru_cache(maxsize=1)
+def _provider_key_cipher() -> Fernet:
+    secret = os.getenv("PROVIDER_KEY_SECRET", "").strip()
+    if not secret:
+        raise RuntimeError("PROVIDER_KEY_SECRET is required to encrypt provider API keys")
+    try:
+        return Fernet(secret.encode("ascii"))
+    except (ValueError, UnicodeEncodeError) as exc:
+        raise RuntimeError("PROVIDER_KEY_SECRET must be a valid Fernet key") from exc
+
+
+def _looks_like_encrypted_provider_key(value: str) -> bool:
+    return value.startswith("gAAAAA")
+
+
+def _encrypt_provider_api_key(value: str) -> str:
+    encrypted = _provider_key_cipher().encrypt(value.encode("utf-8"))
+    return encrypted.decode("ascii")
+
+
+def _decrypt_provider_api_key(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise RuntimeError("Stored provider API key is empty")
+    if not _looks_like_encrypted_provider_key(cleaned):
+        return cleaned
+    try:
+        decrypted = _provider_key_cipher().decrypt(cleaned.encode("ascii"))
+    except InvalidToken as exc:
+        raise RuntimeError("Unable to decrypt stored provider API key") from exc
+    return decrypted.decode("utf-8")
 
 
 def _ensure_profile_columns(connection: sqlite3.Connection) -> None:
@@ -423,16 +463,19 @@ def list_user_provider_api_keys(*, user_id: str) -> list[dict]:
             (cleaned_user_id,),
         ).fetchall()
 
-    return [
-        {
-            "provider": row["provider"],
-            "has_key": True,
-            "masked_key": _mask_api_key(row["api_key"]),
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-        }
-        for row in rows
-    ]
+    records: list[dict] = []
+    for row in rows:
+        decrypted_key = _decrypt_provider_api_key(row["api_key"])
+        records.append(
+            {
+                "provider": row["provider"],
+                "has_key": True,
+                "masked_key": _mask_api_key(decrypted_key),
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+        )
+    return records
 
 
 def upsert_user_provider_api_key(*, user_id: str, provider: str, api_key: str) -> dict:
@@ -441,6 +484,7 @@ def upsert_user_provider_api_key(*, user_id: str, provider: str, api_key: str) -
         raise ValueError("user_id must not be empty")
     normalized_provider = _normalize_provider(provider)
     normalized_key = _normalize_api_key(api_key)
+    encrypted_key = _encrypt_provider_api_key(normalized_key)
     now = _utc_now()
 
     with _connect() as connection:
@@ -452,7 +496,7 @@ def upsert_user_provider_api_key(*, user_id: str, provider: str, api_key: str) -
                 api_key = excluded.api_key,
                 updated_at = excluded.updated_at
             """,
-            (uuid4().hex, cleaned_user_id, normalized_provider, normalized_key, now, now),
+            (uuid4().hex, cleaned_user_id, normalized_provider, encrypted_key, now, now),
         )
         connection.commit()
 
