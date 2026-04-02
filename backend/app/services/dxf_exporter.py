@@ -138,27 +138,52 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
         doc = ezdxf.readfile(source_path)
         modelspace = doc.modelspace()
 
-        # Create figure with high DPI for quality
-        fig = plt.figure(figsize=(16, 10), dpi=360)
+        # Create figure with the requested white-sheet presentation and minimum 200 DPI output.
+        fig = plt.figure(figsize=(16, 10), dpi=200)
+        fig.set_dpi(max(fig.get_dpi(), 200))
         ax = fig.add_axes([0, 0, 1, 1])
         ax.set_axis_off()
         ax.set_aspect("equal", adjustable="box")
-        # Dark background with brighter foreground gives better DXF readability in browser previews.
-        ax.set_facecolor("#0f1d24")
-        fig.patch.set_facecolor("#0f1d24")
+        # Keep preview exports on a white background so PNG and PDF match the DXF sheet style.
+        ax.set_facecolor("white")
+        fig.patch.set_facecolor("white")
 
         render_context = RenderContext(doc)
+        # Force architectural layer colors in previews so walls stay black and furniture/hatches stay lighter.
+        layer_overrides = {
+            "WALLS": {"color": "black", "lineweight": 1.2},
+            "DOORS": {"color": "black"},
+            "WINDOWS": {"color": "black"},
+            "BORDER": {"color": "black", "lineweight": 1.4},
+            "ROOM_LABELS": {"color": "black"},
+            "DIMENSIONS": {"color": "#1f5aa6"},
+            "HATCH": {"color": "#d0d0d0"},
+            "FURNITURE": {"color": "#9a9a9a"},
+            "FURNITURE_BEDROOM": {"color": "#9a9a9a"},
+            "FURNITURE_SANITARY": {"color": "#9a9a9a"},
+            "FURNITURE_LIVING": {"color": "#9a9a9a"},
+            "FURNITURE_KITCHEN": {"color": "#9a9a9a"},
+        }
+
+        # Apply per-layer preview overrides so sheet exports stay close to the intended CAD print hierarchy.
+        def _apply_layer_override(override):
+            for key, value in layer_overrides.get(getattr(override, "layer", ""), {}).items():
+                setattr(override, key, value)
+
+        render_context.set_layer_properties_override(_apply_layer_override)
         backend = MatplotlibBackend(ax)
 
         frontend_kwargs = {}
         try:
-            from ezdxf.addons.drawing.config import ColorPolicy, Configuration
+            from ezdxf.addons.drawing.config import BackgroundPolicy, ColorPolicy, Configuration
 
             config = Configuration.defaults()
             if hasattr(config, "with_changes"):
                 config = config.with_changes(
                     color_policy=ColorPolicy.MONOCHROME,
-                    custom_fg_color="#ecf6f3",
+                    custom_fg_color="#000000",
+                    background_policy=BackgroundPolicy.CUSTOM,
+                    custom_bg_color="#ffffff",
                     lineweight_scaling=1.8,
                     min_lineweight=0.28,
                 )

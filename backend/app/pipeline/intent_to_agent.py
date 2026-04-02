@@ -334,8 +334,8 @@ def generate_dxf_from_intent(
         renderer.draw_door_geometry(geom)
 
     # Add room labels, dimensions, and special features
-    for text, position in room_labels:
-        renderer.draw_room_label(text, position)
+    for text, room_type, position in room_labels:
+        renderer.draw_room_label(text, position, room_type=room_type)
     for text, position in room_dimensions:
         renderer.draw_room_dimensions(text, position)
     if stair_lines:

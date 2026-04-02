@@ -54,14 +54,14 @@ def build_thick_wall_lines(
     return lines
 
 
-def build_room_labels(rooms: list[Room]) -> list[tuple[str, Point]]:
-    labels: list[tuple[str, Point]] = []
+def build_room_labels(rooms: list[Room]) -> list[tuple[str, str, Point]]:
+    labels: list[tuple[str, str, Point]] = []
     for room in rooms:
         if room.origin is None:
             continue
         cx = room.origin.x + room.width / 2
         cy = room.origin.y + room.height / 2
-        labels.append((room.name, Point(x=cx, y=cy + 0.3)))
+        labels.append((room.name, room.room_type, Point(x=cx, y=cy + 0.3)))
     return labels
 
 

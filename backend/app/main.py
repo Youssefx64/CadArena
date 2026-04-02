@@ -4,6 +4,7 @@ Main FastAPI application entry point.
 This module initializes the FastAPI application and registers API routes.
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -11,10 +12,21 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.core.env_loader import load_backend_env
+from app.core.logging import get_logger
 
 load_backend_env()
 
-from app.api.v1.routes import router as dxf_router
+# Guard DXF router import so missing CAD deps disable only DXF endpoints, not the whole app.
+try:
+    from app.api.v1.routes import router as dxf_router
+except ImportError as exc:
+    if exc.name != "ezdxf":
+        raise
+    dxf_router = None
+    _DXF_ROUTER_IMPORT_ERROR: ImportError | None = exc
+else:
+    _DXF_ROUTER_IMPORT_ERROR = None
+
 from app.core.settings import get_settings
 from app.routers.design_parser import router as design_parser_router
 from app.routers.contact import router as contact_router
@@ -27,8 +39,10 @@ from app.services.design_parser_service import (
     shutdown_design_parser_service,
     startup_design_parser_service,
 )
+from app.services.output_cleanup import run_cleanup_loop
 from app.services.workspace_storage import init_workspace_db
 
+logger = get_logger(__name__)
 settings = get_settings()
 PROJECT_ROOT_DIR = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT_DIR / "frontend"
@@ -43,9 +57,17 @@ async def lifespan(_: FastAPI):
     init_workspace_db()
     init_auth_db()
     await startup_design_parser_service()
+    cleanup_task = asyncio.create_task(
+        run_cleanup_loop(interval_hours=6)
+    )
     try:
         yield
     finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
         await shutdown_design_parser_service()
 
 
@@ -58,8 +80,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register API v1 routes with prefix
-app.include_router(dxf_router, prefix="/api/v1")
+# Register API v1 routes with prefix.
+if dxf_router is not None:
+    app.include_router(dxf_router, prefix="/api/v1")
+else:
+    logger.warning(
+        "DXF routes disabled because CAD dependencies are unavailable: %s",
+        _DXF_ROUTER_IMPORT_ERROR,
+    )
 app.include_router(design_parser_router, prefix="/api/v1")
 app.include_router(contact_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
