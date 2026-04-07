@@ -1,0 +1,97 @@
+{
+  "team": {
+    "project_name": "CadArena",
+    "tagline": "Conversational CAD Studio",
+    "description": "CadArena is designed and maintained by Youssef Taha Badawi to turn architectural intent into structured layouts, DXF exports, and scalable AI-assisted design workflows.",
+    "version": "1.0.0",
+    "repository": "https://github.com/Youssefx64/CadArena",
+    "license": "Proprietary"
+  },
+  "developers": [
+    {
+      "id": 1,
+      "name": "Youssef Taha Badawi",
+      "role": "Founder, AI Engineer & Systems Architect",
+      "avatar": "https://ui-avatars.com/api/?name=Youssef+Taha+Badawi&background=0ea5e9&color=fff&size=200",
+      "bio": "AI Engineer | GenAI Solutions Developer | LLM Systems Engineer | Conversational CAD Systems Engineer | Architecting Agentic & RAG Systems | Building Scalable AI That Solves Real Problems.",
+      "contributions": [
+        "Conversational CAD studio architecture",
+        "LLM, agentic, and RAG system design",
+        "DXF generation workflow and AI integration",
+        "Frontend-backend product architecture"
+      ],
+      "links": {
+        "github": "https://github.com/Youssefx64/",
+        "linkedin": "https://www.linkedin.com/in/yousseftahaai/",
+        "email": "cadarena.ai@gmail.com"
+      }
+    }
+  ],
+  "acknowledgments": [
+    {
+      "name": "Stability AI",
+      "contribution": "Stable Diffusion base model",
+      "link": "https://stability.ai/"
+    },
+    {
+      "name": "Hugging Face",
+      "contribution": "Diffusers library and model hosting",
+      "link": "https://huggingface.co/"
+    },
+    {
+      "name": "CubiCasa",
+      "contribution": "CubiCasa5K dataset",
+      "link": "https://github.com/CubiCasa/CubiCasa5k"
+    },
+    {
+      "name": "PyTorch Team",
+      "contribution": "Deep learning framework",
+      "link": "https://pytorch.org/"
+    }
+  ],
+  "technologies": [
+    {
+      "category": "Machine Learning",
+      "items": [
+        "PyTorch 2.0+",
+        "Diffusers 0.35.2",
+        "Transformers 4.57.1",
+        "Accelerate 1.10.1"
+      ]
+    },
+    {
+      "category": "Frontend",
+      "items": [
+        "React 18.2",
+        "TailwindCSS 3.3",
+        "Framer Motion 10.12",
+        "Lucide React"
+      ]
+    },
+    {
+      "category": "Backend",
+      "items": [
+        "FastAPI 0.128",
+        "Uvicorn 0.40",
+        "Pydantic v2",
+        "SQLite Workspace Persistence"
+      ]
+    },
+    {
+      "category": "Infrastructure",
+      "items": [
+        "Google Colab A100",
+        "CUDA 11.8+",
+        "Git & GitHub",
+        "Docker (optional)"
+      ]
+    }
+  ],
+  "statistics": {
+    "lines_of_code": "15000+",
+    "training_hours": "120+",
+    "dataset_size": "5000+ floor plans",
+    "model_parameters": "860M",
+    "accuracy": "84.5%"
+  }
+}

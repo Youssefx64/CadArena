@@ -1,70 +1,66 @@
-# Frontend
+# CadArena Frontend
 
-The frontend is a lightweight static interface for CadArena.
-It is intentionally kept framework-free: fast to load, simple to deploy, and easy to serve directly from FastAPI.
+React frontend for CadArena, a conversational CAD studio focused on architectural layouts, DXF exports, and AI-assisted design workflows.
 
-## Principles
+## Highlights
 
-- Direct page delivery with no build step
-- Clear separation between pages, styles, scripts, and assets
-- Stable file locations to match backend-served routes
-- Low operational overhead for demos, iteration, and deployment
+- Single frontend workspace rooted at `frontend/`
+- Dedicated `/studio` route for the embedded CadArena chat studio
+- React marketing and project pages alongside the full studio experience
+- Tailwind CSS, Framer Motion, React Router, and React Hot Toast
 
-## Structure
+## Run Locally
 
-```text
-frontend/
-├── index.html       # studio workspace
-├── landing.html     # public landing page
-├── blog.html        # blog page
-├── contact.html     # contact page
-├── profile.html     # user profile page
-├── styles/          # page and shared stylesheets
-├── scripts/         # page behavior and UI scripts
-└── assets/          # logos and illustrations
+### Prerequisites
+
+- Node.js 16+
+- CadArena backend running from `../backend`
+
+### Install
+
+```bash
+npm install
 ```
 
-## Route Mapping
+### Start
 
-These files are served by the backend without a frontend build pipeline:
+```bash
+npm start
+```
 
-- `/` -> `landing.html`
-- `/blog` -> `blog.html`
-- `/contact` -> `contact.html`
-- `/app/` -> `index.html`
+Open `http://localhost:3000`, then visit `http://localhost:3000/studio` for the chat studio.
 
-In addition, the backend mounts:
+### Build
 
-- `/app` as the frontend directory
-- `/static` as a static asset path for the same directory
+```bash
+npm run build
+```
 
-## Files
+## Studio Integration
 
-### HTML entry pages
+The embedded studio is copied into `public/studio-app` automatically through:
 
-- `landing.html`
-- `index.html`
-- `blog.html`
-- `contact.html`
-- `profile.html`
+- `npm start` -> `prestart`
+- `npm run build` -> `prebuild`
 
-### Styles
+The copy script lives in `scripts/copy-studio.js` and reads its source files from `studio-source/`.
 
-- `styles/styles.css` for shared workspace styling
-- Page-level styles such as `landing.css`, `blog.css`, `contact.css`, and `profile.css`
+## Environment
 
-### Scripts
+Create `.env` in `frontend` if needed:
 
-- `scripts/app.js` for the main studio behavior
-- Page-specific scripts such as `landing.js`, `blog.js`, `contact.js`, and `profile.js`
-- Shared helpers like `page-motion.js` and `back-nav.js`
+```bash
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_VERSION=1.0.0
+```
 
-## Working Model
+The studio itself uses relative `/api/v1/*` requests and is proxied to the FastAPI backend at `http://localhost:8000` during local development.
 
-This frontend is best treated as server-delivered UI rather than a separate SPA.
-That choice keeps routing predictable and allows the FastAPI app to own both page delivery and API access.
+## Ownership
 
-## Why HTML Files Stay at Root
-
-The backend references these files directly from [`backend/app/main.py`](/home/mango/Coding/Projects/CadArena/backend/app/main.py).
-Keeping them at the frontend root avoids breaking route behavior and preserves simple file-based page serving.
+- Project: `CadArena`
+- Maintainer: `Youssef Taha Badawi`
+- LinkedIn: `https://www.linkedin.com/in/yousseftahaai/`
+- GitHub: `https://github.com/Youssefx64/`
+- Repository: `https://github.com/Youssefx64/CadArena`
+- Project Email: `cadarena.ai@gmail.com`

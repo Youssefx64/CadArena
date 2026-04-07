@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CadArena | Profile</title>
+    <link rel="icon" type="image/svg+xml" href="/static/assets/cadarena-mark.svg" />
+    <link rel="shortcut icon" href="/static/assets/cadarena-mark.svg" />
+    <script>
+      (() => {
+        const key = "cadarena_theme";
+        try {
+          localStorage.setItem(key, "light");
+        } catch (_error) {
+          // best effort persistence
+        }
+        document.documentElement.setAttribute("data-theme", "light");
+      })();
+    </script>
+    <link rel="stylesheet" href="/static/styles/profile.css?v=profile4" />
+    <link rel="stylesheet" href="/static/styles/back-nav.css?v=1" />
+  </head>
+  <body>
+    <div class="profile-page-shell">
+      <header class="profile-topbar">
+        <a class="profile-brand" href="/" aria-label="CadArena home">
+          <!-- FIX 10: explicit image dimensions -->
+          <img class="profile-brand-logo" src="/static/assets/cadarena-mark.svg" alt="CadArena" width="32" height="32" />
+          <div class="profile-brand-copy">
+            <span class="profile-brand-title">CadArena Studio</span>
+            <span class="profile-brand-subtitle">User Profile</span>
+          </div>
+        </a>
+
+        <div class="profile-topbar-actions">
+          <button class="profile-theme-btn" id="profile-theme-toggle" type="button" aria-label="Toggle mode" title="Toggle mode" hidden>
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 4.3v2.4M12 17.3v2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M4.3 12h2.4M17.3 12h2.4M6.6 17.4l1.7-1.7M15.7 8.3l1.7-1.7M15.4 12a3.4 3.4 0 1 1-6.8 0 3.4 3.4 0 0 1 6.8 0Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20 14.2A7.8 7.8 0 1 1 9.8 4a6.3 6.3 0 1 0 10.2 10.2Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <img class="profile-user-avatar" id="profile-user-avatar" src="/static/assets/cadarena-mark.svg" alt="Profile image" width="72" height="72" />
+          <span class="profile-user-name" id="profile-user-name">User</span>
+          <button class="profile-action-btn" id="profile-open-studio-btn" type="button">Open Studio</button>
+          <button class="profile-action-btn profile-logout-btn" id="profile-logout-btn" type="button">Logout</button>
+        </div>
+      </header>
+
+      <main class="profile-main">
+        <section class="profile-card">
+          <div class="profile-card-head">
+            <h1>Profile Settings</h1>
+            <span class="profile-email-pill" id="profile-email-pill">account@cadarena.ai</span>
+          </div>
+          <p class="profile-card-copy">Update your account information used across your workspace.</p>
+
+          <form class="profile-form" id="profile-form" autocomplete="on">
+            <div class="profile-avatar-panel">
+              <img class="profile-avatar-image" id="profile-avatar-image" src="/static/assets/cadarena-mark.svg" alt="Profile image preview" width="72" height="72" />
+              <div class="profile-avatar-content">
+                <p class="profile-avatar-title">Profile Image</p>
+                <p class="profile-avatar-copy">Upload JPG, PNG, WEBP, or GIF up to 5 MB.</p>
+                <div class="profile-avatar-actions">
+                  <button class="profile-avatar-btn" id="profile-avatar-upload-btn" type="button">Upload image</button>
+                  <button class="profile-avatar-btn profile-avatar-remove-btn" id="profile-avatar-remove-btn" type="button" hidden>
+                    Remove
+                  </button>
+                </div>
+                <input id="profile-avatar-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+              </div>
+            </div>
+            <label>
+              <span>Display Name</span>
+              <input id="profile-display-name-input" type="text" maxlength="120" placeholder="Your full name" />
+            </label>
+            <label>
+              <span>Headline</span>
+              <input id="profile-headline-input" type="text" maxlength="180" placeholder="Architect | Design Technologist" />
+            </label>
+            <label>
+              <span>Company</span>
+              <input id="profile-company-input" type="text" maxlength="160" placeholder="Company or studio name" />
+            </label>
+            <label>
+              <span>Website</span>
+              <input id="profile-website-input" type="url" maxlength="320" placeholder="https://example.com" />
+            </label>
+            <label>
+              <span>Timezone</span>
+              <input id="profile-timezone-input" type="text" maxlength="80" placeholder="Africa/Cairo" />
+            </label>
+            <button class="profile-save-btn" id="profile-save-btn" type="submit">Save profile</button>
+          </form>
+        </section>
+
+        <section class="provider-card">
+          <div class="provider-card-head">
+            <h2>Provider API Keys</h2>
+          </div>
+          <p class="provider-card-copy">Manage provider keys securely for your account.</p>
+          <div class="provider-key-list" id="provider-key-list"></div>
+        </section>
+      </main>
+
+      <p class="profile-feedback" id="profile-feedback" role="status"></p>
+    </div>
+
+    <script src="/static/scripts/back-nav.js?v=1" defer></script>
+    <script type="module" src="/static/scripts/profile.js?v=profile4"></script>
+  </body>
+</html>

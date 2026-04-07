@@ -1,0 +1,21 @@
+{
+  "short_name": "CadArena",
+  "name": "CadArena - Conversational CAD Studio",
+  "icons": [
+    {
+      "src": "studio-app/assets/cadarena-mark.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "studio-app/assets/cadarena-logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0ea5e9",
+  "background_color": "#f0f9ff",
+  "description": "Conversational CAD studio for architectural layouts, DXF exports, and AI-assisted design workflows"
+}
