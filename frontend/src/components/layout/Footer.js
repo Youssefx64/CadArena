@@ -42,36 +42,35 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-          {/* Brand Section */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center space-x-3 mb-4">
+    <footer className="app-footer">
+      <div className="app-shell relative py-14">
+        <div className="app-footer-grid">
+          <div className="app-footer-brand">
+            <div className="mb-5 flex items-center gap-4">
               <img
                 src={brandMarkSrc}
                 alt="CadArena"
-                className="w-11 h-11 rounded-xl shadow-lg shadow-cyan-950/20 ring-1 ring-cyan-200/20"
+                className="app-footer-logo"
               />
               <div className="flex flex-col leading-none">
                 <span className="text-xl font-bold text-white">CadArena</span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gray-400">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
                   AI Layout Workspace
                 </span>
               </div>
             </div>
-            <p className="text-gray-400 mb-6 max-w-md">
+            <p className="app-footer-copy">
               Conversational CAD studio built by Youssef Taha Badawi for turning natural-language intent
               into architectural layouts, DXF exports, and AI-assisted design workflows.
             </p>
-            <div className="flex space-x-4">
+            <div className="app-footer-socials">
               {socialLinks.map((social) => {
                 const Icon = social.icon;
                 return (
                   <a
                     key={social.name}
                     href={social.href}
-                    className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-800"
+                    className="app-footer-social-link"
                     aria-label={social.name}
                   >
                     <Icon className="w-5 h-5" />
@@ -81,18 +80,17 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Links Sections */}
           {footerLinks.map((section) => (
-            <div key={section.title}>
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
+            <div key={section.title} className="app-footer-section">
+              <h3 className="app-footer-heading">
                 {section.title}
               </h3>
-              <ul className="space-y-3">
+              <ul className="space-y-3.5">
                 {section.links.map((link) => (
                   <li key={link.name}>
                     <a
                       href={link.href}
-                      className="text-gray-400 hover:text-white transition-colors text-sm"
+                      className="app-footer-link"
                     >
                       {link.name}
                     </a>
@@ -103,22 +101,21 @@ const Footer = () => {
           ))}
         </div>
 
-        {/* Bottom Section */}
-        <div className="border-t border-gray-800 mt-12 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-1 text-sm text-gray-400">
+        <div className="app-footer-bottom">
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+            <div className="flex flex-wrap items-center justify-center gap-1 text-sm text-slate-400 md:justify-start">
               <span>© {currentYear} CadArena. Built with</span>
-              <Heart className="w-4 h-4 text-red-500" />
+              <Heart className="w-4 h-4 text-secondary-400" />
               <span>for practical architectural AI workflows.</span>
             </div>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="mailto:cadarena.ai@gmail.com" className="text-sm text-gray-400 hover:text-white transition-colors">
+            <div className="flex gap-6">
+              <a href="mailto:cadarena.ai@gmail.com" className="app-footer-meta-link">
                 Contact
               </a>
-              <a href="https://www.linkedin.com/in/yousseftahaai/" className="text-sm text-gray-400 hover:text-white transition-colors">
+              <a href="https://www.linkedin.com/in/yousseftahaai/" className="app-footer-meta-link">
                 LinkedIn
               </a>
-              <a href="https://github.com/Youssefx64/CadArena" className="text-sm text-gray-400 hover:text-white transition-colors">
+              <a href="https://github.com/Youssefx64/CadArena" className="app-footer-meta-link">
                 Repository
               </a>
             </div>

@@ -9,7 +9,7 @@ export default function StudioPage() {
         width: '100vw',
         height: '100dvh',
         overflow: 'hidden',
-        background: '#fff',
+        background: '#f8faff',
       }}
     >
       <iframe
