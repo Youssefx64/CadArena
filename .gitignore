@@ -2,6 +2,7 @@ backend/output/
 backend/data/
 .codex
 CLAUDE.md
+.claude/
 
 # SQLite runtime databases
 *.db
