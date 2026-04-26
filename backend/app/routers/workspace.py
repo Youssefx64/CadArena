@@ -39,6 +39,9 @@ from app.services.workspace_storage import (
     list_projects,
     rename_project,
 )
+from app.services.chat_assistant import get_assistant_reply
+from app.services.design_suggestions import generate_suggestions
+from app.services.intent_router import MessageIntent, classify_intent
 from app.utils.parse_output_storage import save_parse_design_output
 
 logger = get_logger(__name__)
@@ -330,6 +333,24 @@ async def workspace_generate_dxf(
             message="Project not found",
         )
 
+    # ── Intent routing: short-circuit conversational messages before LLM pipeline ──
+    intent = classify_intent(request.prompt, has_existing_layout=False)
+    if intent == MessageIntent.CONVERSATION:
+        chat_reply = await get_assistant_reply(request.prompt)
+        assistant_msg_id = add_message(
+            user_id=request.user_id,
+            project_id=project_id,
+            role="assistant",
+            text=chat_reply,
+        )
+        return JSONResponse(content={
+            "type": "chat",
+            "message": chat_reply,
+            "project_id": project_id,
+            "user_message_id": user_message_id,
+            "assistant_message_id": assistant_msg_id,
+        })
+
     try:
         effective_model_id = request.model_id  # MODEL-FIX: preserve any caller-supplied model_id before provider-specific normalization
         if request.model.value == "ollama":  # MODEL-FIX: resolve local Ollama model selection at the router boundary for generate-dxf
@@ -433,6 +454,7 @@ async def workspace_generate_dxf(
             "rooms": parsed_data.get("rooms", []),
             "openings": parsed_data.get("openings", []),
         }
+        response_payload["suggestions"] = generate_suggestions(parsed_data, request.prompt)
         return JSONResponse(content=response_payload)
 
     except ParseDesignServiceError as exc:
@@ -525,6 +547,20 @@ async def iterate_design(
     cookie_user_id = request.cookies.get("cadarena_workspace_guest", "guest")
     resolved_user_id = (body.user_id or cookie_user_id or "guest").strip() or "guest"
 
+    # ── Intent routing: short-circuit conversational messages ──
+    intent = classify_intent(body.prompt, has_existing_layout=body.current_layout is not None)
+    if intent == MessageIntent.CONVERSATION:
+        chat_reply = await get_assistant_reply(body.prompt)
+        return JSONResponse(content={
+            "type": "chat",
+            "message": chat_reply,
+            "layout": None,
+            "preview_token": None,
+            "intent": "CONVERSATION",
+            "is_new_design": False,
+            "changed_rooms": [],
+        })
+
     # Run the iterative layout pipeline with the project id as the memory and context scope.
     try:
         # Route purely on current_layout presence while still forwarding the selected model for full-parse fallback.
@@ -594,7 +630,7 @@ async def iterate_design(
         logger.warning("[iterate_design] DXF generation failed: %s", exc)
 
     # Return the updated layout metadata while never exposing the raw DXF file system path.
-    return IterateResponse(
+    iterate_payload = IterateResponse(
         layout=layout,
         dxf_path=None,
         preview_token=preview_token,
@@ -602,7 +638,9 @@ async def iterate_design(
         is_new_design=result["is_new_design"],
         changed_rooms=result["changed_rooms"],
         self_review_triggered=result.get("self_review_triggered", False),
-    )
+    ).model_dump(mode="json")
+    iterate_payload["suggestions"] = generate_suggestions(layout, body.prompt)
+    return JSONResponse(content=iterate_payload)
 
 
 from fastapi import Depends
@@ -626,6 +664,20 @@ async def iterate_design_authenticated(
     user_id is resolved from JWT - never from request body.
     """
     from app.services.design_parser.diff_orchestrator import run_iterative_design
+
+    # ── Intent routing: short-circuit conversational messages ──
+    intent = classify_intent(body.prompt, has_existing_layout=body.current_layout is not None)
+    if intent == MessageIntent.CONVERSATION:
+        chat_reply = await get_assistant_reply(body.prompt)
+        return JSONResponse(content={
+            "type": "chat",
+            "message": chat_reply,
+            "layout": None,
+            "preview_token": None,
+            "intent": "CONVERSATION",
+            "is_new_design": False,
+            "changed_rooms": [],
+        })
 
     result = await run_iterative_design(
         user_prompt=body.prompt,
@@ -662,7 +714,7 @@ async def iterate_design_authenticated(
     except Exception as exc:
         logger.warning("[iterate_auth] DXF failed: %s", exc)
 
-    return IterateResponse(
+    iterate_payload = IterateResponse(
         layout=layout,
         dxf_path=None,
         preview_token=preview_token,
@@ -670,4 +722,6 @@ async def iterate_design_authenticated(
         is_new_design=result["is_new_design"],
         changed_rooms=result["changed_rooms"],
         self_review_triggered=result.get("self_review_triggered", False),
-    )
+    ).model_dump(mode="json")
+    iterate_payload["suggestions"] = generate_suggestions(layout, body.prompt)
+    return JSONResponse(content=iterate_payload)

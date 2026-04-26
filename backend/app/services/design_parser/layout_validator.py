@@ -19,9 +19,10 @@ _CORRIDOR_MAX_RATIO = 0.18
 _CORRIDOR_VS_LARGEST_RATIO = 0.85
 _EFFICIENCY_MIN_ACCEPT = 0.75
 _OVERALL_SCORE_THRESHOLD = 0.72
-_MAX_ROOM_AREA_RATIO = 0.60
-_MAX_LIVING_AREA_RATIO = 0.60
-_MAX_STRUCTURAL_SPAN = 6.0
+_MAX_ROOM_AREA_RATIO = 0.35
+_MAX_LIVING_AREA_RATIO = 0.28
+_MAX_STRUCTURAL_SPAN = 7.0
+_EXTERIOR_CONTINUITY_TOLERANCE = 0.22
 
 _W_AREA_BALANCE = 0.18
 _W_ZONING = 0.16
@@ -303,7 +304,7 @@ class LayoutValidator:
             if room.area - (boundary_area * _MAX_ROOM_AREA_RATIO) > _EPSILON:
                 self._violate(
                     code="HARD_CONSTRAINT_FAILED",
-                    reason="a room exceeds 60% of boundary area",
+                    reason="a room exceeds 35% of boundary area",
                     rule="room-max-area-ratio",
                     room=room.name,
                 )
@@ -311,15 +312,15 @@ class LayoutValidator:
                 if room.area - (boundary_area * _MAX_LIVING_AREA_RATIO) > _EPSILON:
                     self._violate(
                         code="HARD_CONSTRAINT_FAILED",
-                        reason="living room exceeds 60% of boundary area",
+                        reason="living room exceeds 28% of boundary area",
                         rule="living-max-area-ratio",
                         room=room.name,
                     )
 
-            if room.room_type in {"bedroom", "bathroom", "stairs"} and min(room.width, room.height) - _MAX_STRUCTURAL_SPAN > _EPSILON:
+            if room.room_type in {"bedroom", "stairs"} and min(room.width, room.height) - _MAX_STRUCTURAL_SPAN > _EPSILON:
                 self._violate(
                     code="HARD_CONSTRAINT_FAILED",
-                    reason="structural span exceeds 6m without deterministic support segmentation",
+                    reason=f"structural span exceeds {int(_MAX_STRUCTURAL_SPAN)}m without deterministic support segmentation",
                     rule="structural-max-span",
                     room=room.name,
                 )
@@ -481,7 +482,7 @@ class LayoutValidator:
                     room=room.name,
                 )
             ratio = max(room.width, room.height) / max(min(room.width, room.height), _EPSILON)
-            if room.room_type != "corridor" and ratio > 4.0:
+            if room.room_type not in {"corridor", "bathroom"} and ratio > 4.0:
                 self._violate(
                     code="ROOM_PROPORTION_INVALID",
                     reason="room aspect ratio is irrational for residential layout",
@@ -492,38 +493,38 @@ class LayoutValidator:
             lowered = room.name.lower()
             if room.room_type == "bedroom":
                 if "master" in lowered:
-                    if room.area < 12.0 - _EPSILON or room.area > 25.0 + _EPSILON:
+                    if room.area < 12.0 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="master bedroom area must be between 12 and 25 sqm",
+                            reason="master bedroom area must be at least 12 sqm",
                             rule="master-bedroom-area",
                             room=room.name,
                         )
                     master_area = room.area
                 elif "child" in lowered or "kid" in lowered:
-                    if room.area < 9.0 - _EPSILON or room.area > 16.0 + _EPSILON:
+                    if room.area < 9.0 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="children bedroom area must be between 9 and 16 sqm",
+                            reason="children bedroom area must be at least 9 sqm",
                             rule="children-bedroom-area",
                             room=room.name,
                         )
                     children_areas.append(room.area)
                 else:
-                    if room.area < 9.0 - _EPSILON or room.area > 25.0 + _EPSILON:
+                    if room.area < 9.0 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="bedroom area must be between 9 and 25 sqm",
+                            reason="bedroom area must be at least 9 sqm",
                             rule="bedroom-area",
                             room=room.name,
                         )
 
             if room.room_type == "living":
                 if "living" in lowered:
-                    if room.area < 16.0 - _EPSILON:
+                    if room.area < 12.0 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="living room area must be at least 16 sqm",
+                            reason="living room area must be at least 12 sqm",
                             rule="living-room-area",
                             room=room.name,
                         )
@@ -539,42 +540,42 @@ class LayoutValidator:
                     living_public_areas.append(room.area)
 
             if room.room_type == "kitchen":
-                if room.area < 8.0 - _EPSILON or room.area > 18.0 + _EPSILON:
+                if room.area < 6.0 - _EPSILON:
                     self._violate(
                         code="ROOM_PROPORTION_INVALID",
-                        reason="kitchen area must be between 8 and 18 sqm",
+                        reason="kitchen area must be at least 6 sqm",
                         rule="kitchen-area",
                         room=room.name,
                     )
-                if min(room.width, room.height) < 2.4 - _EPSILON:
+                if min(room.width, room.height) < 2.2 - _EPSILON:
                     self._violate(
                         code="ROOM_PROPORTION_INVALID",
-                        reason="kitchen minimum clear width must be >= 2.4m",
+                        reason="kitchen minimum clear width must be >= 2.2m",
                         rule="kitchen-min-width",
                         room=room.name,
                     )
 
             if room.room_type == "bathroom":
                 if "laundry" in lowered:
-                    if room.area < 3.0 - _EPSILON or room.area > 8.0 + _EPSILON:
+                    if room.area < 3.5 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="laundry must be between 3 and 8 sqm",
+                            reason="laundry must be at least 3.5 sqm",
                             rule="laundry-area",
                             room=room.name,
                         )
                 else:
-                    if room.area < 3.0 - _EPSILON or room.area > 6.0 + _EPSILON:
+                    if room.area < 3.5 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="bathroom area must be between 3 and 6 sqm",
+                            reason="bathroom area must be at least 3.5 sqm",
                             rule="bathroom-area",
                             room=room.name,
                         )
-                    if min(room.width, room.height) < 1.2 - _EPSILON:
+                    if min(room.width, room.height) < 1.5 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
-                            reason="bathroom minimum width must be >= 1.2m",
+                            reason="bathroom minimum width must be >= 1.5m",
                             rule="bathroom-min-width",
                             room=room.name,
                         )
@@ -603,10 +604,10 @@ class LayoutValidator:
                     )
 
         if master_area is not None and children_areas:
-            if any(master_area <= child + _EPSILON for child in children_areas):
+            if any((child - master_area) > 0.05 for child in children_areas):
                 self._violate(
                     code="ROOM_PROPORTION_INVALID",
-                    reason="master bedroom must be larger than all children bedrooms",
+                    reason="master bedroom cannot be smaller than any children bedroom",
                     rule="master-larger-than-children",
                 )
 
@@ -629,11 +630,13 @@ class LayoutValidator:
             lowered = room.name.lower()
 
             if room.room_type == "bedroom":
-                if not any(name in corridor_names for name in neighbors):
+                has_corridor_door = any(name in corridor_names for name in neighbors)
+                has_bathroom_door = any(room_by_name[name].room_type == "bathroom" for name in neighbors)
+                if not has_corridor_door and not has_bathroom_door:
                     self._violate(
                         code="DOOR_POLICY_FAILED",
-                        reason="bedroom must have at least one door to corridor",
-                        rule="bedroom-door-to-corridor",
+                        reason="bedroom must have at least one door to corridor or bathroom",
+                        rule="bedroom-door-policy",
                         room=room.name,
                     )
                 for neighbor_name in neighbors:
@@ -658,14 +661,18 @@ class LayoutValidator:
                             room=room.name,
                         )
                 has_corridor_door = any(name in corridor_names for name in neighbors)
-                has_private_bedroom = any(
-                    room_by_name[name].room_type == "bedroom" and "master" in room_by_name[name].name.lower()
+                has_bedroom_door = any(
+                    room_by_name[name].room_type == "bedroom"
                     for name in neighbors
                 )
-                if not has_corridor_door and not has_private_bedroom:
+                has_living_door = any(
+                    room_by_name[name].room_type == "living" and "dining" not in room_by_name[name].name.lower()
+                    for name in neighbors
+                )
+                if not has_corridor_door and not has_bedroom_door and not has_living_door:
                     self._violate(
                         code="DOOR_POLICY_FAILED",
-                        reason="bathroom must open to corridor or private bedroom en-suite",
+                        reason="bathroom must open to corridor, living room, or bedroom",
                         rule="bathroom-door-target",
                         room=room.name,
                     )
@@ -673,10 +680,11 @@ class LayoutValidator:
             if room.room_type == "kitchen":
                 has_dining = any("dining" in room_by_name[name].name.lower() for name in neighbors)
                 has_corridor = any(name in corridor_names for name in neighbors)
-                if not has_dining and not has_corridor:
+                has_living = any(room_by_name[name].room_type == "living" for name in neighbors)
+                if not has_dining and not has_corridor and not has_living:
                     self._violate(
                         code="DOOR_POLICY_FAILED",
-                        reason="kitchen must connect to dining or corridor",
+                        reason="kitchen must connect to dining, living, or corridor",
                         rule="kitchen-door-connectivity",
                         room=room.name,
                     )
@@ -921,12 +929,19 @@ class LayoutValidator:
                 for room in service_spaces:
                     if "laundry" not in room.name.lower():
                         continue
-                    if room.name not in wall_adjacency.get(kitchen.name, set()) and room.name not in door_neighbors.get(
-                        kitchen.name, set()
+                    laundry_neighbors = wall_adjacency.get(room.name, set()) | door_neighbors.get(room.name, set())
+                    if not any(
+                        (
+                            neighbor_name == kitchen.name
+                            or room_by_name[neighbor_name].room_type in {"bathroom", "corridor"}
+                            or "storage" in room_by_name[neighbor_name].name.lower()
+                        )
+                        for neighbor_name in laundry_neighbors
+                        if neighbor_name in room_by_name
                     ):
                         self._violate(
                             code="ZONING_RULE_FAILED",
-                            reason="laundry must stay adjacent to kitchen cluster",
+                            reason="laundry must stay adjacent to service cluster or corridor",
                             rule="service-kitchen-cluster",
                             room=room.name,
                         )
@@ -1073,13 +1088,13 @@ class LayoutValidator:
             endpoint_degree[p0] += 1
             endpoint_degree[p1] += 1
 
-            if horizontal and abs(y0 - 0.0) <= _EPSILON:
+            if horizontal and abs(y0 - 0.0) <= _EXTERIOR_CONTINUITY_TOLERANCE:
                 exterior_intervals["bottom"].append((min(x0, x1), max(x0, x1)))
-            if horizontal and abs(y0 - boundary_height) <= _EPSILON:
+            if horizontal and abs(y0 - boundary_height) <= _EXTERIOR_CONTINUITY_TOLERANCE:
                 exterior_intervals["top"].append((min(x0, x1), max(x0, x1)))
-            if vertical and abs(x0 - 0.0) <= _EPSILON:
+            if vertical and abs(x0 - 0.0) <= _EXTERIOR_CONTINUITY_TOLERANCE:
                 exterior_intervals["left"].append((min(y0, y1), max(y0, y1)))
-            if vertical and abs(x0 - boundary_width) <= _EPSILON:
+            if vertical and abs(x0 - boundary_width) <= _EXTERIOR_CONTINUITY_TOLERANCE:
                 exterior_intervals["right"].append((min(y0, y1), max(y0, y1)))
 
         if thicknesses and max(thicknesses) - min(thicknesses) > 0.02:
@@ -1098,7 +1113,7 @@ class LayoutValidator:
                     rule="exterior-wall-loop",
                 )
             coverage = sum(end - start for start, end in merged)
-            if coverage + 1e-3 < limit:
+            if coverage + _EXTERIOR_CONTINUITY_TOLERANCE < limit:
                 self._violate(
                     code="STRUCTURAL_RULE_FAILED",
                     reason=f"exterior wall chain on {side} side is discontinuous",

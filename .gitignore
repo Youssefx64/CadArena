@@ -1,7 +1,7 @@
 backend/output/
 backend/data/
 .codex
-kaggle.json
+CLAUDE.md
 
 # SQLite runtime databases
 *.db

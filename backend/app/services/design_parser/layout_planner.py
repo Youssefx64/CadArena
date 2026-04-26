@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
+import hashlib
+import logging
 import math
 from typing import Any, Literal
 
+logger = logging.getLogger(__name__)
 
 _EPSILON = 1e-6
 _CORRIDOR_MIN_SPAN = 1.2
@@ -16,10 +19,12 @@ _LIVING_SPLIT_THRESHOLD_AREA = 160.0
 _LIVING_SPLIT_TARGET_AREA = 90.0
 _MIN_SPLIT_ROOM_SPAN = 2.8
 _MAX_TOPOLOGIES = 6
-_MAX_ROOM_AREA_RATIO = 0.60
-_MAX_LIVING_AREA_RATIO = 0.60
+_MAX_ROOM_AREA_RATIO = 0.35
+_MAX_LIVING_AREA_RATIO = 0.35
+_MAX_LIVING_PREFERRED_RATIO = 0.28
 _MIN_EFFICIENCY_RATIO = 0.75
-_MAX_STRUCTURAL_SPAN = 6.0
+_MAX_STRUCTURAL_SPAN = 7.0
+_VARIETY_SCORE_BUCKET = 0.02
 
 _W_AREA_BALANCE = 0.18
 _W_ZONING = 0.16
@@ -101,6 +106,8 @@ class DeterministicLayoutPlanner:
         extracted_payload: dict[str, Any],
         *,
         optimize_efficiency: bool = False,
+        selection_offset: int = 0,
+        relax_kitchen_slack: bool = True,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         boundary = extracted_payload.get("boundary")
         room_program = extracted_payload.get("room_program")
@@ -113,15 +120,21 @@ class DeterministicLayoutPlanner:
         if width <= 0 or height <= 0:
             raise LayoutPlanningError("Boundary dimensions must be positive")
         self._validate_boundary_dimensions(width=width, height=height)
+        boundary_area = width * height
 
-        rooms = self._expand_program(room_program)
+        rooms = self._expand_program(room_program, boundary_area=boundary_area)
         rooms = self._ensure_corridor_spine(rooms)
         if not rooms:
             raise LayoutPlanningError("Room program is empty")
 
-        boundary_area = width * height
         rooms = self._normalize_program_areas(rooms=rooms, boundary_area=boundary_area)
+        rooms = self._relax_planning_max_areas(
+            rooms=rooms,
+            boundary_area=boundary_area,
+            relax_kitchen_slack=relax_kitchen_slack,
+        )
         self._validate_program_feasibility(rooms=rooms, boundary_area=boundary_area)
+        variety_seed = self._compute_variety_seed(rooms)
 
         corridor_item = next(item for item in rooms if item.zone == "corridor")
         non_corridor = [item for item in rooms if item.zone != "corridor"]
@@ -207,7 +220,19 @@ class DeterministicLayoutPlanner:
                 item[2].key,
             )
         )
-        selected_score, _, selected_topology, selected_rooms = ranked[0]
+        best_total = ranked[0][0].total
+        close_score_bucket = [
+            item
+            for item in ranked
+            if (best_total - item[0].total) <= (_VARIETY_SCORE_BUCKET + _EPSILON)
+        ]
+        default_candidate = close_score_bucket[variety_seed % len(close_score_bucket)]
+        selection_pool: list[tuple[_TopologyScore, int, _TopologyCandidate, list[dict[str, Any]]]] = [default_candidate]
+        selection_pool.extend(item for item in close_score_bucket if item != default_candidate)
+        selection_pool.extend(item for item in ranked if item not in close_score_bucket)
+        if selection_offset < 0 or selection_offset >= len(selection_pool):
+            raise LayoutPlanningError("Requested topology selection offset is out of range")
+        selected_score, _, selected_topology, selected_rooms = selection_pool[selection_offset]
         # QUALITY FIX: run post-placement normalization before final payload serialization.
         base_payload: dict[str, Any] = {
             "boundary": {"width": width, "height": height},
@@ -248,6 +273,8 @@ class DeterministicLayoutPlanner:
         }
         metadata = {
             "selected_topology": selected_topology.key,
+            "candidate_count": len(selection_pool),
+            "selection_offset": selection_offset,
             "topology_metrics": {
                 "area_balance": round(selected_score.area_balance, 4),
                 "zoning": round(selected_score.zoning, 4),
@@ -352,6 +379,26 @@ class DeterministicLayoutPlanner:
         ]
         return candidates[:_MAX_TOPOLOGIES]
 
+    def _compute_variety_seed(self, rooms: list[_RoomPlanItem]) -> int:
+        """
+        Derive a stable variety seed from the normalized room program.
+
+        Repeated expanded room entries encode requested counts, and the digest
+        keeps the same input deterministic across separate runs.
+        """
+
+        fingerprint = "_".join(
+            sorted(
+                f"{room.room_type}:{round(room.preferred_area, 0):.0f}"
+                for room in rooms
+            )
+        )
+        if not fingerprint:
+            return 0
+
+        digest = hashlib.sha256(fingerprint.encode("utf-8")).digest()
+        return sum(digest) % max(1, _MAX_TOPOLOGIES)
+
     @staticmethod
     def _validate_boundary_dimensions(*, width: float, height: float) -> None:
         short_side = min(width, height)
@@ -402,29 +449,17 @@ class DeterministicLayoutPlanner:
             if x0 < -_EPSILON or y0 < -_EPSILON or x1 > boundary_width + _EPSILON or y1 > boundary_height + _EPSILON:
                 raise LayoutPlanningError(f"Room '{name}' exceeds boundary")
 
-            lowered_name = name.lower()
-            requires_exterior = (
-                room_type == "bedroom"
-                or room_type == "kitchen"
-                or (room_type == "living" and "living" in lowered_name)
-            )
-            if requires_exterior:
-                has_exterior = (
-                    abs(x0 - 0.0) <= _EPSILON
-                    or abs(y0 - 0.0) <= _EPSILON
-                    or abs(x1 - boundary_width) <= _EPSILON
-                    or abs(y1 - boundary_height) <= _EPSILON
-                )
-                if not has_exterior:
-                    raise LayoutPlanningError(f"Room '{name}' lacks exterior wall access")
-
             area = width * height
             total_area += area
             if area - (boundary_area * _MAX_ROOM_AREA_RATIO) > _EPSILON:
-                raise LayoutPlanningError(f"Room '{name}' exceeds 60% of boundary area")
+                raise LayoutPlanningError(
+                    f"Room '{name}' exceeds {int(_MAX_ROOM_AREA_RATIO * 100)}% of boundary area"
+                )
             if room_type == "living" and "living" in name.lower():
                 if area - (boundary_area * _MAX_LIVING_AREA_RATIO) > _EPSILON:
-                    raise LayoutPlanningError("Living room exceeds 60% of boundary area")
+                    raise LayoutPlanningError(
+                        f"Living room exceeds {int(_MAX_LIVING_AREA_RATIO * 100)}% of boundary area"
+                    )
 
             if (room_type == "corridor" or "corridor" in name.lower()) and "storage" not in name.lower():
                 corridor_area += area
@@ -432,11 +467,13 @@ class DeterministicLayoutPlanner:
                 largest_non_corridor = max(largest_non_corridor, area)
 
             ratio = max(width, height) / max(min(width, height), _EPSILON)
-            if room_type != "corridor" and ratio - 4.0 > _EPSILON:
+            if room_type not in {"corridor", "bathroom"} and ratio - 4.0 > _EPSILON:
                 raise LayoutPlanningError(f"Room '{name}' aspect ratio exceeds 1:4")
 
-            if room_type in {"bedroom", "bathroom", "stairs"} and min(width, height) - _MAX_STRUCTURAL_SPAN > _EPSILON:
-                raise LayoutPlanningError(f"Room '{name}' exceeds unsupported structural span of 6m")
+            if room_type in {"bedroom", "stairs"} and min(width, height) - _MAX_STRUCTURAL_SPAN > _EPSILON:
+                raise LayoutPlanningError(
+                    f"Room '{name}' exceeds unsupported structural span of {int(_MAX_STRUCTURAL_SPAN)}m"
+                )
 
             normalized.append((name, room_type, x0, y0, x1, y1, area))
 
@@ -456,25 +493,6 @@ class DeterministicLayoutPlanner:
                 overlap_y = ay0 < by1 - _EPSILON and ay1 > by0 + _EPSILON
                 if overlap_x and overlap_y:
                     raise LayoutPlanningError("Generated rooms overlap")
-
-        adjacency = self._room_adjacency(rooms)
-        corridor_names = {
-            str(room.get("name", ""))
-            for room in rooms
-            if str(room.get("room_type", "")).lower() == "corridor"
-            or "corridor" in str(room.get("name", "")).lower()
-        }
-        for room in rooms:
-            room_name = str(room.get("name", ""))
-            room_type = str(room.get("room_type", "")).lower()
-            is_main_living = room_type == "living" and "living" in room_name.lower()
-            requires_corridor_contact = room_type == "bedroom" or is_main_living
-            if not requires_corridor_contact:
-                continue
-            if room_name not in adjacency:
-                raise LayoutPlanningError(f"Room '{room_name}' has no wall adjacency graph node")
-            if not adjacency[room_name].intersection(corridor_names):
-                raise LayoutPlanningError(f"Room '{room_name}' must share a wall with circulation spine")
 
         efficiency = (total_area - corridor_area) / max(boundary_area, _EPSILON)
         if efficiency + _EPSILON < _MIN_EFFICIENCY_RATIO:
@@ -946,7 +964,12 @@ class DeterministicLayoutPlanner:
             return 1
         return 2
 
-    def _expand_program(self, room_program: list[Any]) -> list[_RoomPlanItem]:
+    def _expand_program(
+        self,
+        room_program: list[Any],
+        *,
+        boundary_area: float,
+    ) -> list[_RoomPlanItem]:
         items: list[_RoomPlanItem] = []
         sequence = 0
         for raw in room_program:
@@ -972,6 +995,10 @@ class DeterministicLayoutPlanner:
                 # LLM size hints are treated as soft preferences only.
                 min_area = rule.min_area
                 max_area = rule.max_area
+                if normalized_type != "living":
+                    max_area = min(max_area, boundary_area * _MAX_ROOM_AREA_RATIO)
+                    if max_area < min_area:
+                        max_area = min_area
 
                 preferred_hint = rule.preferred_area
                 if explicit_pref is not None:
@@ -982,6 +1009,14 @@ class DeterministicLayoutPlanner:
                     preferred_hint = explicit_min
                 elif explicit_max is not None:
                     preferred_hint = explicit_max
+
+                if normalized_type == "living":
+                    living_max = boundary_area * _MAX_LIVING_AREA_RATIO
+                    living_preferred = boundary_area * _MAX_LIVING_PREFERRED_RATIO
+                    max_area = min(max_area, living_max)
+                    if max_area < min_area:
+                        max_area = min_area
+                    preferred_hint = min(preferred_hint, living_preferred, max_area)
 
                 preferred = min(max(preferred_hint, min_area), max_area)
 
@@ -1029,6 +1064,20 @@ class DeterministicLayoutPlanner:
         )
         return items
 
+    @staticmethod
+    def _relax_planning_max_areas(
+        *,
+        rooms: list[_RoomPlanItem],
+        boundary_area: float,
+        relax_kitchen_slack: bool,
+    ) -> list[_RoomPlanItem]:
+        for item in rooms:
+            if item.room_type == "living":
+                item.max_area = min(item.max_area, boundary_area * _MAX_LIVING_AREA_RATIO)
+            elif item.room_type == "kitchen" and relax_kitchen_slack:
+                item.max_area = max(item.max_area, boundary_area * 0.18)
+        return rooms
+
     def _validate_program_feasibility(self, *, rooms: list[_RoomPlanItem], boundary_area: float) -> None:
         min_area_sum = sum(item.min_area for item in rooms)
         max_area_sum = sum(item.max_area for item in rooms)
@@ -1061,15 +1110,23 @@ class DeterministicLayoutPlanner:
                 break
 
             if delta > 0:
-                expandable = [item for item in usable_items if item.preferred_area < item.max_area - _EPSILON]
+                expandable = [
+                    item
+                    for item in usable_items
+                    if item.preferred_area < self._preferred_area_upper_bound(item=item, boundary_area=boundary_area) - _EPSILON
+                ]
                 if not expandable:
                     break
-                capacity = sum(item.max_area - item.preferred_area for item in expandable)
+                capacity = sum(
+                    self._preferred_area_upper_bound(item=item, boundary_area=boundary_area) - item.preferred_area
+                    for item in expandable
+                )
                 if capacity <= _EPSILON:
                     break
                 scale = min(1.0, delta / capacity)
                 for item in sorted(expandable, key=lambda current: current.index):
-                    item.preferred_area += (item.max_area - item.preferred_area) * scale
+                    upper_bound = self._preferred_area_upper_bound(item=item, boundary_area=boundary_area)
+                    item.preferred_area += (upper_bound - item.preferred_area) * scale
             else:
                 shrinkable = [item for item in usable_items if item.preferred_area > item.min_area + _EPSILON]
                 if not shrinkable:
@@ -1082,8 +1139,17 @@ class DeterministicLayoutPlanner:
                     item.preferred_area -= (item.preferred_area - item.min_area) * scale
 
         for item in usable_items:
-            item.preferred_area = min(max(item.preferred_area, item.min_area), item.max_area)
+            item.preferred_area = min(
+                max(item.preferred_area, item.min_area),
+                self._preferred_area_upper_bound(item=item, boundary_area=boundary_area),
+            )
         return rooms
+
+    @staticmethod
+    def _preferred_area_upper_bound(*, item: _RoomPlanItem, boundary_area: float) -> float:
+        if item.room_type == "living":
+            return min(item.max_area, boundary_area * _MAX_LIVING_PREFERRED_RATIO)
+        return item.max_area
 
     def _plan_horizontal(
         self,
@@ -1738,6 +1804,62 @@ class DeterministicLayoutPlanner:
         return max(0.0, available)
 
     @staticmethod
+    def _available_expand_left(
+        *,
+        rooms: list[dict[str, Any]],
+        index: int,
+    ) -> float:
+        room = rooms[index]
+        x0 = float(room["origin"]["x"])
+        y0 = float(room["origin"]["y"])
+        y1 = y0 + float(room["height"])
+        available = max(0.0, x0)
+
+        for other_index, other in enumerate(rooms):
+            if other_index == index:
+                continue
+            ox0 = float(other["origin"]["x"])
+            oy0 = float(other["origin"]["y"])
+            ox1 = ox0 + float(other["width"])
+            oy1 = oy0 + float(other["height"])
+            overlap_y = max(0.0, min(y1, oy1) - max(y0, oy0))
+            if overlap_y <= _EPSILON:
+                continue
+            if ox1 <= x0 + _EPSILON:
+                available = min(available, max(0.0, x0 - ox1))
+            elif ox0 < x0 - _EPSILON:
+                available = 0.0
+        return max(0.0, available)
+
+    @staticmethod
+    def _available_expand_down(
+        *,
+        rooms: list[dict[str, Any]],
+        index: int,
+    ) -> float:
+        room = rooms[index]
+        x0 = float(room["origin"]["x"])
+        y0 = float(room["origin"]["y"])
+        x1 = x0 + float(room["width"])
+        available = max(0.0, y0)
+
+        for other_index, other in enumerate(rooms):
+            if other_index == index:
+                continue
+            ox0 = float(other["origin"]["x"])
+            oy0 = float(other["origin"]["y"])
+            ox1 = ox0 + float(other["width"])
+            oy1 = oy0 + float(other["height"])
+            overlap_x = max(0.0, min(x1, ox1) - max(x0, ox0))
+            if overlap_x <= _EPSILON:
+                continue
+            if oy1 <= y0 + _EPSILON:
+                available = min(available, max(0.0, y0 - oy1))
+            elif oy0 < y0 - _EPSILON:
+                available = 0.0
+        return max(0.0, available)
+
+    @staticmethod
     def _build_walls(rooms: list[dict[str, Any]]) -> list[dict[str, Any]]:
         walls: list[dict[str, Any]] = []
         for room in rooms:
@@ -1808,7 +1930,7 @@ class DeterministicLayoutPlanner:
 
         if room_type == "kitchen":
             return (
-                _RoomRule(preferred_area=12.0, min_area=8.0, max_area=18.0, min_width=2.4, min_height=2.4),
+                _RoomRule(preferred_area=10.0, min_area=6.0, max_area=10000.0, min_width=2.2, min_height=2.2),
                 "service",
                 "kitchen",
             )
@@ -1816,18 +1938,18 @@ class DeterministicLayoutPlanner:
         if room_type == "bedroom":
             if "master" in text:
                 return (
-                    _RoomRule(preferred_area=16.0, min_area=12.0, max_area=25.0, min_width=3.0, min_height=3.0),
+                    _RoomRule(preferred_area=16.0, min_area=12.0, max_area=10000.0, min_width=3.0, min_height=3.0),
                     "private",
                     "bedroom",
                 )
             if "child" in text or "kid" in text:
                 return (
-                    _RoomRule(preferred_area=12.0, min_area=9.0, max_area=16.0, min_width=2.6, min_height=2.6),
+                    _RoomRule(preferred_area=12.0, min_area=9.0, max_area=10000.0, min_width=2.8, min_height=2.8),
                     "private",
                     "bedroom",
                 )
             return (
-                _RoomRule(preferred_area=14.0, min_area=9.0, max_area=25.0, min_width=2.8, min_height=2.8),
+                _RoomRule(preferred_area=14.0, min_area=9.0, max_area=10000.0, min_width=2.8, min_height=2.8),
                 "private",
                 "bedroom",
             )
@@ -1835,24 +1957,24 @@ class DeterministicLayoutPlanner:
         if room_type == "bathroom":
             if "guest" in text:
                 return (
-                    _RoomRule(preferred_area=4.0, min_area=3.0, max_area=6.0, min_width=1.5, min_height=1.5),
+                    _RoomRule(preferred_area=4.5, min_area=3.5, max_area=10000.0, min_width=1.5, min_height=1.5),
                     "public",
                     "bathroom",
                 )
             if "laundry" in text:
                 return (
-                    _RoomRule(preferred_area=4.5, min_area=3.0, max_area=8.0, min_width=1.5, min_height=1.5),
+                    _RoomRule(preferred_area=5.0, min_area=3.5, max_area=10000.0, min_width=1.5, min_height=1.5),
                     "service",
                     "bathroom",
                 )
             if "private" in text or "master" in text:
                 return (
-                    _RoomRule(preferred_area=5.0, min_area=3.0, max_area=6.0, min_width=1.5, min_height=1.5),
+                    _RoomRule(preferred_area=6.0, min_area=3.5, max_area=10000.0, min_width=1.5, min_height=1.5),
                     "private",
                     "bathroom",
                 )
             return (
-                _RoomRule(preferred_area=5.0, min_area=3.0, max_area=6.0, min_width=1.5, min_height=1.5),
+                _RoomRule(preferred_area=6.0, min_area=3.5, max_area=10000.0, min_width=1.5, min_height=1.5),
                 "private",
                 "bathroom",
             )
@@ -1877,7 +1999,7 @@ class DeterministicLayoutPlanner:
                     "bathroom",
                 )
             return (
-                _RoomRule(preferred_area=20.0, min_area=16.0, max_area=10000.0, min_width=3.5, min_height=3.5),
+                _RoomRule(preferred_area=24.0, min_area=12.0, max_area=10000.0, min_width=3.0, min_height=3.0),
                 "public",
                 "living",
             )
@@ -2155,6 +2277,59 @@ class DeterministicLayoutPlanner:
             return None
         return parsed if parsed > 0 else None
 
+def _enforce_room_aspect_ratios(
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+) -> list[dict[str, Any]]:
+    """
+    Enforce architectural aspect ratios per room type, but only for badly-proportioned rooms.
+    This prevents obvious layout failures (e.g., a 5m×6m bedroom placed 7 times identically).
+    We are conservative — only fix rooms that are significantly out of proportion.
+    """
+    room_aspect_ranges = {
+        # (min_ratio, max_ratio) where ratio = width / height
+        "bedroom": (0.7, 1.5),      # Bedrooms should be roughly rectangular
+        "bathroom": (0.6, 1.8),     # Bathrooms can be more variable
+        "kitchen": (0.8, 2.2),      # Kitchens prefer wider aspect
+        "living": (1.0, 2.5),       # Living rooms are typically more spacious/wide
+        "corridor": (1.5, 8.0),     # Corridors are very elongated
+        "stairs": (0.5, 1.2),       # Stairs are roughly square to tall
+    }
+
+    for room in rooms:
+        if not isinstance(room, dict):
+            continue
+
+        room_type = str(room.get("room_type", "")).strip().lower()
+        w = float(room.get("width", 0))
+        h = float(room.get("height", 0))
+
+        if w <= _EPSILON or h <= _EPSILON:
+            continue
+
+        # Only enforce aspect ratio if it's severely wrong (more than 2x the max or less than 0.5x the min)
+        if w > 0 and h > 0:
+            ratio = w / h
+            min_r, max_r = room_aspect_ranges.get(room_type, (0.6, 2.0))
+
+            # Only fix if the ratio is VERY out of bounds, not just slightly
+            if ratio < min_r * 0.4:
+                # Extremely tall → widen, but carefully
+                new_w = h * min_r
+                if new_w <= boundary_w * 0.7:
+                    w = new_w
+            elif ratio > max_r * 2.5:
+                # Extremely wide → heighten, but carefully
+                new_h = w / max_r
+                if new_h <= boundary_h * 0.7:
+                    h = new_h
+
+        room["width"] = round(w, 3)
+        room["height"] = round(h, 3)
+
+    return rooms
+
 
 def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
     """
@@ -2175,13 +2350,18 @@ def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
     if bw <= 0.0 or bh <= 0.0 or not rooms:
         return normalized_layout
 
+    # Step 0.5 — enforce room aspect ratios early to prevent all-equal-size output
+    rooms = _enforce_room_aspect_ratios(rooms, bw, bh)
+
     wall = 0.20
     snap = 0.05
     # Preserve the original boundary contacts so normalization does not detach rooms from the building edge.
     anchors: list[dict[str, bool]] = []
+    corridor_contacts: list[Literal["left", "right", "top", "bottom"] | None] = []
     for room in rooms:
         if not isinstance(room, dict):
             anchors.append({"left": False, "right": False, "bottom": False, "top": False})
+            corridor_contacts.append(None)
             continue
         x0 = float(room.get("origin", {}).get("x", 0.0))
         y0 = float(room.get("origin", {}).get("y", 0.0))
@@ -2195,31 +2375,10 @@ def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
                 "top": abs(y1 - bh) <= snap,
             }
         )
+        corridor_contacts.append(_corridor_adjacent_side(rooms, room))
 
     # Step 1 — snap near-shared edges so micro-gaps collapse into one shared wall line.
-    for first_index, first_room in enumerate(rooms):
-        if not isinstance(first_room, dict):
-            continue
-        for second_index in range(first_index + 1, len(rooms)):
-            second_room = rooms[second_index]
-            if not isinstance(second_room, dict):
-                continue
-
-            first_right = float(first_room.get("origin", {}).get("x", 0.0)) + float(first_room.get("width", 0.0))
-            second_left = float(second_room.get("origin", {}).get("x", 0.0))
-            gap_x = second_left - first_right
-            if 0.0 < gap_x < snap:
-                midpoint = (first_right + second_left) / 2.0
-                first_room["width"] = midpoint - float(first_room.get("origin", {}).get("x", 0.0))
-                second_room.setdefault("origin", {})["x"] = midpoint
-
-            first_top = float(first_room.get("origin", {}).get("y", 0.0)) + float(first_room.get("height", 0.0))
-            second_bottom = float(second_room.get("origin", {}).get("y", 0.0))
-            gap_y = second_bottom - first_top
-            if 0.0 < gap_y < snap:
-                midpoint = (first_top + second_bottom) / 2.0
-                first_room["height"] = midpoint - float(first_room.get("origin", {}).get("y", 0.0))
-                second_room.setdefault("origin", {})["y"] = midpoint
+    rooms = _collapse_internal_gaps(rooms, threshold=snap)
 
     # Step 2 — fill small right and top boundary gaps without stretching rooms across large unused spans.
     rightmost = max(
@@ -2281,48 +2440,689 @@ def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
     # Step 4 — cap any dominant room before final corridor and boundary cleanup.
     rooms = _cap_dominant_room(rooms, bw, bh)
 
-    # Step 5 — restore corridor rooms so their 1.2m side remains the narrow dimension.
+    # Step 4.5 — boost living room if it's undersized compared to bedrooms
+    rooms = _boost_undersized_living_room(rooms, bw, bh)
+
+    # Step 5 — use freed space from the cap to lift undersized rooms toward minimum viable sizes.
+    rooms = _expand_rooms_to_minimum_areas(rooms, bw, bh)
+
+    # Step 6 — restore corridor rooms so their 1.2m side remains the narrow dimension.
     for room_index, room in enumerate(rooms):
         if not isinstance(room, dict):
             continue
         if room.get("room_type") == "corridor":
             rooms[room_index] = _enforce_corridor_dimensions(room, bw, bh)
 
+    # Step 7 — absorb one large empty region into the nearest non-corridor room.
+    rooms = _eliminate_large_gaps(rooms, bw, bh)
+
+    # Step 8 — collapse any remaining wall-thickness seams introduced by capping
+    # or corridor restoration so the plan still covers the boundary cleanly.
+    rooms = _collapse_internal_gaps(rooms, threshold=wall + snap)
+
     # Clamp, round, and restore edge anchors so normalized rooms stay inside the boundary and preserve exterior contacts.
+    rooms = _finalize_normalized_rooms(
+        rooms=rooms,
+        boundary_w=bw,
+        boundary_h=bh,
+        anchors=anchors,
+        corridor_contacts=corridor_contacts,
+    )
+    rooms = _collapse_internal_gaps(rooms, threshold=snap)
+    rooms = _finalize_normalized_rooms(
+        rooms=rooms,
+        boundary_w=bw,
+        boundary_h=bh,
+        anchors=anchors,
+        corridor_contacts=corridor_contacts,
+    )
+
+    normalized_layout["rooms"] = rooms
+    return normalized_layout
+
+
+def _collapse_internal_gaps(
+    rooms: list[dict[str, Any]],
+    *,
+    threshold: float,
+) -> list[dict[str, Any]]:
+    if threshold <= _EPSILON:
+        return rooms
+
+    changed = True
+    while changed:
+        changed = False
+        for first_index, first_room in enumerate(rooms):
+            if not isinstance(first_room, dict):
+                continue
+            for second_index in range(first_index + 1, len(rooms)):
+                second_room = rooms[second_index]
+                if not isinstance(second_room, dict):
+                    continue
+
+                first_origin = first_room.setdefault("origin", {})
+                second_origin = second_room.setdefault("origin", {})
+                first_x0 = float(first_origin.get("x", 0.0))
+                first_y0 = float(first_origin.get("y", 0.0))
+                first_x1 = first_x0 + float(first_room.get("width", 0.0))
+                first_y1 = first_y0 + float(first_room.get("height", 0.0))
+                second_x0 = float(second_origin.get("x", 0.0))
+                second_y0 = float(second_origin.get("y", 0.0))
+                second_x1 = second_x0 + float(second_room.get("width", 0.0))
+                second_y1 = second_y0 + float(second_room.get("height", 0.0))
+
+                overlap_y = max(0.0, min(first_y1, second_y1) - max(first_y0, second_y0))
+                if overlap_y > _EPSILON:
+                    gap_x = second_x0 - first_x1
+                    if abs(gap_x) <= threshold + _EPSILON and abs(gap_x) > _EPSILON:
+                        if gap_x < 0.0:
+                            midpoint = (first_x1 + second_x0) / 2.0
+                            first_room["width"] = midpoint - first_x0
+                            second_origin["x"] = midpoint
+                            changed = True
+                            continue
+
+                        first_priority = _room_gap_absorption_priority(first_room)
+                        second_priority = _room_gap_absorption_priority(second_room)
+                        if first_priority < second_priority:
+                            first_room["width"] = float(first_room.get("width", 0.0)) + gap_x
+                        elif second_priority < first_priority:
+                            second_origin["x"] = second_x0 - gap_x
+                            second_room["width"] = float(second_room.get("width", 0.0)) + gap_x
+                        else:
+                            midpoint = (first_x1 + second_x0) / 2.0
+                            first_room["width"] = midpoint - first_x0
+                            second_origin["x"] = midpoint
+                        changed = True
+                        continue
+
+                    reverse_gap_x = first_x0 - second_x1
+                    if abs(reverse_gap_x) <= threshold + _EPSILON and abs(reverse_gap_x) > _EPSILON:
+                        if reverse_gap_x < 0.0:
+                            midpoint = (first_x0 + second_x1) / 2.0
+                            second_room["width"] = midpoint - second_x0
+                            first_origin["x"] = midpoint
+                            changed = True
+                            continue
+
+                        first_priority = _room_gap_absorption_priority(first_room)
+                        second_priority = _room_gap_absorption_priority(second_room)
+                        if second_priority < first_priority:
+                            second_room["width"] = float(second_room.get("width", 0.0)) + reverse_gap_x
+                        elif first_priority < second_priority:
+                            first_origin["x"] = first_x0 - reverse_gap_x
+                            first_room["width"] = float(first_room.get("width", 0.0)) + reverse_gap_x
+                        else:
+                            midpoint = (first_x0 + second_x1) / 2.0
+                            second_room["width"] = midpoint - second_x0
+                            first_origin["x"] = midpoint
+                        changed = True
+                        continue
+
+                overlap_x = max(0.0, min(first_x1, second_x1) - max(first_x0, second_x0))
+                if overlap_x > _EPSILON:
+                    gap_y = second_y0 - first_y1
+                    if abs(gap_y) <= threshold + _EPSILON and abs(gap_y) > _EPSILON:
+                        if gap_y < 0.0:
+                            midpoint = (first_y1 + second_y0) / 2.0
+                            first_room["height"] = midpoint - first_y0
+                            second_origin["y"] = midpoint
+                            changed = True
+                            continue
+
+                        first_priority = _room_gap_absorption_priority(first_room)
+                        second_priority = _room_gap_absorption_priority(second_room)
+                        if first_priority < second_priority:
+                            first_room["height"] = float(first_room.get("height", 0.0)) + gap_y
+                        elif second_priority < first_priority:
+                            second_origin["y"] = second_y0 - gap_y
+                            second_room["height"] = float(second_room.get("height", 0.0)) + gap_y
+                        else:
+                            midpoint = (first_y1 + second_y0) / 2.0
+                            first_room["height"] = midpoint - first_y0
+                            second_origin["y"] = midpoint
+                        changed = True
+                        continue
+
+                    reverse_gap_y = first_y0 - second_y1
+                    if abs(reverse_gap_y) <= threshold + _EPSILON and abs(reverse_gap_y) > _EPSILON:
+                        if reverse_gap_y < 0.0:
+                            midpoint = (first_y0 + second_y1) / 2.0
+                            second_room["height"] = midpoint - second_y0
+                            first_origin["y"] = midpoint
+                            changed = True
+                            continue
+
+                        first_priority = _room_gap_absorption_priority(first_room)
+                        second_priority = _room_gap_absorption_priority(second_room)
+                        if second_priority < first_priority:
+                            second_room["height"] = float(second_room.get("height", 0.0)) + reverse_gap_y
+                        elif first_priority < second_priority:
+                            first_origin["y"] = first_y0 - reverse_gap_y
+                            first_room["height"] = float(first_room.get("height", 0.0)) + reverse_gap_y
+                        else:
+                            midpoint = (first_y0 + second_y1) / 2.0
+                            second_room["height"] = midpoint - second_y0
+                            first_origin["y"] = midpoint
+                        changed = True
+                        continue
+
+    return rooms
+
+
+def _room_gap_absorption_priority(room: dict[str, Any]) -> int:
+    room_type = str(room.get("room_type", "")).strip().lower()
+    room_name = str(room.get("name", "")).lower()
+    if room_type == "living" and "living" in room_name:
+        return 3
+    if room_type == "living":
+        return 2
+    if room_type == "corridor":
+        return 1
+    return 0
+
+
+def _finalize_normalized_rooms(
+    *,
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+    anchors: list[dict[str, bool]],
+    corridor_contacts: list[Literal["left", "right", "top", "bottom"] | None],
+) -> list[dict[str, Any]]:
     for room_index, room in enumerate(rooms):
         if not isinstance(room, dict):
             continue
-        room_origin = room.setdefault("origin", {})
-        x0 = max(0.0, min(float(room_origin.get("x", 0.0)), bw))
-        y0 = max(0.0, min(float(room_origin.get("y", 0.0)), bh))
-        room_type = str(room.get("room_type", "")).strip().lower()
-        min_span = _CORRIDOR_MIN_SPAN if room_type == "corridor" else 1.5
-        width = min(max(float(room.get("width", 0.0)), min_span), max(0.01, bw - x0))
-        height = min(max(float(room.get("height", 0.0)), min_span), max(0.01, bh - y0))
 
-        room_anchor = anchors[room_index]
+        room_origin = room.setdefault("origin", {})
+        x0 = max(0.0, min(float(room_origin.get("x", 0.0)), boundary_w))
+        y0 = max(0.0, min(float(room_origin.get("y", 0.0)), boundary_h))
+        room_type = str(room.get("room_type", "")).strip().lower()
+        room_name = str(room.get("name", "")).lower()
+        min_span = _CORRIDOR_MIN_SPAN if room_type == "corridor" else 1.5
+        width = min(max(float(room.get("width", 0.0)), min_span), max(0.01, boundary_w - x0))
+        height = min(max(float(room.get("height", 0.0)), min_span), max(0.01, boundary_h - y0))
+
+        room_anchor = (
+            anchors[room_index]
+            if room_index < len(anchors)
+            else {"left": False, "right": False, "bottom": False, "top": False}
+        )
+        corridor_side = corridor_contacts[room_index] if room_index < len(corridor_contacts) else None
+        if str(room.get("room_type", "")).strip().lower() == "living" and corridor_side is not None:
+            if corridor_side == "left" and room_anchor["right"] and (room_anchor["top"] or room_anchor["bottom"]):
+                room_anchor = dict(room_anchor)
+                room_anchor["right"] = False
+            elif corridor_side == "right" and room_anchor["left"] and (room_anchor["top"] or room_anchor["bottom"]):
+                room_anchor = dict(room_anchor)
+                room_anchor["left"] = False
+            elif corridor_side == "bottom" and room_anchor["top"] and (room_anchor["left"] or room_anchor["right"]):
+                room_anchor = dict(room_anchor)
+                room_anchor["top"] = False
+            elif corridor_side == "top" and room_anchor["bottom"] and (room_anchor["left"] or room_anchor["right"]):
+                room_anchor = dict(room_anchor)
+                room_anchor["bottom"] = False
         if room_anchor["left"]:
             x0 = 0.0
         if room_anchor["bottom"]:
             y0 = 0.0
         if room_anchor["right"] and not room_anchor["left"]:
-            x0 = max(0.0, bw - width)
+            x0 = max(0.0, boundary_w - width)
         if room_anchor["top"] and not room_anchor["bottom"]:
-            y0 = max(0.0, bh - height)
+            y0 = max(0.0, boundary_h - height)
         if room_anchor["left"] and room_anchor["right"]:
             x0 = 0.0
-            width = bw
+            width = boundary_w
         if room_anchor["bottom"] and room_anchor["top"]:
             y0 = 0.0
-            height = bh
+            height = boundary_h
+
+        if room_type == "living" and "living" in room_name:
+            max_living_area = (boundary_w * boundary_h * _MAX_LIVING_PREFERRED_RATIO) - 1e-4
+            current_area = width * height
+            if current_area > max_living_area + _EPSILON:
+                if corridor_side in {"left", "right"} and width > _EPSILON:
+                    height = max(0.01, max_living_area / max(width, _EPSILON))
+                elif corridor_side in {"top", "bottom"} and height > _EPSILON:
+                    width = max(0.01, max_living_area / max(height, _EPSILON))
+                elif width >= height:
+                    width = max(0.01, max_living_area / max(height, _EPSILON))
+                else:
+                    height = max(0.01, max_living_area / max(width, _EPSILON))
 
         room_origin["x"] = round(x0, 4)
         room_origin["y"] = round(y0, 4)
-        room["width"] = round(min(width, max(0.01, bw - x0)), 4)
-        room["height"] = round(min(height, max(0.01, bh - y0)), 4)
+        room["width"] = round(min(width, max(0.01, boundary_w - x0)), 4)
+        room["height"] = round(min(height, max(0.01, boundary_h - y0)), 4)
 
-    normalized_layout["rooms"] = rooms
-    return normalized_layout
+    return rooms
+
+
+def _expand_rooms_to_minimum_areas(
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+) -> list[dict[str, Any]]:
+    minimum_areas = {"bedroom": 9.0, "kitchen": 6.0, "bathroom": 3.5}
+    for room_index, room in enumerate(rooms):
+        if not isinstance(room, dict):
+            continue
+        room_type = str(room.get("room_type", "")).strip().lower()
+        target_area = minimum_areas.get(room_type)
+        if target_area is None:
+            continue
+
+        for _ in range(4):
+            width = float(room.get("width", 0.0))
+            height = float(room.get("height", 0.0))
+            current_area = width * height
+            if current_area >= target_area - _EPSILON:
+                break
+
+            candidate = _best_room_area_recovery_expansion(
+                rooms=rooms,
+                index=room_index,
+                boundary_w=boundary_w,
+                boundary_h=boundary_h,
+                target_area=target_area,
+            )
+            if candidate is None:
+                break
+
+            direction, expansion = candidate
+            _apply_axis_expansion(room, direction, expansion)
+
+    return rooms
+
+
+def _best_room_area_recovery_expansion(
+    *,
+    rooms: list[dict[str, Any]],
+    index: int,
+    boundary_w: float,
+    boundary_h: float,
+    target_area: float,
+) -> tuple[Literal["right", "left", "up", "down"], float] | None:
+    room = rooms[index]
+    width = float(room.get("width", 0.0))
+    height = float(room.get("height", 0.0))
+    current_area = width * height
+    if current_area >= target_area - _EPSILON:
+        return None
+
+    deficit = target_area - current_area
+    candidates: list[tuple[float, float, int, Literal["right", "left", "up", "down"], float]] = []
+
+    direction_specs = [
+        (
+            "right",
+            DeterministicLayoutPlanner._available_expand_width(
+                rooms=rooms,
+                index=index,
+                boundary_width=boundary_w,
+            ),
+            height,
+            0,
+        ),
+        (
+            "left",
+            DeterministicLayoutPlanner._available_expand_left(
+                rooms=rooms,
+                index=index,
+            ),
+            height,
+            1,
+        ),
+        (
+            "up",
+            DeterministicLayoutPlanner._available_expand_height(
+                rooms=rooms,
+                index=index,
+                boundary_height=boundary_h,
+            ),
+            width,
+            2,
+        ),
+        (
+            "down",
+            DeterministicLayoutPlanner._available_expand_down(
+                rooms=rooms,
+                index=index,
+            ),
+            width,
+            3,
+        ),
+    ]
+
+    for direction, capacity, span, order in direction_specs:
+        if capacity <= _EPSILON or span <= _EPSILON:
+            continue
+        needed_expansion = deficit / span
+        expansion = min(capacity, needed_expansion)
+        if expansion <= _EPSILON:
+            continue
+        area_gain = span * expansion
+        candidates.append((-area_gain, expansion, order, direction, expansion))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+    _, _, _, direction, expansion = candidates[0]
+    return direction, expansion
+
+
+def _apply_axis_expansion(
+    room: dict[str, Any],
+    direction: Literal["right", "left", "up", "down"],
+    expansion: float,
+) -> None:
+    if expansion <= _EPSILON:
+        return
+
+    origin = room.setdefault("origin", {})
+    if direction == "right":
+        room["width"] = float(room.get("width", 0.0)) + expansion
+    elif direction == "left":
+        origin["x"] = float(origin.get("x", 0.0)) - expansion
+        room["width"] = float(room.get("width", 0.0)) + expansion
+    elif direction == "up":
+        room["height"] = float(room.get("height", 0.0)) + expansion
+    elif direction == "down":
+        origin["y"] = float(origin.get("y", 0.0)) - expansion
+        room["height"] = float(room.get("height", 0.0)) + expansion
+
+
+def _corridor_adjacent_side(
+    rooms: list[dict[str, Any]],
+    room: dict[str, Any],
+) -> Literal["left", "right", "top", "bottom"] | None:
+    x0 = float(room.get("origin", {}).get("x", 0.0))
+    y0 = float(room.get("origin", {}).get("y", 0.0))
+    x1 = x0 + float(room.get("width", 0.0))
+    y1 = y0 + float(room.get("height", 0.0))
+
+    best_side: Literal["left", "right", "top", "bottom"] | None = None
+    best_overlap = 0.0
+    for other in rooms:
+        if other is room or not isinstance(other, dict):
+            continue
+        other_type = str(other.get("room_type", "")).strip().lower()
+        other_name = str(other.get("name", "")).lower()
+        if other_type != "corridor" and "corridor" not in other_name:
+            continue
+
+        ox0 = float(other.get("origin", {}).get("x", 0.0))
+        oy0 = float(other.get("origin", {}).get("y", 0.0))
+        ox1 = ox0 + float(other.get("width", 0.0))
+        oy1 = oy0 + float(other.get("height", 0.0))
+        overlap_x = max(0.0, min(x1, ox1) - max(x0, ox0))
+        overlap_y = max(0.0, min(y1, oy1) - max(y0, oy0))
+
+        if overlap_y > best_overlap + _EPSILON:
+            if abs(x1 - ox0) <= _EPSILON:
+                best_side = "right"
+                best_overlap = overlap_y
+            elif abs(x0 - ox1) <= _EPSILON:
+                best_side = "left"
+                best_overlap = overlap_y
+
+        if overlap_x > best_overlap + _EPSILON:
+            if abs(y1 - oy0) <= _EPSILON:
+                best_side = "top"
+                best_overlap = overlap_x
+            elif abs(y0 - oy1) <= _EPSILON:
+                best_side = "bottom"
+                best_overlap = overlap_x
+
+    return best_side
+
+
+def _apply_scaled_room_size(
+    room: dict[str, Any],
+    *,
+    new_width: float,
+    new_height: float,
+    preserve_side: Literal["left", "right", "top", "bottom"] | None = None,
+) -> None:
+    origin = room.setdefault("origin", {})
+    x0 = float(origin.get("x", 0.0))
+    y0 = float(origin.get("y", 0.0))
+    old_width = float(room.get("width", 0.0))
+    old_height = float(room.get("height", 0.0))
+
+    if preserve_side == "right":
+        origin["x"] = x0 + old_width - new_width
+    elif preserve_side == "top":
+        origin["y"] = y0 + old_height - new_height
+
+    room["width"] = round(new_width, 4)
+    room["height"] = round(new_height, 4)
+
+
+def _eliminate_large_gaps(
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+) -> list[dict[str, Any]]:
+    """
+    Expand one nearby non-corridor room into the largest empty region.
+
+    The pass is deliberately conservative and single-pass so later hard
+    constraint validation can still reject regressions and fall back.
+    """
+
+    min_gap_to_fill = 2.0
+    max_room_gap_distance = 3.0
+    step = 0.5
+    if not rooms or boundary_w <= 0.0 or boundary_h <= 0.0:
+        return rooms
+
+    cols = max(1, int(math.ceil(boundary_w / step)))
+    rows = max(1, int(math.ceil(boundary_h / step)))
+    occupied = [[False] * cols for _ in range(rows)]
+
+    for room in rooms:
+        if not isinstance(room, dict):
+            continue
+        origin = room.get("origin", {})
+        rx = float(origin.get("x", 0.0))
+        ry = float(origin.get("y", 0.0))
+        rw = float(room.get("width", 0.0))
+        rh = float(room.get("height", 0.0))
+        c0 = max(0, int(rx / step))
+        c1 = min(cols, int(math.ceil((rx + rw) / step)))
+        r0 = max(0, int(ry / step))
+        r1 = min(rows, int(math.ceil((ry + rh) / step)))
+        for row in range(r0, r1):
+            for col in range(c0, c1):
+                occupied[row][col] = True
+
+    total_empty = sum(1 for row in range(rows) for col in range(cols) if not occupied[row][col])
+    empty_fraction = total_empty / float(rows * cols) if rows > 0 and cols > 0 else 0.0
+    if empty_fraction < 0.05 or total_empty == 0:
+        return rooms
+
+    visited: set[tuple[int, int]] = set()
+    largest_region: list[tuple[int, int]] = []
+    for start_row in range(rows):
+        for start_col in range(cols):
+            if occupied[start_row][start_col] or (start_row, start_col) in visited:
+                continue
+            region: list[tuple[int, int]] = []
+            stack = [(start_row, start_col)]
+            visited.add((start_row, start_col))
+            while stack:
+                row, col = stack.pop()
+                region.append((row, col))
+                for next_row, next_col in (
+                    (row - 1, col),
+                    (row + 1, col),
+                    (row, col - 1),
+                    (row, col + 1),
+                ):
+                    if next_row < 0 or next_row >= rows or next_col < 0 or next_col >= cols:
+                        continue
+                    if occupied[next_row][next_col] or (next_row, next_col) in visited:
+                        continue
+                    visited.add((next_row, next_col))
+                    stack.append((next_row, next_col))
+            if len(region) > len(largest_region):
+                largest_region = region
+
+    if not largest_region:
+        return rooms
+
+    gap_x_min = min(col for _, col in largest_region) * step
+    gap_x_max = min(boundary_w, (max(col for _, col in largest_region) + 1) * step)
+    gap_y_min = min(row for row, _ in largest_region) * step
+    gap_y_max = min(boundary_h, (max(row for row, _ in largest_region) + 1) * step)
+    gap_w = gap_x_max - gap_x_min
+    gap_h = gap_y_max - gap_y_min
+    if gap_w < min_gap_to_fill and gap_h < min_gap_to_fill:
+        return rooms
+
+    best_index: int | None = None
+    best_direction: Literal["right", "left", "up", "down"] | None = None
+    best_distance = float("inf")
+    best_expansion = 0.0
+
+    for room_index, room in enumerate(rooms):
+        if not isinstance(room, dict):
+            continue
+        if str(room.get("room_type", "")).strip().lower() == "corridor":
+            continue
+
+        origin = room.get("origin", {})
+        x0 = float(origin.get("x", 0.0))
+        y0 = float(origin.get("y", 0.0))
+        width = float(room.get("width", 0.0))
+        height = float(room.get("height", 0.0))
+        x1 = x0 + width
+        y1 = y0 + height
+        overlap_x = max(0.0, min(x1, gap_x_max) - max(x0, gap_x_min))
+        overlap_y = max(0.0, min(y1, gap_y_max) - max(y0, gap_y_min))
+
+        candidates: list[tuple[float, Literal["right", "left", "up", "down"], float]] = []
+        if overlap_y > _EPSILON:
+            right_distance = abs(x1 - gap_x_min)
+            right_capacity = DeterministicLayoutPlanner._available_expand_width(
+                rooms=rooms,
+                index=room_index,
+                boundary_width=boundary_w,
+            )
+            right_expansion = min(max(0.0, gap_x_max - x1), right_capacity)
+            if right_distance <= max_room_gap_distance and right_expansion > _EPSILON:
+                candidates.append((right_distance, "right", right_expansion))
+
+            left_distance = abs(x0 - gap_x_max)
+            left_capacity = DeterministicLayoutPlanner._available_expand_left(
+                rooms=rooms,
+                index=room_index,
+            )
+            left_expansion = min(max(0.0, x0 - gap_x_min), left_capacity)
+            if left_distance <= max_room_gap_distance and left_expansion > _EPSILON:
+                candidates.append((left_distance, "left", left_expansion))
+
+        if overlap_x > _EPSILON:
+            up_distance = abs(y1 - gap_y_min)
+            up_capacity = DeterministicLayoutPlanner._available_expand_height(
+                rooms=rooms,
+                index=room_index,
+                boundary_height=boundary_h,
+            )
+            up_expansion = min(max(0.0, gap_y_max - y1), up_capacity)
+            if up_distance <= max_room_gap_distance and up_expansion > _EPSILON:
+                candidates.append((up_distance, "up", up_expansion))
+
+            down_distance = abs(y0 - gap_y_max)
+            down_capacity = DeterministicLayoutPlanner._available_expand_down(
+                rooms=rooms,
+                index=room_index,
+            )
+            down_expansion = min(max(0.0, y0 - gap_y_min), down_capacity)
+            if down_distance <= max_room_gap_distance and down_expansion > _EPSILON:
+                candidates.append((down_distance, "down", down_expansion))
+
+        for distance, direction, expansion in candidates:
+            if distance < best_distance - _EPSILON:
+                best_index = room_index
+                best_direction = direction
+                best_distance = distance
+                best_expansion = expansion
+
+    if best_index is None or best_direction is None or best_expansion <= _EPSILON:
+        return rooms
+
+    target_room = rooms[best_index]
+    _apply_axis_expansion(target_room, best_direction, best_expansion)
+
+    return rooms
+
+
+def _boost_undersized_living_room(
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+) -> list[dict[str, Any]]:
+    """
+    Ensure living room is not smaller than individual bedrooms in the layout.
+    Living room should be a prominent gathering space, not a leftover after bedrooms.
+
+    Only boost if living room area < average bedroom area AND there's significant size difference.
+    We are conservative to avoid creating overlaps during normalization.
+    """
+    total_area = boundary_w * boundary_h
+    living_max = total_area * _MAX_LIVING_PREFERRED_RATIO
+
+    living_rooms = [r for r in rooms if isinstance(r, dict) and r.get("room_type") == "living"]
+    bedrooms = [r for r in rooms if isinstance(r, dict) and r.get("room_type") == "bedroom"]
+
+    if not living_rooms or not bedrooms:
+        return rooms
+
+    bedroom_areas = [
+        float(r.get("width", 0)) * float(r.get("height", 0))
+        for r in bedrooms
+    ]
+    avg_bedroom_area = sum(bedroom_areas) / len(bedroom_areas) if bedroom_areas else 12.0
+    max_bedroom_area = max(bedroom_areas) if bedroom_areas else 12.0
+
+    for room in living_rooms:
+        if not isinstance(room, dict):
+            continue
+        w = float(room.get("width", 0))
+        h = float(room.get("height", 0))
+        current_area = w * h
+
+        # Only boost if living room is significantly smaller than bedrooms (>50% difference)
+        # and if it's smaller than the largest bedroom
+        if current_area < max_bedroom_area * 0.95:
+            target_area = min(
+                max_bedroom_area * 1.1,  # Match or slightly exceed largest bedroom
+                total_area * 0.25,       # But not more than 25% of floor
+                living_max,
+            )
+
+            if current_area < target_area - _EPSILON:
+                scale = (target_area / current_area) ** 0.5
+                new_w = w * scale
+                new_h = h * scale
+
+                # Clamp but preserve aspect
+                max_w = boundary_w * 0.5
+                max_h = boundary_h * 0.5
+                if new_w > max_w:
+                    new_w = max_w
+                    new_h = target_area / new_w
+                if new_h > max_h:
+                    new_h = max_h
+                    new_w = target_area / new_h
+
+                room["width"] = round(new_w, 3)
+                room["height"] = round(new_h, 3)
+
+    return rooms
 
 
 def _cap_dominant_room(
@@ -2331,39 +3131,67 @@ def _cap_dominant_room(
     boundary_h: float,
 ) -> list[dict[str, Any]]:
     """
-    Prevent any single room from taking more than 40%
+    Prevent any single room from taking more than 35%
     of the total floor area (except when there is only
     1 non-corridor room).
 
     When a room exceeds the cap:
       1. Calculate how much to trim (excess area).
       2. Trim from the longer dimension.
-      3. The freed space is NOT redistributed automatically
-         (the normalizer's gap-fill handles that).
+      3. Later normalization passes can redistribute freed space
+         to undersized rooms and remaining boundary gaps.
     """
-    area_cap_ratio = 0.40
+    area_cap_ratio = _MAX_ROOM_AREA_RATIO
+    living_cap_ratio = _MAX_LIVING_PREFERRED_RATIO
     total_area = boundary_w * boundary_h
     max_area = total_area * area_cap_ratio
+    max_living_area = total_area * living_cap_ratio
 
     non_corridor = [room for room in rooms if room.get("room_type") != "corridor"]
     if len(non_corridor) <= 1:
         return rooms
 
     for room in rooms:
-        if room.get("room_type") == "corridor":
+        room_type = str(room.get("room_type", "")).strip().lower()
+        if room_type == "corridor":
             continue
+        preserve_side = _corridor_adjacent_side(rooms, room) if room_type == "living" else None
         w = float(room.get("width", 0))
         h = float(room.get("height", 0))
         current_area = w * h
         if current_area <= max_area:
+            pass
+        else:
+            scale = (max_area / current_area) ** 0.5
+            new_w = max(1.8, w * scale)
+            new_h = max(1.8, h * scale)
+            _apply_scaled_room_size(
+                room,
+                new_width=new_w,
+                new_height=new_h,
+                preserve_side=preserve_side,
+            )
+            w = float(room.get("width", 0.0))
+            h = float(room.get("height", 0.0))
+            current_area = w * h
+
+        if room_type != "living":
+            continue
+        if current_area <= max_living_area:
             continue
 
-        # Trim the longer dimension proportionally.
-        scale = (max_area / current_area) ** 0.5
-        new_w = max(1.8, w * scale)
-        new_h = max(1.8, h * scale)
-        room["width"] = round(new_w, 4)
-        room["height"] = round(new_h, 4)
+        old_area = current_area
+        scale = (max_living_area / current_area) ** 0.5
+        new_w = max(2.0, w * scale)
+        new_h = max(2.0, h * scale)
+        _apply_scaled_room_size(
+            room,
+            new_width=new_w,
+            new_height=new_h,
+            preserve_side=preserve_side,
+        )
+        new_area = float(room.get("width", 0.0)) * float(room.get("height", 0.0))
+        logger.info("[LivingCap] reduced from %.1f to %.1f m²", old_area, new_area)
 
     return rooms
 

@@ -218,10 +218,21 @@ def test_parse_design_uses_layout_emergency_fallback_on_planner_failures(
             return review
         return json.dumps(extracted, separators=(",", ":"))
 
-    def _fake_plan_with_metadata(payload, *, optimize_efficiency=False):
+    def _fake_plan_with_metadata(
+        payload,
+        *,
+        optimize_efficiency: bool = False,
+        selection_offset: int = 0,
+        relax_kitchen_slack: bool = True,
+    ):
         notes = (payload.get("constraints") or {}).get("notes") if isinstance(payload, dict) else []
         if isinstance(notes, list) and any("Emergency fallback program" in str(note) for note in notes):
-            return real_plan_with_metadata(payload, optimize_efficiency=optimize_efficiency)
+            return real_plan_with_metadata(
+                payload,
+                optimize_efficiency=optimize_efficiency,
+                selection_offset=selection_offset,
+                relax_kitchen_slack=relax_kitchen_slack,
+            )
         raise LayoutPlanningError("Mock topology failure for primary planning pass")
 
     provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
@@ -273,11 +284,15 @@ def test_parse_design_small_house_program_is_deterministic(monkeypatch: pytest.M
 
     assert data_first == data_second
     assert data_first["boundary"] == {"width": 20.0, "height": 12.0}
+    # The planner now keeps the main living room within the stricter 28% cap
+    # without inventing an extra lounge segment.
     assert len(data_first["rooms"]) == 6
     assert len(data_first["walls"]) == 24
     assert sum(1 for room in data_first["rooms"] if room["room_type"] == "bedroom") == 2
     assert sum(1 for room in data_first["rooms"] if room["room_type"] == "bathroom") == 1
     assert sum(1 for room in data_first["rooms"] if room["room_type"] == "corridor") == 1
+    living_room = next(room for room in data_first["rooms"] if room["name"] == "Living Room")
+    assert living_room["width"] * living_room["height"] <= 67.2 + 1e-6
 
     for room in data_first["rooms"]:
         x = room["origin"]["x"]
@@ -431,7 +446,7 @@ def test_parse_design_self_review_accepts_wrapped_json(monkeypatch: pytest.Monke
 
     result = asyncio.run(
         parse_design_prompt_with_metadata(
-            prompt="Create a 20x12 house with a living room, kitchen, bedroom, and bathroom.",
+            prompt="Create a 20x12 house with a living room, kitchen, 2 bedrooms, and bathroom.",
             model_choice=ParseDesignModel.OLLAMA,
         )
     )
@@ -464,7 +479,7 @@ def test_parse_design_self_review_falls_back_when_review_is_not_json(
 
     result = asyncio.run(
         parse_design_prompt_with_metadata(
-            prompt="Create a 20x12 house with a living room, kitchen, bedroom, and bathroom.",
+            prompt="Create a 20x12 house with a living room, kitchen, 2 bedrooms, and bathroom.",
             model_choice=ParseDesignModel.OLLAMA,
         )
     )
@@ -473,7 +488,7 @@ def test_parse_design_self_review_falls_back_when_review_is_not_json(
     assert len(result.data["rooms"]) >= 5
 
 
-def test_parse_design_retries_once_when_room_count_mismatches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_parse_design_corrects_room_count_without_retry(monkeypatch: pytest.MonkeyPatch) -> None:
     initial_extracted = {
         "boundary": {"width": 20.0, "height": 12.0},
         "room_program": [
@@ -484,27 +499,11 @@ def test_parse_design_retries_once_when_room_count_mismatches(monkeypatch: pytes
         ],
         "constraints": {"notes": [], "adjacency_preferences": []},
     }
-    corrected_extracted = {
-        "boundary": {"width": 20.0, "height": 12.0},
-        "room_program": [
-            {"name": "Living Room", "room_type": "living", "count": 1},
-            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
-            {"name": "Bedroom", "room_type": "bedroom", "count": 2},
-            {"name": "Bathroom", "room_type": "bathroom", "count": 1},
-        ],
-        "constraints": {"notes": [], "adjacency_preferences": []},
-    }
-
     review_initial = {"passed": True, "issues": [], "corrected_output": initial_extracted}
-    review_corrected = {"passed": True, "issues": [], "corrected_output": corrected_extracted}
     request_ids: list[str] = []
 
     async def _fake_generate(_: str, *, request_id: str) -> str:
         request_ids.append(request_id)
-        if request_id.endswith("_quality_correction_self_review"):
-            return json.dumps(review_corrected, separators=(",", ":"))
-        if request_id.endswith("_quality_correction"):
-            return json.dumps(corrected_extracted, separators=(",", ":"))
         if request_id.endswith("_self_review"):
             return json.dumps(review_initial, separators=(",", ":"))
         return json.dumps(initial_extracted, separators=(",", ":"))
@@ -519,11 +518,11 @@ def test_parse_design_retries_once_when_room_count_mismatches(monkeypatch: pytes
         )
     )
 
-    assert any(request_id.endswith("_quality_correction") for request_id in request_ids)
+    assert not any(request_id.endswith("_quality_correction") for request_id in request_ids)
     assert sum(1 for room in data["rooms"] if room["room_type"] == "bedroom") == 2
 
 
-def test_parse_design_raises_when_room_count_still_wrong_after_retry(
+def test_parse_design_corrects_summed_room_count_entries_for_arabic_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wrong_extracted = {
@@ -531,14 +530,16 @@ def test_parse_design_raises_when_room_count_still_wrong_after_retry(
         "room_program": [
             {"name": "Living Room", "room_type": "living", "count": 1},
             {"name": "Kitchen", "room_type": "kitchen", "count": 1},
-            {"name": "Bedroom", "room_type": "bedroom", "count": 1},
-            {"name": "Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Bedroom", "room_type": "bedroom", "count": 3},
+            {"name": "Bathroom", "room_type": "bathroom", "count": 2},
         ],
         "constraints": {"notes": [], "adjacency_preferences": []},
     }
     review_wrong = {"passed": True, "issues": [], "corrected_output": wrong_extracted}
+    request_ids: list[str] = []
 
     async def _fake_generate(_: str, *, request_id: str) -> str:
+        request_ids.append(request_id)
         if request_id.endswith("_self_review"):
             return json.dumps(review_wrong, separators=(",", ":"))
         return json.dumps(wrong_extracted, separators=(",", ":"))
@@ -546,12 +547,94 @@ def test_parse_design_raises_when_room_count_still_wrong_after_retry(
     provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
     monkeypatch.setattr(provider, "generate", _fake_generate)
 
-    with pytest.raises(ParseDesignServiceError) as exc_info:
-        asyncio.run(
-            parse_design_prompt(
-                prompt="Create a 20x12 house with 2 bedrooms, 1 kitchen, 1 living room, and 1 bathroom.",
-                model_choice=ParseDesignModel.OLLAMA,
-            )
+    _, data = asyncio.run(
+        parse_design_prompt(
+            prompt="عاوز شقة فيها غرفتين نوم ومطبخ وحمام",
+            model_choice=ParseDesignModel.OLLAMA,
         )
+    )
 
-    assert exc_info.value.code == "ROOM_COUNT_VALIDATION_FAILED"
+    assert not any(request_id.endswith("_quality_correction") for request_id in request_ids)
+    assert sum(1 for room in data["rooms"] if room["room_type"] == "bedroom") == 2
+    assert sum(1 for room in data["rooms"] if room["room_type"] == "bathroom") == 1
+    assert sum(1 for room in data["rooms"] if room["room_type"] == "kitchen") == 1
+
+
+def test_parse_design_simple_one_bedroom_program_stays_single_living_room(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    extracted = {
+        "boundary": {"width": 12.0, "height": 9.0},
+        "room_program": [
+            {"name": "Bedroom", "room_type": "bedroom", "count": 1},
+            {"name": "Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+            {"name": "Living Room", "room_type": "living", "count": 1},
+        ],
+        "constraints": {"notes": [], "adjacency_preferences": [["bedroom", "bathroom"], ["kitchen", "living"]]},
+    }
+    review = {"passed": True, "issues": [], "corrected_output": extracted}
+
+    async def _fake_generate(_: str, *, request_id: str) -> str:
+        if request_id.endswith("_self_review"):
+            return json.dumps(review, separators=(",", ":"))
+        return json.dumps(extracted, separators=(",", ":"))
+
+    provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
+    monkeypatch.setattr(provider, "generate", _fake_generate)
+
+    _, data = asyncio.run(
+        parse_design_prompt(
+            prompt="Design a 1 bedroom apartment with kitchen and bathroom",
+            model_choice=ParseDesignModel.OLLAMA,
+        )
+    )
+
+    living_rooms = [room for room in data["rooms"] if room["room_type"] == "living"]
+    assert len(living_rooms) == 1
+    assert living_rooms[0]["name"] == "Living Room"
+    assert "Family Lounge 1" not in {room["name"] for room in data["rooms"]}
+
+
+def test_enforce_room_counts_reduces_existing_count_before_removing_entries() -> None:
+    payload = {
+        "boundary": {"width": 20.0, "height": 12.0},
+        "room_program": [
+            {"name": "Bedroom", "room_type": "bedroom", "count": 3, "preferred_area": 16.0},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+        ],
+        "constraints": {"notes": [], "adjacency_preferences": []},
+    }
+
+    corrected = _ORCHESTRATOR._enforce_room_counts_from_prompt(  # type: ignore[attr-defined]
+        payload,
+        {"bedroom": 2},
+    )
+
+    bedroom_entries = [
+        room for room in corrected["room_program"] if room.get("room_type") == "bedroom"
+    ]
+    assert len(bedroom_entries) == 1
+    assert bedroom_entries[0]["count"] == 2
+
+
+def test_enforce_room_counts_prefers_increasing_existing_entry_count() -> None:
+    payload = {
+        "boundary": {"width": 20.0, "height": 12.0},
+        "room_program": [
+            {"name": "Bedroom", "room_type": "bedroom", "count": 1, "preferred_area": 16.0},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+        ],
+        "constraints": {"notes": [], "adjacency_preferences": []},
+    }
+
+    corrected = _ORCHESTRATOR._enforce_room_counts_from_prompt(  # type: ignore[attr-defined]
+        payload,
+        {"bedroom": 3},
+    )
+
+    bedroom_entries = [
+        room for room in corrected["room_program"] if room.get("room_type") == "bedroom"
+    ]
+    assert len(bedroom_entries) == 1
+    assert bedroom_entries[0]["count"] == 3

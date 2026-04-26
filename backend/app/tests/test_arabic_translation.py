@@ -1,4 +1,5 @@
 from app.services.design_parser.orchestrator import (
+    _extract_expected_room_counts,
     _normalize_prompt_for_extraction,
 )
 
@@ -49,3 +50,14 @@ def test_arabic_single_bedroom_translates() -> None:
 def test_arabic_dialect_numbers() -> None:
     result = _normalize_prompt_for_extraction("تلات أوض نوم")
     assert "3" in result or "bedroom" in result.lower()
+
+
+def test_extract_expected_room_counts_handles_bare_singular_rooms() -> None:
+    counts = _extract_expected_room_counts("2 bedroom apartment with kitchen and bathroom")
+    assert counts == {"bedroom": 2, "kitchen": 1, "bathroom": 1}
+
+
+def test_extract_expected_room_counts_handles_normalized_arabic_prompt() -> None:
+    normalized = _normalize_prompt_for_extraction("عاوز شقة فيها غرفتين نوم ومطبخ وحمام")
+    counts = _extract_expected_room_counts(normalized)
+    assert counts == {"bedroom": 2, "kitchen": 1, "bathroom": 1}

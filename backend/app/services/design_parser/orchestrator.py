@@ -39,6 +39,9 @@ from app.services.design_parser.provider_client import (
     ProviderClient,
     QwenCloudProviderClient,
 )
+from app.services.design_parser.room_program_normalizer import (
+    extract_requested_room_counts as _extract_room_counts_from_prompt,
+)
 from app.services.design_parser.rule_violation import RuleViolationError
 from app.utils.json_extraction import (
     extract_json_object_with_keys,
@@ -225,6 +228,57 @@ def _normalize_prompt_for_extraction(prompt: str) -> str:
     )
 
 
+_ROOM_COUNT_PATTERNS: list[tuple[re.Pattern[str], str, int | None]] = [
+    # Exact counts
+    (re.compile(r"\b(\d+)\s+bedrooms?\b", re.I), "bedroom", None),
+    (re.compile(r"\b(\d+)\s+bath(?:room)?s?\b", re.I), "bathroom", None),
+    (re.compile(r"\b(\d+)\s+kitchens?\b", re.I), "kitchen", None),
+    # Word numbers
+    (re.compile(r"\bone\s+bedrooms?\b", re.I), "bedroom", 1),
+    (re.compile(r"\btwo\s+bedrooms?\b", re.I), "bedroom", 2),
+    (re.compile(r"\bthree\s+bedrooms?\b", re.I), "bedroom", 3),
+    (re.compile(r"\bfour\s+bedrooms?\b", re.I), "bedroom", 4),
+    (re.compile(r"\bone\s+bathrooms?\b", re.I), "bathroom", 1),
+    (re.compile(r"\btwo\s+bathrooms?\b", re.I), "bathroom", 2),
+    (re.compile(r"\bthree\s+bathrooms?\b", re.I), "bathroom", 3),
+    (re.compile(r"\bfour\s+bathrooms?\b", re.I), "bathroom", 4),
+    (re.compile(r"\bone\s+kitchens?\b", re.I), "kitchen", 1),
+    (re.compile(r"\btwo\s+kitchens?\b", re.I), "kitchen", 2),
+    (re.compile(r"\bthree\s+kitchens?\b", re.I), "kitchen", 3),
+    (re.compile(r"\bfour\s+kitchens?\b", re.I), "kitchen", 4),
+    # Singular implies 1
+    (re.compile(r"\ba\s+bedroom\b", re.I), "bedroom", 1),
+    (re.compile(r"\ba\s+bathroom\b", re.I), "bathroom", 1),
+    (re.compile(r"\ba\s+kitchen\b", re.I), "kitchen", 1),
+    (re.compile(r"\ban\s+bedroom\b", re.I), "bedroom", 1),
+    (re.compile(r"\ban\s+bathroom\b", re.I), "bathroom", 1),
+    (re.compile(r"\ban\s+kitchen\b", re.I), "kitchen", 1),
+    (re.compile(r"\bthe\s+kitchen\b", re.I), "kitchen", 1),
+    (re.compile(r"\bthe\s+bathroom\b", re.I), "bathroom", 1),
+]
+_ROOM_COUNT_IMPLICIT_PATTERNS: list[tuple[re.Pattern[str], str, int]] = [
+    (re.compile(r"\bbedroom\b", re.I), "bedroom", 1),
+    (re.compile(r"\bbath(?:room)?\b", re.I), "bathroom", 1),
+    (re.compile(r"\bkitchen\b", re.I), "kitchen", 1),
+]
+
+
+def _extract_expected_room_counts(prompt: str) -> dict[str, int]:
+    """
+    Extract expected room type counts directly from prompt text using regex.
+
+    This bypasses the LLM and gives room-count validation a deterministic
+    ground truth like {"bedroom": 2, "bathroom": 1, "kitchen": 1}.
+    """
+    return _extract_room_counts_from_prompt(prompt)
+
+
+def _merge_expected_room_counts(original_prompt: str, normalized_prompt: str) -> dict[str, int]:
+    original_counts = _extract_expected_room_counts(original_prompt)
+    normalized_counts = _extract_expected_room_counts(normalized_prompt)
+    return {**normalized_counts, **original_counts}
+
+
 @dataclass
 class ParseOrchestrationResult:
     model_used: str
@@ -298,7 +352,9 @@ class DesignParseOrchestrator:
         _quality_guard_origin_model: ParseDesignModel | None = None,
     ) -> ParseOrchestrationResult:
         requested_provider = self._providers[model_choice]
-        prompt = _normalize_prompt_for_extraction(prompt)
+        original_prompt = prompt
+        prompt = _normalize_prompt_for_extraction(original_prompt)
+        expected_counts = _merge_expected_room_counts(original_prompt, prompt)
         self._validate_prompt_language(prompt, requested_provider.model_id)
         compiled_prompt = self._prompt_compiler.compile(prompt)
         quality_guard_model = _quality_guard_origin_model or model_choice
@@ -355,12 +411,20 @@ class DesignParseOrchestrator:
             request_id=request_id,
             failover_triggered=failover_triggered,
         )
+        if expected_counts:
+            reviewed_payload = self._enforce_room_counts_from_prompt(
+                reviewed_payload,
+                expected_counts,
+            )
         # Keep furniture directives for DXF rendering, but strip them before strict schema validation because the public contract is unchanged.
         reviewed_payload_with_furniture = self._apply_default_furniture_markers(reviewed_payload)
         parsed_payload = self._strip_room_program_furniture(reviewed_payload_with_furniture)
 
         try:
-            validated_extracted_payload = self._extracted_intent_validator.validate(parsed_payload)
+            validated_extracted_payload = self._extracted_intent_validator.validate(
+                parsed_payload,
+                prompt=prompt,
+            )
         except ValidationError as exc:
             raise ParseDesignServiceError(
                 code="INVALID_STRUCTURED_OUTPUT",
@@ -375,7 +439,7 @@ class DesignParseOrchestrator:
         # QUALITY FIX: validate requested numeric room counts before deterministic layout planning.
         quality_violations = self._validate_room_count(
             extracted=validated_extracted_payload,
-            original_prompt=prompt,
+            expected_counts=expected_counts,
         )
         if quality_violations:
             logger.warning(
@@ -395,8 +459,25 @@ class DesignParseOrchestrator:
                 request_id=request_id,
                 failover_triggered=failover_triggered,
                 violations=quality_violations,
+                expected_counts=expected_counts,
             )
             self_review_triggered = self_review_triggered or correction_self_review_triggered
+
+        prompt_derived_payload = self._derive_validated_prompt_program(
+            prompt=prompt,
+            extracted_payload=validated_extracted_payload,
+        )
+        if prompt_derived_payload != validated_extracted_payload:
+            logger.info(
+                "request_id=%s provider=%s event=prompt_program_normalized",
+                request_id,
+                provider.model_id,
+            )
+            validated_extracted_payload = prompt_derived_payload
+            reviewed_payload_with_furniture = self._project_furniture_preferences(
+                source_payload=reviewed_payload_with_furniture,
+                target_payload=validated_extracted_payload,
+            )
 
         used_emergency_layout = False
         selected_topology = "unknown"
@@ -406,15 +487,74 @@ class DesignParseOrchestrator:
             effective_extracted_payload = validated_extracted_payload
             candidate_payload: dict[str, Any] | None = None
             planner_meta: dict[str, Any] = {}
+            planner_selection_offset = 0
+            planner_candidate_count = 1
+            planner_optimize_efficiency = False
+            planner_relax_kitchen_slack = True
             layout_failures: list[str] = []
+
+            def _plan_layout_candidate(
+                *,
+                optimize_efficiency: bool = False,
+                selection_offset: int | None = None,
+                relax_kitchen_slack: bool = True,
+            ) -> tuple[dict[str, Any], dict[str, Any]]:
+                planner_kwargs: dict[str, Any] = {
+                    "optimize_efficiency": optimize_efficiency,
+                    "relax_kitchen_slack": relax_kitchen_slack,
+                }
+                if selection_offset is not None:
+                    planner_kwargs["selection_offset"] = selection_offset
+
+                while True:
+                    try:
+                        return self._layout_planner.plan_with_metadata(
+                            effective_extracted_payload,
+                            **planner_kwargs,
+                        )
+                    except TypeError as exc:
+                        message = str(exc)
+                        if (
+                            "unexpected keyword argument" not in message
+                            or "'relax_kitchen_slack'" not in message
+                            and "'selection_offset'" not in message
+                        ):
+                            raise
+                        if "'relax_kitchen_slack'" in message:
+                            planner_kwargs.pop("relax_kitchen_slack", None)
+                            continue
+                        if "'selection_offset'" in message:
+                            planner_kwargs.pop("selection_offset", None)
+                            continue
+                        raise
+
             try:
-                candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(effective_extracted_payload)
+                candidate_payload, planner_meta = _plan_layout_candidate(
+                    relax_kitchen_slack=planner_relax_kitchen_slack,
+                )
+                planner_selection_offset = int(planner_meta.get("selection_offset", 0))
+                planner_candidate_count = max(1, int(planner_meta.get("candidate_count", 1)))
             except LayoutPlanningError as primary_layout_exc:
                 layout_failures.append(str(primary_layout_exc))
                 derived_extracted_payload = self._prompt_program_deriver.derive(
                     prompt=prompt,
                     extracted_payload=effective_extracted_payload,
                 )
+                try:
+                    derived_extracted_payload = self._extracted_intent_validator.validate(
+                        derived_extracted_payload,
+                        prompt=prompt,
+                    )
+                except ValidationError as derived_validation_exc:
+                    layout_failures.append(
+                        "derived_payload_validation: "
+                        + "; ".join(
+                            self._extracted_intent_validator.to_error_details(
+                                derived_validation_exc
+                            )
+                        )
+                    )
+                    derived_extracted_payload = effective_extracted_payload
                 if derived_extracted_payload != effective_extracted_payload:
                     logger.warning(
                         "request_id=%s provider=%s event=program_derivation_retry reason=%s",
@@ -427,9 +567,13 @@ class DesignParseOrchestrator:
                     reviewed_payload_with_furniture = self._project_furniture_preferences(
                         source_payload=reviewed_payload_with_furniture,
                         target_payload=effective_extracted_payload,
-                    )
+                        )
                     try:
-                        candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(effective_extracted_payload)
+                        candidate_payload, planner_meta = _plan_layout_candidate(
+                            relax_kitchen_slack=planner_relax_kitchen_slack,
+                        )
+                        planner_selection_offset = int(planner_meta.get("selection_offset", 0))
+                        planner_candidate_count = max(1, int(planner_meta.get("candidate_count", 1)))
                     except LayoutPlanningError as derived_layout_exc:
                         layout_failures.append(str(derived_layout_exc))
 
@@ -446,7 +590,8 @@ class DesignParseOrchestrator:
                             extracted_payload=effective_extracted_payload,
                         )
                         emergency_extracted_payload = self._extracted_intent_validator.validate(
-                            emergency_extracted_payload
+                            emergency_extracted_payload,
+                            prompt=prompt,
                         )
                     except ValidationError as emergency_validation_exc:
                         layout_failures.append(
@@ -466,10 +611,13 @@ class DesignParseOrchestrator:
                             target_payload=effective_extracted_payload,
                         )
                         try:
-                            candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(
-                                effective_extracted_payload,
+                            candidate_payload, planner_meta = _plan_layout_candidate(
                                 optimize_efficiency=True,
+                                relax_kitchen_slack=planner_relax_kitchen_slack,
                             )
+                            planner_optimize_efficiency = True
+                            planner_selection_offset = int(planner_meta.get("selection_offset", 0))
+                            planner_candidate_count = max(1, int(planner_meta.get("candidate_count", 1)))
                         except LayoutPlanningError as emergency_layout_exc:
                             layout_failures.append(str(emergency_layout_exc))
 
@@ -487,26 +635,65 @@ class DesignParseOrchestrator:
                 if candidate_payload is None:
                     raise LayoutPlanningError(" | ".join(layout_failures))
 
+            def _try_next_layout_candidate() -> bool:
+                nonlocal candidate_payload
+                nonlocal planner_meta
+                nonlocal selected_topology
+                nonlocal planner_selection_offset
+                nonlocal planner_candidate_count
+                nonlocal planner_relax_kitchen_slack
+                if used_emergency_layout:
+                    return False
+                if planner_relax_kitchen_slack:
+                    planner_relax_kitchen_slack = False
+                    planner_selection_offset = 0
+                    candidate_payload, planner_meta = _plan_layout_candidate(
+                        optimize_efficiency=planner_optimize_efficiency,
+                        selection_offset=0,
+                        relax_kitchen_slack=planner_relax_kitchen_slack,
+                    )
+                    planner_selection_offset = int(planner_meta.get("selection_offset", 0))
+                    planner_candidate_count = max(1, int(planner_meta.get("candidate_count", 1)))
+                    selected_topology = str(planner_meta.get("selected_topology", selected_topology))
+                    return True
+                next_offset = planner_selection_offset + 1
+                if next_offset >= planner_candidate_count:
+                    return False
+                candidate_payload, planner_meta = _plan_layout_candidate(
+                    optimize_efficiency=planner_optimize_efficiency,
+                    selection_offset=next_offset,
+                    relax_kitchen_slack=planner_relax_kitchen_slack,
+                )
+                planner_selection_offset = int(planner_meta.get("selection_offset", next_offset))
+                planner_candidate_count = max(planner_candidate_count, int(planner_meta.get("candidate_count", 1)))
+                selected_topology = str(planner_meta.get("selected_topology", selected_topology))
+                return True
+
             selected_topology = str(planner_meta.get("selected_topology", "unknown"))
 
             if not used_emergency_layout:
-                try:
-                    candidate_payload = self._opening_planner.plan(
-                        extracted_payload=effective_extracted_payload,
-                        layout_payload=candidate_payload,
-                    )
-                except RuleViolationError as opening_exc:
-                    if recovery_mode != RecoveryMode.REPAIR:
-                        raise opening_exc from opening_exc
-                    logger.warning(
-                        "request_id=%s provider=%s event=opening_geometry_emergency_fallback reason=%s",
-                        request_id,
-                        provider.model_id,
-                        opening_exc.to_detail_message(),
-                    )
-                    candidate_payload = self._build_emergency_layout_payload(effective_extracted_payload)
-                    selected_topology = "emergency_grid_fallback"
-                    used_emergency_layout = True
+                while True:
+                    try:
+                        candidate_payload = self._opening_planner.plan(
+                            extracted_payload=effective_extracted_payload,
+                            layout_payload=candidate_payload,
+                        )
+                        break
+                    except RuleViolationError as opening_exc:
+                        if _try_next_layout_candidate():
+                            continue
+                        if recovery_mode != RecoveryMode.REPAIR:
+                            raise opening_exc from opening_exc
+                        logger.warning(
+                            "request_id=%s provider=%s event=opening_geometry_emergency_fallback reason=%s",
+                            request_id,
+                            provider.model_id,
+                            opening_exc.to_detail_message(),
+                        )
+                        candidate_payload = self._build_emergency_layout_payload(effective_extracted_payload)
+                        selected_topology = "emergency_grid_fallback"
+                        used_emergency_layout = True
+                        break
             validated_extracted_payload = effective_extracted_payload
         except LayoutPlanningError as exc:
             raise ParseDesignServiceError(
@@ -532,32 +719,40 @@ class DesignParseOrchestrator:
                 details=[exc.to_detail_message()],
             ) from exc
 
-        try:
-            validated_payload = self._intent_validator.validate(candidate_payload)
-        except ValidationError as exc:
-            if recovery_mode == RecoveryMode.REPAIR and not used_emergency_layout:
-                logger.warning(
-                    "request_id=%s provider=%s event=intent_geometry_emergency_fallback reason=%s",
-                    request_id,
-                    provider.model_id,
-                    "; ".join(self._intent_validator.to_error_details(exc)),
-                )
-                candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
-                selected_topology = "emergency_grid_fallback"
-                used_emergency_layout = True
-                try:
-                    validated_payload = self._intent_validator.validate(candidate_payload)
-                except ValidationError as emergency_exc:
-                    raise ParseDesignServiceError(
-                        code="INVALID_STRUCTURED_OUTPUT",
-                        message="Deterministic layout failed schema validation",
-                        status_code=422,
-                        model_used=provider.model_id,
-                        provider_used=provider.model_id,
-                        failover_triggered=failover_triggered,
-                        details=self._intent_validator.to_error_details(emergency_exc),
-                    ) from emergency_exc
-            else:
+        while True:
+            try:
+                validated_payload = self._intent_validator.validate(candidate_payload)
+                break
+            except ValidationError as exc:
+                if not used_emergency_layout and _try_next_layout_candidate():
+                    candidate_payload = self._opening_planner.plan(
+                        extracted_payload=validated_extracted_payload,
+                        layout_payload=candidate_payload,
+                    )
+                    continue
+                if recovery_mode == RecoveryMode.REPAIR and not used_emergency_layout:
+                    logger.warning(
+                        "request_id=%s provider=%s event=intent_geometry_emergency_fallback reason=%s",
+                        request_id,
+                        provider.model_id,
+                        "; ".join(self._intent_validator.to_error_details(exc)),
+                    )
+                    candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
+                    selected_topology = "emergency_grid_fallback"
+                    used_emergency_layout = True
+                    try:
+                        validated_payload = self._intent_validator.validate(candidate_payload)
+                        break
+                    except ValidationError as emergency_exc:
+                        raise ParseDesignServiceError(
+                            code="INVALID_STRUCTURED_OUTPUT",
+                            message="Deterministic layout failed schema validation",
+                            status_code=422,
+                            model_used=provider.model_id,
+                            provider_used=provider.model_id,
+                            failover_triggered=failover_triggered,
+                            details=self._intent_validator.to_error_details(emergency_exc),
+                        ) from emergency_exc
                 raise ParseDesignServiceError(
                     code="INVALID_STRUCTURED_OUTPUT",
                     message="Deterministic layout failed schema validation",
@@ -572,71 +767,78 @@ class DesignParseOrchestrator:
             metrics_payload = self._build_emergency_metrics(selected_topology)
         else:
             try:
-                metrics = self._layout_validator.validate(
-                    extracted_payload=validated_extracted_payload,
-                    planned_payload=validated_payload,
-                    selected_topology=selected_topology,
-                )
-            except RuleViolationError as exc:
-                if exc.code == "LAYOUT_EFFICIENCY_FAILED":
+                while True:
                     try:
-                        candidate_payload, planner_meta = self._layout_planner.plan_with_metadata(
-                            validated_extracted_payload,
-                            optimize_efficiency=True,
-                        )
-                        selected_topology = str(planner_meta.get("selected_topology", selected_topology))
-                        candidate_payload = self._opening_planner.plan(
-                            extracted_payload=validated_extracted_payload,
-                            layout_payload=candidate_payload,
-                        )
-                        validated_payload = self._intent_validator.validate(candidate_payload)
                         metrics = self._layout_validator.validate(
                             extracted_payload=validated_extracted_payload,
                             planned_payload=validated_payload,
                             selected_topology=selected_topology,
                         )
-                        exc = None
-                    except (LayoutPlanningError, ValidationError, RuleViolationError) as rebalance_exc:
-                        if isinstance(rebalance_exc, RuleViolationError):
-                            exc = rebalance_exc
-                        else:
-                            raise ParseDesignServiceError(
-                                code="LAYOUT_PLANNING_FAILED",
-                                message="Deterministic layout planning failed",
-                                status_code=422,
-                                model_used=provider.model_id,
-                                provider_used=provider.model_id,
-                                failover_triggered=failover_triggered,
-                                details=[str(rebalance_exc)],
-                            ) from rebalance_exc
+                        break
+                    except RuleViolationError as exc:
+                        if not used_emergency_layout and _try_next_layout_candidate():
+                            candidate_payload = self._opening_planner.plan(
+                                extracted_payload=validated_extracted_payload,
+                                layout_payload=candidate_payload,
+                            )
+                            validated_payload = self._intent_validator.validate(candidate_payload)
+                            continue
+                        if exc.code == "LAYOUT_EFFICIENCY_FAILED":
+                            try:
+                                candidate_payload, planner_meta = _plan_layout_candidate(
+                                    optimize_efficiency=True,
+                                    relax_kitchen_slack=planner_relax_kitchen_slack,
+                                )
+                                planner_optimize_efficiency = True
+                                planner_selection_offset = int(planner_meta.get("selection_offset", 0))
+                                planner_candidate_count = max(1, int(planner_meta.get("candidate_count", 1)))
+                                selected_topology = str(planner_meta.get("selected_topology", selected_topology))
+                                candidate_payload = self._opening_planner.plan(
+                                    extracted_payload=validated_extracted_payload,
+                                    layout_payload=candidate_payload,
+                                )
+                                validated_payload = self._intent_validator.validate(candidate_payload)
+                                continue
+                            except (LayoutPlanningError, ValidationError, RuleViolationError) as rebalance_exc:
+                                if isinstance(rebalance_exc, RuleViolationError):
+                                    exc = rebalance_exc
+                                else:
+                                    raise ParseDesignServiceError(
+                                        code="LAYOUT_PLANNING_FAILED",
+                                        message="Deterministic layout planning failed",
+                                        status_code=422,
+                                        model_used=provider.model_id,
+                                        provider_used=provider.model_id,
+                                        failover_triggered=failover_triggered,
+                                        details=[str(rebalance_exc)],
+                                    ) from rebalance_exc
 
-                if exc is not None and recovery_mode == RecoveryMode.REPAIR:
-                    logger.warning(
-                        "request_id=%s provider=%s event=validation_geometry_emergency_fallback reason=%s",
-                        request_id,
-                        provider.model_id,
-                        exc.to_detail_message(),
-                    )
-                    candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
-                    selected_topology = "emergency_grid_fallback"
-                    used_emergency_layout = True
-                    validated_payload = self._intent_validator.validate(candidate_payload)
-                    metrics_payload = self._build_emergency_metrics(selected_topology)
-                    exc = None
+                        if recovery_mode == RecoveryMode.REPAIR:
+                            logger.warning(
+                                "request_id=%s provider=%s event=validation_geometry_emergency_fallback reason=%s",
+                                request_id,
+                                provider.model_id,
+                                exc.to_detail_message(),
+                            )
+                            candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
+                            selected_topology = "emergency_grid_fallback"
+                            used_emergency_layout = True
+                            validated_payload = self._intent_validator.validate(candidate_payload)
+                            metrics_payload = self._build_emergency_metrics(selected_topology)
+                            break
 
-                if exc is not None:
-                    raise ParseDesignServiceError(
-                        code=exc.code,
-                        message="Deterministic layout failed semantic validation",
-                        status_code=422,
-                        model_used=provider.model_id,
-                        provider_used=provider.model_id,
-                        failover_triggered=failover_triggered,
-                        reason=exc.reason,
-                        violated_rule=exc.violated_rule,
-                        room=exc.room,
-                        details=[exc.to_detail_message()],
-                    ) from exc
+                        raise ParseDesignServiceError(
+                            code=exc.code,
+                            message="Deterministic layout failed semantic validation",
+                            status_code=422,
+                            model_used=provider.model_id,
+                            provider_used=provider.model_id,
+                            failover_triggered=failover_triggered,
+                            reason=exc.reason,
+                            violated_rule=exc.violated_rule,
+                            room=exc.room,
+                            details=[exc.to_detail_message()],
+                        ) from exc
 
             except ValueError as exc:
                 if recovery_mode == RecoveryMode.REPAIR:
@@ -842,7 +1044,10 @@ class DesignParseOrchestrator:
         if recovery_mode == RecoveryMode.REPAIR:
             try:
                 prompt_fallback_payload = self._build_prompt_fallback_payload(prompt)
-                parsed_payload = self._extracted_intent_validator.validate(prompt_fallback_payload)
+                parsed_payload = self._extracted_intent_validator.validate(
+                    prompt_fallback_payload,
+                    prompt=prompt,
+                )
             except ValidationError as exc:
                 errors.append(
                     "prompt_fallback_validation: "
@@ -901,6 +1106,35 @@ class DesignParseOrchestrator:
             prompt=prompt,
             extracted_payload=baseline_payload,
         )
+
+    def _derive_validated_prompt_program(
+        self,
+        *,
+        prompt: str,
+        extracted_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Use prompt-derived room names/counts when they produce an equivalent valid program."""
+
+        derived_payload = self._prompt_program_deriver.derive(
+            prompt=prompt,
+            extracted_payload=extracted_payload,
+        )
+        if derived_payload == extracted_payload:
+            return extracted_payload
+
+        try:
+            validated_derived = self._extracted_intent_validator.validate(
+                derived_payload,
+                prompt=prompt,
+            )
+        except ValidationError:
+            return extracted_payload
+
+        current_counts = self._actual_room_program_counts(extracted_payload)
+        derived_counts = self._actual_room_program_counts(validated_derived)
+        if any(derived_counts.get(room_type, 0) < count for room_type, count in current_counts.items()):
+            return extracted_payload
+        return validated_derived
 
     # Build a compact, planner-friendly room program derived from boundary size for emergency layout recovery.
     def _build_layout_emergency_payload(
@@ -1269,17 +1503,20 @@ class DesignParseOrchestrator:
             "- room_program entry keys allowed: name, room_type, count, preferred_area, min_area, max_area, furniture\n"
             "- constraints keys allowed: notes, adjacency_preferences\n"
             "Review rules:\n"
-            "1) Every room has: name, width_m, height_m, and a valid room_type.\n"
-            "2) width_m and height_m are both > 1.5 and < 30.\n"
+            "1) Every room has: name, room_type, count, preferred_area, min_area, and max_area.\n"
+            "2) room_type is one of: living, bedroom, kitchen, bathroom, corridor, stairs.\n"
             "3) No two rooms share the exact same name.\n"
-            "4) Total floor area (sum of width*height) is between 20 m^2 and 1000 m^2.\n"
-            "5) If adjacency list exists, all referenced room names actually exist.\n"
-            "6) If room_type is bedroom, master_bedroom, bathroom, kitchen, living_room, dining_room, or office and the room has no furniture key, add \"furniture\": \"default\".\n"
+            "4) Sum(preferred_area * count) is 80%-95% of boundary area.\n"
+            "5) Living room preferred_area is <= 28% of boundary area and any single room is <= 35%.\n"
+            "6) If adjacency list exists, remove forbidden bedroom-kitchen and bathroom-kitchen pairs.\n"
+            "7) If room_type is bedroom, bathroom, kitchen, living, or dining-as-living and the room has no furniture key, add \"furniture\": \"default\".\n"
             "   If furniture is already \"none\", keep it as \"none\" and do not add furniture.\n"
             "Important adaptation for this system:\n"
-            "- corrected_output must remain program-only JSON, so do NOT add width_m or height_m keys.\n"
-            "- Use preferred_area/min_area/max_area to make implied room dimensions plausible.\n"
-            "- If adjacency_preferences uses room types, rewrite them to concrete room names when possible.\n"
+            "- corrected_output must remain program-only JSON, so do NOT add coordinates, width_m, height_m, walls, doors, or windows.\n"
+            "- Use boundary buckets when no explicit dimensions exist: 8x6, 12x9, 16x10, or 20x12.\n"
+            "- Add only structural defaults when needed: one Living Room if no public room exists, one Main Corridor when bedroom_count >= 2.\n"
+            "- Keep exact requested bedroom, bathroom, and kitchen counts.\n"
+            "- Use type-level adjacency preferences such as [\"bedroom\",\"bathroom\"] and [\"kitchen\",\"living\"].\n"
             "If the payload passes, return passed=true, issues=[], and corrected_output equal to the original output.\n"
             "Original output:\n"
             f"{payload_json}\n"
@@ -1691,6 +1928,7 @@ class DesignParseOrchestrator:
         request_id: str,
         failover_triggered: bool,
         violations: list[str],
+        expected_counts: dict[str, int],
     ) -> tuple[dict[str, Any], dict[str, Any], bool]:
         correction_prompt = self._build_quality_correction_prompt(original_prompt, violations)
         raw_output = await provider.generate(
@@ -1713,11 +1951,19 @@ class DesignParseOrchestrator:
             request_id=f"{request_id}_quality_correction",
             failover_triggered=failover_triggered,
         )
+        if expected_counts:
+            reviewed_payload = self._enforce_room_counts_from_prompt(
+                reviewed_payload,
+                expected_counts,
+            )
         reviewed_payload_with_furniture = self._apply_default_furniture_markers(reviewed_payload)
         parsed_payload = self._strip_room_program_furniture(reviewed_payload_with_furniture)
 
         try:
-            validated_extracted_payload = self._extracted_intent_validator.validate(parsed_payload)
+            validated_extracted_payload = self._extracted_intent_validator.validate(
+                parsed_payload,
+                prompt=original_prompt,
+            )
         except ValidationError as exc:
             raise ParseDesignServiceError(
                 code="INVALID_STRUCTURED_OUTPUT",
@@ -1731,7 +1977,7 @@ class DesignParseOrchestrator:
 
         second_pass_violations = self._validate_room_count(
             extracted=validated_extracted_payload,
-            original_prompt=original_prompt,
+            expected_counts=expected_counts,
         )
         if second_pass_violations:
             raise ParseDesignServiceError(
@@ -1751,36 +1997,15 @@ class DesignParseOrchestrator:
         self,
         *,
         extracted: dict[str, Any],
-        original_prompt: str,
+        expected_counts: dict[str, int],
     ) -> list[str]:
-        violations: list[str] = []
-        prompt_lower = original_prompt.lower()
-        room_program = extracted.get("room_program", [])
-        families = {
-            "bedroom": r"(\d+)\s*(?:bedroom|room|chamber|sleeping\s*room)s?",
-            "bathroom": r"(\d+)\s*(?:bathroom|toilet|wc|restroom)s?",
-            "kitchen": r"(\d+)\s*(?:kitchen|cooking\s*area)s?",
-        }
+        if not expected_counts:
+            return []
 
-        for family, pattern in families.items():
-            matches = re.findall(pattern, prompt_lower)
-            if not matches:
-                continue
-            requested = sum(int(match) for match in matches)
-            actual = 0
-            if isinstance(room_program, list):
-                for entry in room_program:
-                    if not isinstance(entry, dict):
-                        continue
-                    room_type = str(entry.get("room_type", "")).lower()
-                    room_name = str(entry.get("name", "")).lower()
-                    count = entry.get("count", 1)
-                    room_count = count if isinstance(count, int) and count > 0 else 1
-                    if family == "bedroom":
-                        if "bedroom" in room_type or "bedroom" in room_name:
-                            actual += room_count
-                    elif family in room_type or family in room_name:
-                        actual += room_count
+        violations: list[str] = []
+        actual_counts = self._actual_room_program_counts(extracted)
+        for family, requested in expected_counts.items():
+            actual = actual_counts.get(family, 0)
             if actual != requested:
                 violations.append(
                     f"ROOM COUNT MISMATCH: user requested {requested} {family}(s) but extracted {actual}. "
@@ -1796,84 +2021,15 @@ class DesignParseOrchestrator:
         extracted: dict[str, Any],
         original_prompt: str,
     ) -> list[str]:
-        return self._validate_room_count(extracted=extracted, original_prompt=original_prompt)
+        normalized_prompt = _normalize_prompt_for_extraction(original_prompt)
+        expected_counts = _merge_expected_room_counts(original_prompt, normalized_prompt)
+        return self._validate_room_count(extracted=extracted, expected_counts=expected_counts)
 
     # QUALITY FIX: map user-count language (including requested synonyms) to canonical room families.
     @staticmethod
     def _extract_requested_room_counts(prompt_text: str) -> dict[str, int]:
-        number_words: dict[str, int] = {
-            "one": 1,
-            "two": 2,
-            "three": 3,
-            "four": 4,
-            "five": 5,
-            "six": 6,
-            "seven": 7,
-            "eight": 8,
-            "nine": 9,
-            "ten": 10,
-            "eleven": 11,
-            "twelve": 12,
-        }
-
-        def parse_count(token: str) -> int | None:
-            if token.isdigit():
-                parsed = int(token)
-                return parsed if parsed > 0 else None
-            return number_words.get(token)
-
-        def count_matches(pattern: str) -> int:
-            total = 0
-            for token in re.findall(pattern, prompt_text):
-                parsed = parse_count(str(token).strip().lower())
-                if parsed is not None:
-                    total += parsed
-            return total
-
-        result: dict[str, int] = {}
-        bedroom_count = count_matches(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
-            r"(?:bedrooms?|rooms?|chambers?|sleeping\s+rooms?)\b"
-        )
-        if bedroom_count > 0:
-            result["bedroom"] = bedroom_count
-
-        bathroom_count = count_matches(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
-            r"(?:bathrooms?|toilets?|wc|restrooms?)\b"
-        )
-        if bathroom_count > 0:
-            result["bathroom"] = bathroom_count
-
-        kitchen_count = count_matches(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
-            r"(?:kitchens?|cooking\s+areas?)\b"
-        )
-        if kitchen_count > 0:
-            result["kitchen"] = kitchen_count
-
-        living_count = count_matches(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
-            r"(?:living\s+rooms?|lounges?|salons?|receptions?|dining\s+rooms?|dining\s+areas?)\b"
-        )
-        if living_count > 0:
-            result["living"] = living_count
-
-        corridor_count = count_matches(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
-            r"(?:corridors?|hallways?|passages?)\b"
-        )
-        if corridor_count > 0:
-            result["corridor"] = corridor_count
-
-        stairs_count = count_matches(
-            r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
-            r"(?:stairs?|staircases?)\b"
-        )
-        if stairs_count > 0:
-            result["stairs"] = stairs_count
-
-        return result
+        normalized_prompt = _normalize_prompt_for_extraction(prompt_text)
+        return _merge_expected_room_counts(prompt_text, normalized_prompt)
 
     # QUALITY FIX: aggregate extracted counts from room_program.count in canonical type space.
     @staticmethod
@@ -1898,6 +2054,132 @@ class DesignParseOrchestrator:
                 room_count = 1
             counts[room_type] = counts.get(room_type, 0) + room_count
         return counts
+
+    @staticmethod
+    def _room_program_entry_count(entry: dict[str, Any]) -> int:
+        count_value = entry.get("count", 1)
+        if isinstance(count_value, bool):
+            return 1
+        if isinstance(count_value, int) and count_value > 0:
+            return count_value
+        return 1
+
+    def _enforce_room_counts_from_prompt(
+        self,
+        parsed_payload: dict[str, Any],
+        expected_counts: dict[str, int],
+    ) -> dict[str, Any]:
+        """
+        Correct room_program counts to match prompt-derived ground truth before planning.
+        """
+
+        if not expected_counts:
+            return parsed_payload
+
+        room_program = parsed_payload.get("room_program", [])
+        if not isinstance(room_program, list):
+            return parsed_payload
+
+        adjusted_program: list[Any] = [
+            dict(entry) if isinstance(entry, dict) else entry for entry in room_program
+        ]
+        indices_by_type: dict[str, list[int]] = {}
+        for index, entry in enumerate(adjusted_program):
+            if not isinstance(entry, dict):
+                continue
+            room_type = str(entry.get("room_type", "")).strip().lower()
+            if room_type in expected_counts:
+                indices_by_type.setdefault(room_type, []).append(index)
+
+        removed_indices: set[int] = set()
+        default_areas: dict[str, float] = {
+            "bedroom": 14.0,
+            "bathroom": 5.0,
+            "kitchen": 10.0,
+            "living": 20.0,
+            "corridor": 4.0,
+        }
+        default_names: dict[str, str] = {
+            "bedroom": "Bedroom",
+            "bathroom": "Bathroom",
+            "kitchen": "Kitchen",
+            "living": "Living Room",
+            "corridor": "Corridor",
+        }
+
+        for room_type, expected_total in expected_counts.items():
+            indices = indices_by_type.get(room_type, [])
+            ordered_indices = sorted(
+                indices,
+                key=lambda idx: self._safe_metric(
+                    adjusted_program[idx].get("preferred_area"),
+                    default=0.0,
+                )
+                if isinstance(adjusted_program[idx], dict)
+                else 0.0,
+                reverse=True,
+            )
+            current_total = sum(
+                self._room_program_entry_count(adjusted_program[idx])
+                for idx in indices
+                if idx not in removed_indices and isinstance(adjusted_program[idx], dict)
+            )
+
+            excess = max(current_total - expected_total, 0)
+            for index in reversed(ordered_indices):
+                if excess <= 0 or index in removed_indices:
+                    continue
+                entry = adjusted_program[index]
+                if not isinstance(entry, dict):
+                    continue
+                current_count = self._room_program_entry_count(entry)
+                trimmed = min(excess, current_count)
+                remaining = current_count - trimmed
+                if remaining > 0:
+                    entry["count"] = remaining
+                else:
+                    removed_indices.add(index)
+                excess -= trimmed
+
+            active_indices = [index for index in indices if index not in removed_indices]
+            current_total = sum(
+                self._room_program_entry_count(adjusted_program[index])
+                for index in active_indices
+                if isinstance(adjusted_program[index], dict)
+            )
+            missing = max(expected_total - current_total, 0)
+            if missing > 0 and active_indices:
+                target_index = active_indices[-1]
+                target_entry = adjusted_program[target_index]
+                if isinstance(target_entry, dict):
+                    target_entry["count"] = self._room_program_entry_count(target_entry) + missing
+                    missing = 0
+
+            if missing > 0:
+                base_name = default_names.get(room_type, room_type.title())
+                new_entry = {
+                    "name": base_name,
+                    "room_type": room_type,
+                    "count": 1,
+                    "preferred_area": default_areas.get(room_type, 10.0),
+                }
+                adjusted_program.append(new_entry)
+                indices_by_type.setdefault(room_type, []).append(len(adjusted_program) - 1)
+                if missing > 1:
+                    new_entry["count"] = self._room_program_entry_count(new_entry) + (missing - 1)
+
+        corrected_program = [
+            entry for index, entry in enumerate(adjusted_program) if index not in removed_indices
+        ]
+        corrected_payload = dict(parsed_payload)
+        corrected_payload["room_program"] = corrected_program
+        corrected_counts = self._actual_room_program_counts(corrected_payload)
+        logger.info(
+            "[RoomCountEnforcer] expected=%s corrected=%s",
+            expected_counts,
+            {room_type: corrected_counts.get(room_type, 0) for room_type in expected_counts},
+        )
+        return corrected_payload
 
     @staticmethod
     def _validate_prompt_language(prompt: str, model_used: str) -> None:

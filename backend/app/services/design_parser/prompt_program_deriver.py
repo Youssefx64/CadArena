@@ -144,12 +144,15 @@ class PromptProgramDeriver:
     @staticmethod
     def _append_keyword_singletons(*, extracted: list[dict[str, Any]], normalized_text: str) -> None:
         existing_names = {item["name"] for item in extracted}
+        existing_types = {item["room_type"] for item in extracted}
         if "Living Room" not in existing_names and "living room" in normalized_text:
             extracted.append({"name": "Living Room", "room_type": "living", "count": 1})
         if "Dining Room" not in existing_names and "dining room" in normalized_text:
             extracted.append({"name": "Dining Room", "room_type": "living", "count": 1})
         if "Kitchen" not in existing_names and "kitchen" in normalized_text:
             extracted.append({"name": "Kitchen", "room_type": "kitchen", "count": 1})
+        if "bathroom" not in existing_types and "bathroom" in normalized_text:
+            extracted.append({"name": "Bathroom", "room_type": "bathroom", "count": 1})
         if "Laundry" not in existing_names and "laundry" in normalized_text:
             extracted.append({"name": "Laundry", "room_type": "bathroom", "count": 1})
         if "Storage" not in existing_names and "storage" in normalized_text:
@@ -178,4 +181,4 @@ class PromptProgramDeriver:
         height = float(match.group("h"))
         if width <= 0 or height <= 0:
             return None
-        return (width, height)
+        return (max(width, height), min(width, height))
