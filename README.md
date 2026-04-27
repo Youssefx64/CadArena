@@ -1,37 +1,33 @@
 # CadArena
 
-CadArena turns architectural intent into workable CAD output.
-It combines a FastAPI backend, a static frontend studio, and a design-parsing pipeline that converts natural language into structured layout data and DXF exports.
+CadArena is an AI-assisted platform for civil and architectural workflows.
+The project currently has three main surfaces:
 
-## What It Does
+- a React website for the public pages
+- a `/community` page for engineering Q&A
+- a legacy Studio workspace at `/studio` for chat-driven DXF generation
 
-- Parses architectural prompts into structured room, boundary, and opening data
-- Generates DXF files from validated design intent
-- Exports previews and derived files such as PNG and PDF
-- Supports authentication, profile management, and project-based workspace flows
-- Serves the marketing pages and the studio UI from the same application
-
-## Project Structure
+## Repository Layout
 
 ```text
 CadArena/
-├── backend/   # FastAPI app, domain logic, services, tests, local data/output
-├── frontend/  # Static HTML, CSS, JS pages used by the app
-├── docker/    # Container orchestration assets
-└── docs/      # Supporting documentation
+├── backend/   FastAPI app, API routes, storage, DXF generation, tests
+├── frontend/  React app, shared assets, and legacy studio source
+├── docker/    Dockerfile and compose setup
+└── docs/      supporting design notes and diagrams
 ```
 
-## Stack
+## Main Features
 
-- Backend: FastAPI, Pydantic, Uvicorn
-- CAD and rendering: `ezdxf`, `matplotlib`
-- AI/parsing integrations: Hugging Face, Ollama, Transformers
-- Frontend: Vanilla HTML, CSS, JavaScript
-- Testing: Pytest
+- project-based studio workflow
+- prompt-to-layout and DXF generation endpoints
+- DXF preview and export
+- auth, profile, and workspace APIs
+- community questions, answers, and voting
 
-## Quick Start
+## Local Development
 
-### 1. Prepare environment
+### 1. Run the backend
 
 ```bash
 cd backend
@@ -39,66 +35,66 @@ cp .env.example .env
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Run the app
-
-```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open:
+### 2. Run the frontend
 
-- `http://localhost:8000/` for the landing page
-- `http://localhost:8000/app/` for the studio
-- `http://localhost:8000/docs` for API docs in non-production mode
+```bash
+cd frontend
+npm install
+npm start
+```
 
-## Configuration
+### 3. Open the app
 
-The backend loads configuration from [`backend/.env.example`](/home/mango/Coding/Projects/CadArena/backend/.env.example).
-Main groups:
+- `http://localhost:3000/` React site
+- `http://localhost:3000/studio` Studio
+- `http://localhost:3000/community` Community
+- `http://127.0.0.1:8000/docs` FastAPI docs when enabled
 
-- Model provider keys for Hugging Face and Ollama
-- SMTP settings for the contact form
-- Auth settings for JWT, cookies, and Google sign-in
+## Production-Style Local Run
 
-## Main Flows
+If you want the backend to serve the frontend build directly:
 
-### Prompt to DXF
+```bash
+cd frontend
+npm run build
 
-1. Submit a natural-language design prompt
-2. Parse it into structured architectural intent
-3. Validate layout constraints
-4. Generate DXF output
-5. Download or export the result
+cd ../backend
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-### Workspace Flow
+With `frontend/build` present, the backend serves:
 
-1. Create or load a project
-2. Store prompt history and generated messages
-3. Generate DXF files per project context
+- `/` and the React routes
+- `/studio-app/*` for the copied legacy studio assets
 
-## Key Routes
+## Important Notes
 
-- `/` landing page
-- `/app/` studio frontend
-- `/api/v1/parse-design`
-- `/api/v1/parse-design-generate-dxf`
-- `/api/v1/generate-dxf`
-- `/api/v1/dxf/upload`
-- `/api/v1/dxf/export`
-- `/api/v1/auth/*`
-- `/api/v1/profile/*`
-- `/api/v1/workspace/*`
+- Edit legacy studio files in `frontend/studio-source/`, not in `frontend/public/studio-app/`
+- `frontend/scripts/copy-studio.js` copies `studio-source` into `public/studio-app`
+- runtime data is stored under `backend/data/`
+- generated DXF and export files are written under `backend/output/`
 
-## Documentation
+## Verification
 
-- Backend setup and architecture: [`backend/README.md`](/home/mango/Coding/Projects/CadArena/backend/README.md)
-- Frontend structure and page organization: [`frontend/README.md`](/home/mango/Coding/Projects/CadArena/frontend/README.md)
-- Docker assets: [`docker/README.md`](/home/mango/Coding/Projects/CadArena/docker/README.md)
+Backend:
 
-## Development Notes
+```bash
+cd backend
+pytest app/tests
+```
 
-- Frontend files are served directly by the backend
-- API docs are disabled automatically when `CADARENA_ENV=prod`
-- Generated files and local runtime artifacts live under `backend/output` and `backend/data`
+Frontend:
+
+```bash
+cd frontend
+npm run build
+```
+
+## Project Docs
+
+- [backend/README.md](backend/README.md)
+- [frontend/README.md](frontend/README.md)
+- [docker/README.md](docker/README.md)

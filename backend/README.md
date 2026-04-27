@@ -1,50 +1,35 @@
-# Backend
+# CadArena Backend
 
-The backend is the core of CadArena.
-It handles prompt parsing, layout validation, DXF generation, file export, authentication, profile management, and workspace persistence.
+The backend is a FastAPI application that owns the API, persistence, DXF workflow, and production serving of the frontend build.
 
-## Responsibilities
+## What Lives Here
 
-- Expose the HTTP API through FastAPI
-- Convert natural-language prompts into structured architectural intent
-- Generate DXF files and export previews
-- Manage auth, cookies, profiles, and provider keys
-- Store workspace projects and project messages
-- Serve the frontend pages through the main application
+- auth and profile APIs
+- workspace projects and project messages
+- community questions, answers, and voting
+- design parsing and DXF generation
+- export endpoints for preview images and PDFs
+- startup tasks for local databases and cleanup jobs
 
-## Stack
-
-- FastAPI
-- Pydantic v2
-- Uvicorn
-- `ezdxf`
-- `matplotlib`
-- `transformers`, `torch`, `accelerate`
-- Pytest
-
-## Layout
+## Directory Layout
 
 ```text
 backend/
 ├── app/
-│   ├── api/         # DXF and API v1 routes
-│   ├── core/        # settings, env loading, auth helpers, logging
-│   ├── domain/      # planning, geometry, constraints, architecture rules
-│   ├── models/      # API models and response contracts
-│   ├── pipeline/    # intent-to-agent and drawing pipelines
-│   ├── routers/     # auth, profile, workspace, design parsing, contact
-│   ├── schemas/     # validated design schemas
-│   ├── services/    # storage, exporters, parser orchestration, integrations
-│   ├── tests/       # backend test suite
-│   └── utils/       # prompt and parsing utilities
-├── data/            # local application data
-├── output/          # generated DXF/export files
-└── .env.example     # environment template
+│   ├── api/        DXF and lower-level API routes
+│   ├── core/       settings, auth helpers, env loading, logging
+│   ├── models/     request and response models
+│   ├── routers/    auth, profile, workspace, community, parsing
+│   ├── services/   storage, exporters, parsers, integrations
+│   ├── tests/      backend tests
+│   └── utils/      shared helpers
+├── data/           local SQLite databases and runtime data
+├── output/         generated DXF and exported files
+├── requirements.txt
+└── .env.example
 ```
 
-## Run Locally
-
-### 1. Setup
+## Setup
 
 ```bash
 cd backend
@@ -54,107 +39,64 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Start the server
+## Run
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The app entry point is [`backend/app/main.py`](/home/mango/Coding/Projects/CadArena/backend/app/main.py).
+Useful URLs:
 
-## Environment Variables
+- `http://127.0.0.1:8000/`
+- `http://127.0.0.1:8000/docs` when docs are enabled
 
-Use [`backend/.env.example`](/home/mango/Coding/Projects/CadArena/backend/.env.example) as the source of truth.
+## Environment
 
-### AI providers
+Use `backend/.env.example` as the source of truth. The most important values are:
 
 - `HF_TOKEN`
 - `OLLAMA_API_KEY`
-
-### Contact email
-
-- `CONTACT_INBOX_EMAIL`
-- `CONTACT_SENDER_EMAIL`
-- `CONTACT_SENDER_NAME`
-- `CONTACT_SMTP_HOST`
-- `CONTACT_SMTP_PORT`
-- `CONTACT_SMTP_USERNAME`
-- `CONTACT_SMTP_PASSWORD`
-- `CONTACT_SMTP_USE_TLS`
-- `CONTACT_SMTP_USE_SSL`
-
-### Authentication
-
+- `CADARENA_OLLAMA_URL`
 - `CADARENA_JWT_SECRET`
-- `CADARENA_AUTH_TOKEN_TTL_SECONDS`
-- `CADARENA_AUTH_COOKIE_NAME`
-- `CADARENA_AUTH_COOKIE_SECURE`
-- `CADARENA_GOOGLE_CLIENT_ID`
+- `PROVIDER_KEY_SECRET`
+- `CADARENA_WORKSPACE_DB_PATH`
 
-### Runtime behavior
+## Main Route Groups
 
-- `CADARENA_ENV`
-- `CADARENA_API_VERSION`
-- `CADARENA_APP_NAME`
+- `/api/v1/auth/*`
+- `/api/v1/profile/*`
+- `/api/v1/workspace/*`
+- `/api/v1/community/*`
+- `/api/v1/parse-design*`
+- `/api/v1/generate-dxf`
+- `/api/v1/dxf/*`
 
-## API Surface
+## Frontend Integration
 
-### CAD and exports
+The app entry point is `backend/app/main.py`.
 
-- `POST /api/v1/generate-dxf`
-- `POST /api/v1/dxf/upload`
-- `GET /api/v1/dxf/download`
-- `GET /api/v1/dxf/preview`
-- `GET /api/v1/dxf/export`
+When `frontend/build/` exists, the backend serves:
 
-### Design parsing
+- the React app on `/`
+- React routes such as `/community` and `/generate`
+- legacy studio assets on `/studio-app/*`
 
-- `GET /api/v1/parse-design-models`
-- `POST /api/v1/parse-design`
-- `POST /api/v1/parse-design-generate-dxf`
+## Tests
 
-### Authentication
-
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/google`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-
-### Profile
-
-- `GET /api/v1/profile/me`
-- `PATCH /api/v1/profile/me`
-- `POST /api/v1/profile/me/avatar`
-- `DELETE /api/v1/profile/me/avatar`
-- `PUT /api/v1/profile/me/providers/{provider}`
-
-### Workspace
-
-- `GET /api/v1/workspace/projects`
-- `POST /api/v1/workspace/projects`
-- `PATCH /api/v1/workspace/projects/{project_id}`
-- `DELETE /api/v1/workspace/projects/{project_id}`
-- `GET /api/v1/workspace/projects/{project_id}/messages`
-- `POST /api/v1/workspace/projects/{project_id}/generate-dxf`
-
-## Architecture Notes
-
-- `domain/` contains the deterministic geometry, planning, and constraint logic
-- `services/` contains orchestration, storage, exporters, and provider integrations
-- `pipeline/` connects validated design intent to DXF generation
-- `routers/` keep transport concerns separate from business logic
-
-## Testing
-
-Run the test suite from `backend/`:
+Run the backend test suite from `backend/`:
 
 ```bash
 pytest app/tests
 ```
 
-## Output and Persistence
+For focused checks:
 
-- Generated files are written under `backend/output`
-- Local data stores are initialized on application startup
-- Workspace and auth storage are bootstrapped during FastAPI lifespan startup
+```bash
+pytest app/tests/test_community_storage.py
+```
+
+## Runtime Notes
+
+- local databases are initialized on startup
+- community and workspace data are stored in `backend/data/`
+- generated files are cleaned up periodically by the lifespan task

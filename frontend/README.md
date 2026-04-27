@@ -1,66 +1,91 @@
 # CadArena Frontend
 
-React frontend for CadArena, a conversational CAD studio focused on architectural layouts, DXF exports, and AI-assisted design workflows.
+The frontend has two parts:
 
-## Highlights
+- a React app for the main website and `/community`
+- the legacy Studio UI, embedded at `/studio`
 
-- Single frontend workspace rooted at `frontend/`
-- Dedicated `/studio` route for the embedded CadArena chat studio
-- React marketing and project pages alongside the full studio experience
-- Tailwind CSS, Framer Motion, React Router, and React Hot Toast
+## Routes
 
-## Run Locally
+- `/` home page
+- `/community` engineering Q&A
+- `/generate`
+- `/models`
+- `/metrics`
+- `/about`
+- `/developers`
+- `/studio`
 
-### Prerequisites
+## Directory Layout
 
-- Node.js 16+
-- CadArena backend running from `../backend`
-
-### Install
-
-```bash
-npm install
+```text
+frontend/
+├── public/
+│   ├── assets/
+│   └── studio-app/      generated copy of the legacy studio
+├── scripts/
+│   └── copy-studio.js   copies studio-source into public/studio-app
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── services/
+│   └── utils/
+├── studio-source/       source of the legacy studio files
+├── package.json
+└── .env.example
 ```
 
-### Start
+## Local Development
+
+Prerequisites:
+
+- Node.js 16+
+- backend running on `http://localhost:8000`
+
+Install and start:
 
 ```bash
+cd frontend
+npm install
 npm start
 ```
 
-Open `http://localhost:3000`, then visit `http://localhost:3000/studio` for the chat studio.
+Open:
 
-### Build
+- `http://localhost:3000/`
+- `http://localhost:3000/studio`
+- `http://localhost:3000/community`
+
+## Build
 
 ```bash
 npm run build
 ```
 
-## Studio Integration
+The build process runs `prebuild`, which copies `studio-source/` into `public/studio-app/` before compiling the React app.
 
-The embedded studio is copied into `public/studio-app` automatically through:
+## Studio Workflow
 
-- `npm start` -> `prestart`
-- `npm run build` -> `prebuild`
-
-The copy script lives in `scripts/copy-studio.js` and reads its source files from `studio-source/`.
+- edit legacy studio files in `studio-source/`
+- do not edit `public/studio-app/` directly
+- `copy-studio.js` is the bridge between the source and the served copy
 
 ## Environment
 
-Create `.env` in `frontend` if needed:
+Example values live in `frontend/.env.example`.
+
+Common variables:
+
+- `REACT_APP_API_URL`
+- `REACT_APP_API_TIMEOUT`
+- `REACT_APP_ENABLE_AUTH`
+- `REACT_APP_ENV`
+- `GENERATE_SOURCEMAP`
+
+## Verification
 
 ```bash
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_VERSION=1.0.0
+npm run build
 ```
 
-The studio itself uses relative `/api/v1/*` requests and is proxied to the FastAPI backend at `http://localhost:8000` during local development.
-
-## Ownership
-
-- Project: `CadArena`
-- Maintainer: `Youssef Taha Badawi`
-- LinkedIn: `https://www.linkedin.com/in/yousseftahaai/`
-- GitHub: `https://github.com/Youssefx64/`
-- Repository: `https://github.com/Youssefx64/CadArena`
-- Project Email: `cadarena.ai@gmail.com`
+If the backend is already running, the React dev server proxies API requests to `http://localhost:8000`.
