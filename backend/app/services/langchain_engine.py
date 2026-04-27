@@ -7,14 +7,18 @@ import logging
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-# Import modern prompt primitives while keeping memory compatibility across LangChain installs.
-from langchain_core.prompts import PromptTemplate
+try:
+    from langchain_core.prompts import PromptTemplate
+except (ImportError, ModuleNotFoundError):  # pragma: no cover - depends on optional local install
+    PromptTemplate = None
 
-# Keep conversation memory support with a compatibility fallback for newer LangChain splits.
 try:
     from langchain.memory import ConversationBufferMemory
 except (ImportError, ModuleNotFoundError):
-    from langchain_classic.memory import ConversationBufferMemory
+    try:
+        from langchain_classic.memory import ConversationBufferMemory
+    except (ImportError, ModuleNotFoundError):  # pragma: no cover - depends on optional local install
+        ConversationBufferMemory = None
 
 from app.utils.json_extraction import extract_json_object_permissive
 
@@ -22,9 +26,10 @@ from app.utils.json_extraction import extract_json_object_permissive
 logger = logging.getLogger(__name__)
 
 # Define the intent-classification prompt as a reusable chain template.
-INTENT_PROMPT = PromptTemplate(
-    input_variables=["user_prompt", "has_existing_layout"],
-    template="""You are an architectural intent classifier.
+INTENT_PROMPT = (
+    PromptTemplate(
+        input_variables=["user_prompt", "has_existing_layout"],
+        template="""You are an architectural intent classifier.
 
 Analyze the user message and classify it into ONE of these intents:
 
@@ -46,12 +51,16 @@ Respond with ONLY a JSON object, no explanation:
   "target_rooms": ["room name if mentioned", ...],
   "reasoning": "one sentence why"
 }}""",
+    )
+    if PromptTemplate is not None
+    else None
 )
 
 # Define the surgical diff-extraction prompt for iterative layout edits.
-DIFF_PROMPT = PromptTemplate(
-    input_variables=["user_prompt", "current_layout_json", "chat_history"],
-    template="""You are a surgical architectural editor.
+DIFF_PROMPT = (
+    PromptTemplate(
+        input_variables=["user_prompt", "current_layout_json", "chat_history"],
+        template="""You are a surgical architectural editor.
 
 You have an existing floor plan. Extract ONLY what needs to change.
 
@@ -83,6 +92,9 @@ Respond with ONLY this JSON, no explanation:
   }},
   "reasoning": "one sentence"
 }}""",
+    )
+    if PromptTemplate is not None
+    else None
 )
 
 
@@ -114,6 +126,9 @@ class CadArenaLangChainEngine:
 
     def __init__(self, ollama_url: str, model_name: str, ollama_api_key: str | None = None) -> None:
         """Initialize the LangChain engine with the configured Ollama backend."""
+
+        if PromptTemplate is None or ConversationBufferMemory is None:
+            raise RuntimeError("LangChain dependencies are not installed")
 
         # Import the POST-based Ollama client lazily so the runtime uses the modern LangChain transport.
         from langchain_ollama import OllamaLLM

@@ -49,12 +49,15 @@ def _qwen_cloud_engine() -> CadArenaLangChainEngine:
 def _resolve_langchain_engine(model_choice: ParseDesignModel) -> CadArenaLangChainEngine | None:
     """Resolve the best available LangChain engine for iterative intent and diff extraction."""
 
-    if model_choice == ParseDesignModel.OLLAMA:
-        return _ollama_engine()
-    if model_choice == ParseDesignModel.QWEN_CLOUD:
-        return _qwen_cloud_engine()
-    if OLLAMA_API_KEY:
-        return _qwen_cloud_engine()
+    try:
+        if model_choice == ParseDesignModel.OLLAMA:
+            return _ollama_engine()
+        if model_choice == ParseDesignModel.QWEN_CLOUD:
+            return _qwen_cloud_engine()
+        if OLLAMA_API_KEY:
+            return _qwen_cloud_engine()
+    except (ImportError, ModuleNotFoundError, RuntimeError) as exc:
+        logger.warning("[DiffOrchestrator] LangChain engine unavailable: %s", exc)
     return None
 
 
