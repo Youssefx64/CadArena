@@ -11,7 +11,7 @@ export const META_TAGS = {
     title: 'CadArena - AI-Powered Architectural CAD Studio',
     description: 'Transform natural language into professional architectural floor plans using AI. Generate DXF-ready layouts with constraint-aware design.',
     keywords: 'floor plan, architecture, CAD, AI, design, layout, DXF, conversational',
-    ogImage: '/og-image.png',
+    ogImage: '/assets/cadarena-logo.svg',
     ogType: 'website',
     twitterCard: 'summary_large_image',
   },
@@ -23,6 +23,10 @@ export const META_TAGS = {
     title: 'CadArena Studio - Floor Plan Generator',
     description: 'Create, edit, and export architectural floor plans with AI assistance.',
     robots: 'noindex, nofollow', // Studio is dynamic content
+  },
+  community: {
+    title: 'CadArena Community - Engineering Q&A',
+    description: 'Ask and answer civil, structural, construction, and architectural design questions.',
   },
   models: {
     title: 'CadArena Models - AI Architecture Models',
@@ -115,7 +119,7 @@ export function getStructuredData(type, data = {}) {
       '@type': 'Organization',
       name: 'CadArena',
       url: baseUrl,
-      logo: `${baseUrl}/logo.png`,
+      logo: `${baseUrl}/assets/cadarena-logo.svg`,
       description: 'AI-powered architectural CAD studio',
       sameAs: [
         'https://twitter.com/cadarena',
@@ -143,7 +147,7 @@ export function getStructuredData(type, data = {}) {
       '@type': 'Article',
       headline: data.title || 'CadArena Blog',
       description: data.description || '',
-      image: data.image || `${baseUrl}/og-image.png`,
+      image: data.image || `${baseUrl}/assets/cadarena-logo.svg`,
       datePublished: data.datePublished || timestamp,
       dateModified: data.dateModified || timestamp,
       author: {

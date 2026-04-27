@@ -454,8 +454,11 @@ function updateLayoutToggleButtons() {
   }
 
   if (sidebarDxfUploadTriggerButton) {
-    sidebarDxfUploadTriggerButton.classList.remove("active", "is-open");
-    sidebarDxfUploadTriggerButton.setAttribute("aria-pressed", "false");
+    const renderActive = state.sidebarTab === "render";
+    sidebarDxfUploadTriggerButton.classList.toggle("active", renderActive);
+    sidebarDxfUploadTriggerButton.classList.remove("is-open");
+    sidebarDxfUploadTriggerButton.setAttribute("aria-pressed", renderActive ? "true" : "false");
+    sidebarDxfUploadTriggerButton.setAttribute("aria-current", renderActive ? "true" : "false");
   }
 
   if (sidebarQuickHideButton) {
@@ -874,11 +877,11 @@ function setWorkspaceLocked(locked) {
 }
 
 function setSidebarTab(tab) {
-  const normalized = tab === "projects" ? "projects" : "chat";
+  const normalized = tab === "projects" || tab === "render" ? tab : "chat";
   state.sidebarTab = normalized;
-  const hasSearchQuery = Boolean(state.projectSearchQuery.trim());
-  const chatActive = normalized === "chat" && !hasSearchQuery;
-  const projectsActive = normalized === "projects" || hasSearchQuery;
+  const chatActive = normalized === "chat";
+  const projectsActive = normalized === "projects";
+  const renderActive = normalized === "render";
 
   if (sidebarChatTabButton) {
     sidebarChatTabButton.classList.toggle("active", chatActive);
@@ -887,6 +890,12 @@ function setSidebarTab(tab) {
   if (sidebarProjectsTabButton) {
     sidebarProjectsTabButton.classList.toggle("active", projectsActive);
     sidebarProjectsTabButton.setAttribute("aria-current", projectsActive ? "true" : "false");
+  }
+  if (sidebarDxfUploadTriggerButton) {
+    sidebarDxfUploadTriggerButton.classList.toggle("active", renderActive);
+    sidebarDxfUploadTriggerButton.classList.remove("is-open");
+    sidebarDxfUploadTriggerButton.setAttribute("aria-pressed", renderActive ? "true" : "false");
+    sidebarDxfUploadTriggerButton.setAttribute("aria-current", renderActive ? "true" : "false");
   }
   if (sidebarChatPanel) {
     sidebarChatPanel.classList.toggle("is-muted", !chatActive);
@@ -3222,6 +3231,16 @@ if (sidebarChatSearchInput) {
     setSidebarTab("chat");
     renderProjectList();
   });
+
+  sidebarChatSearchInput.addEventListener("blur", () => {
+    if (state.sidebarTab !== "projects") {
+      return;
+    }
+    if (state.projectSearchQuery.trim()) {
+      return;
+    }
+    setSidebarTab("chat");
+  });
 }
 
 if (sidebarFocusChatButton) {
@@ -3243,6 +3262,7 @@ if (sidebarManageProjectsButton) {
 
 if (sidebarDxfUploadTriggerButton) {
   sidebarDxfUploadTriggerButton.addEventListener("click", () => {
+    setSidebarTab("render");
     revealDxfRenderPanel({ scrollIntoView: true });
     keepWorkspaceViewportStable();
     if (state.dxfRenderFileToken) {

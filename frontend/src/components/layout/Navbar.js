@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Zap, BarChart3, Brain, Info, Users, MessageSquare } from 'lucide-react';
+import { Menu, X, Home, Zap, BarChart3, Brain, Info, Users, MessageSquare, MessageCircle } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const brandMarkSrc = `${process.env.PUBLIC_URL}/studio-app/assets/cadarena-mark.svg`;
+  const brandMarkSrc = `${process.env.PUBLIC_URL}/assets/cadarena-mark.svg`;
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Generate', href: '/generate', icon: Zap },
     { name: 'Studio', href: '/studio', icon: MessageSquare },
+    { name: 'Community', href: '/community', icon: MessageCircle },
     { name: 'Models', href: '/models', icon: Brain },
     { name: 'Metrics', href: '/metrics', icon: BarChart3 },
     { name: 'About', href: '/about', icon: Info },

@@ -1,28 +1,37 @@
 import React from 'react';
+import Navbar from '../components/layout/Navbar';
 
 export default function StudioPage() {
   return (
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100dvh',
-        overflow: 'hidden',
+        minHeight: '100vh',
         background: '#f8faff',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <iframe
-        src="/studio-app/index.html"
-        title="CadArena Studio"
+      <Navbar />
+      <div
         style={{
-          width: '100%',
-          height: '100%',
-          border: 'none',
-          display: 'block',
+          flex: '1 1 auto',
+          minHeight: '0',
+          height: 'calc(100dvh - 72px)',
+          overflow: 'hidden',
         }}
-        allow="clipboard-write"
-      />
+      >
+        <iframe
+          src="/studio-app/index.html"
+          title="CadArena Studio"
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            display: 'block',
+          }}
+          allow="clipboard-write"
+        />
+      </div>
     </div>
   );
 }

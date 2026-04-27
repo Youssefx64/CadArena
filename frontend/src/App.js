@@ -11,6 +11,7 @@ import MetricsPage from './pages/MetricsPage';
 import AboutPage from './pages/AboutPage';
 import DevelopersPage from './pages/DevelopersPage';
 import StudioPage from './pages/StudioPage';
+import CommunityPage from './pages/CommunityPage';
 
 function MainLayout() {
   const location = useLocation();
@@ -42,6 +43,7 @@ function App() {
         <Route path="/studio" element={<StudioPage />} />
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/community" element={<CommunityPage />} />
           <Route path="/generate" element={<GeneratorPage />} />
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/metrics" element={<MetricsPage />} />

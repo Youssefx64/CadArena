@@ -33,7 +33,7 @@
       <div class="ambient ambient-one"></div>
       <div class="ambient ambient-two"></div>
 
-      <header class="topbar">
+      <header class="topbar" hidden aria-hidden="true">
         <a class="topbar-brand" href="/" target="_top" aria-label="CadArena home">
           <img class="topbar-logo" src="./assets/cadarena-mark.svg" alt="CadArena" />
           <div class="topbar-copy">
@@ -63,25 +63,6 @@
             <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M20 14.2A7.8 7.8 0 1 1 9.8 4a6.3 6.3 0 1 0 10.2 10.2Z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-          <button
-            class="topbar-layout-btn"
-            id="toggle-preview-btn"
-            type="button"
-            aria-label="Hide DXF render"
-            title="Hide DXF render"
-            aria-pressed="false"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M4.5 5.5h15v13h-15v-13Zm9.2 3.7 2.2 2.8-2.2 2.8M9.5 9.2 7.3 12l2.2 2.8"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="1.8"
@@ -418,7 +399,22 @@
                 <p class="chat-subtitle" id="chat-subtitle">Project conversation</p>
               </div>
             </div>
-            <span class="status-badge ready" id="status-badge">Ready</span>
+            <div class="chat-header-actions">
+              <span class="status-badge ready" id="status-badge">Ready</span>
+              <button
+                class="preview-tool workspace-layout-toggle"
+                id="toggle-preview-btn"
+                type="button"
+                aria-label="Hide DXF render"
+                title="Hide DXF render"
+                aria-pressed="false"
+              >
+                <span class="workspace-layout-icon" aria-hidden="true">
+                  <span class="workspace-layout-eye"></span>
+                  <span class="workspace-layout-slash"></span>
+                </span>
+              </button>
+            </div>
           </header>
 
           <div class="chat-thread" id="chat-thread" aria-live="polite"></div>

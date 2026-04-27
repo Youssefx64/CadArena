@@ -3,7 +3,7 @@ import { Github, Linkedin, Mail, Heart } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  const brandMarkSrc = `${process.env.PUBLIC_URL}/studio-app/assets/cadarena-mark.svg`;
+  const brandMarkSrc = `${process.env.PUBLIC_URL}/assets/cadarena-mark.svg`;
 
   const socialLinks = [
     { name: 'GitHub Repo', icon: Github, href: 'https://github.com/Youssefx64/CadArena' },
@@ -16,6 +16,7 @@ const Footer = () => {
       title: 'Product',
       links: [
         { name: 'Studio', href: '/studio' },
+        { name: 'Community', href: '/community' },
         { name: 'Generate', href: '/generate' },
         { name: 'Models', href: '/models' },
         { name: 'Metrics', href: '/metrics' },

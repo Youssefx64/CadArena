@@ -43,6 +43,10 @@ api.interceptors.response.use(
   (error) => {
     const duration = error.config?.metadata ? new Date() - error.config.metadata.startTime : 0;
     console.error(`❌ API Error: ${error.config?.url} (${duration}ms)`, error.response?.data || error.message);
+    const detail = error.response?.data?.detail;
+    const detailMessage = Array.isArray(detail)
+      ? detail.map((item) => item?.msg || item?.message || String(item)).join(', ')
+      : detail;
     
     // Enhanced error handling
     if (error.code === 'ECONNREFUSED') {
@@ -50,11 +54,13 @@ api.interceptors.response.use(
     } else if (error.code === 'ECONNABORTED') {
       throw new Error('Request timeout. The operation is taking too long.');
     } else if (error.response?.status === 400) {
-      throw new Error(error.response?.data?.error || 'Bad request. Please check your input.');
+      throw new Error(error.response?.data?.error || detailMessage || 'Bad request. Please check your input.');
     } else if (error.response?.status === 500) {
-      throw new Error(error.response?.data?.error || 'Server error. Please try again later.');
+      throw new Error(error.response?.data?.error || detailMessage || 'Server error. Please try again later.');
     } else if (error.response?.status === 404) {
-      throw new Error('API endpoint not found. Please check the backend server.');
+      throw new Error(detailMessage || 'API endpoint not found. Please check the backend server.');
+    } else if (detailMessage) {
+      throw new Error(detailMessage);
     } else if (error.response?.data?.error) {
       throw new Error(error.response.data.error);
     } else if (error.message.includes('Network Error')) {
@@ -354,6 +360,97 @@ class CadArenaAPI {
     }
   }
 
+  async getParseDesignModels() {
+    const response = await api.get('/api/v1/parse-design-models');
+    return response.data;
+  }
+
+  async listWorkspaceProjects(userId) {
+    const response = await api.get('/api/v1/workspace/projects', {
+      params: { user_id: userId },
+    });
+    return response.data;
+  }
+
+  async createWorkspaceProject(userId, name) {
+    const response = await api.post('/api/v1/workspace/projects', {
+      user_id: userId,
+      name,
+    });
+    return response.data;
+  }
+
+  async getWorkspaceMessages(userId, projectId) {
+    const response = await api.get(`/api/v1/workspace/projects/${encodeURIComponent(projectId)}/messages`, {
+      params: { user_id: userId },
+    });
+    return response.data;
+  }
+
+  async generateWorkspaceDxf(projectId, payload) {
+    const response = await api.post(
+      `/api/v1/workspace/projects/${encodeURIComponent(projectId)}/generate-dxf`,
+      payload,
+    );
+    return response.data;
+  }
+
+  dxfPreviewUrl(fileToken) {
+    return `${API_BASE_URL}/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
+  }
+
+  dxfDownloadUrl(fileToken, filename = 'cadarena_layout.dxf') {
+    return `${API_BASE_URL}/api/v1/dxf/download?file_token=${encodeURIComponent(fileToken)}&filename=${encodeURIComponent(filename)}`;
+  }
+
+  async listCommunityQuestions(params = {}) {
+    const response = await api.get('/api/v1/community/questions', {
+      params: {
+        query: params.query || undefined,
+        tag: params.tag || undefined,
+        discipline: params.discipline && params.discipline !== 'all' ? params.discipline : undefined,
+        sort: params.sort || 'active',
+        limit: params.limit || 40,
+        offset: params.offset || 0,
+      },
+    });
+    return response.data;
+  }
+
+  async getCommunityQuestion(questionId) {
+    const response = await api.get(`/api/v1/community/questions/${encodeURIComponent(questionId)}`);
+    return response.data;
+  }
+
+  async createCommunityQuestion(payload) {
+    const response = await api.post('/api/v1/community/questions', payload);
+    return response.data;
+  }
+
+  async createCommunityAnswer(questionId, payload) {
+    const response = await api.post(
+      `/api/v1/community/questions/${encodeURIComponent(questionId)}/answers`,
+      payload,
+    );
+    return response.data;
+  }
+
+  async voteCommunityQuestion(questionId, direction) {
+    const response = await api.post(
+      `/api/v1/community/questions/${encodeURIComponent(questionId)}/vote`,
+      { direction },
+    );
+    return response.data;
+  }
+
+  async voteCommunityAnswer(answerId, direction) {
+    const response = await api.post(
+      `/api/v1/community/answers/${encodeURIComponent(answerId)}/vote`,
+      { direction },
+    );
+    return response.data;
+  }
+
   /**
    * Calculate generation time from timestamp
    * @private
@@ -413,5 +510,16 @@ export const {
   generateFloorPlan,
   generateVariations,
   getPresets,
-  downloadImage
+  downloadImage,
+  getParseDesignModels,
+  listWorkspaceProjects,
+  createWorkspaceProject,
+  getWorkspaceMessages,
+  generateWorkspaceDxf,
+  listCommunityQuestions,
+  getCommunityQuestion,
+  createCommunityQuestion,
+  createCommunityAnswer,
+  voteCommunityQuestion,
+  voteCommunityAnswer
 } = cadArenaAPI;
