@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![CadArena Logo](./frontend/public/assets/cadarena-logo.svg)
+<img src="./frontend/public/assets/cadarena-logo.svg" alt="CadArena Logo" width="150" height="150">
 
 **AI-Assisted Platform for Civil and Architectural Workflows**
 
