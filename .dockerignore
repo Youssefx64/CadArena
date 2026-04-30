@@ -1,13 +1,41 @@
+# Git
 .git
 .gitignore
-.pytest_cache
+.gitattributes
+
+# Python
+.Python
+.venv
+venv
+env
+ENV
+build
+develop-eggs
+dist
+downloads
+eggs
+.eggs
+lib
+lib64
+parts
+sdist
+var
+wheels
+*.egg-info
+.installed.cfg
+*.egg
+MANIFEST
 __pycache__
 *.pyc
 *.pyo
 *.pyd
-.Python
-.venv
-venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# Backend specific
 backend/.pytest_cache
 backend/.ruff_cache
 backend/__pycache__
@@ -15,5 +43,48 @@ backend/app/__pycache__
 backend/app/tests/__pycache__
 backend/data
 backend/output
+backend/.env
+backend/.env.local
+
+# Frontend
 node_modules
+frontend/build
+frontend/dist
+frontend/.next
+frontend/coverage
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Documentation
 docs
+*.md
+README*
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Misc
+.env.example
+.env.*.example
+*.log
+.turbo
+.cache
