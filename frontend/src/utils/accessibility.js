@@ -364,7 +364,36 @@ export function createSkipLink(mainContentSelector = 'main') {
 }
 
 /**
- * Check accessibility issues
+ * Check if user prefers reduced motion
+ */
+export function prefersReducedMotion() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
+ * Get safe animation variants based on user preferences
+ */
+export function getSafeAnimationVariants(normalVariants, reducedVariants) {
+  return prefersReducedMotion() ? reducedVariants : normalVariants;
+}
+
+/**
+ * Create motion-safe animation config
+ */
+export function getMotionSafeConfig(config) {
+  if (prefersReducedMotion()) {
+    return {
+      ...config,
+      duration: 0,
+      transition: { duration: 0 },
+    };
+  }
+  return config;
+}
+
+/**
+ * Check if user prefers reduced motion
  */
 export function auditAccessibility() {
   const issues = [];
@@ -413,4 +442,21 @@ export default {
   KeyboardNavigator,
   createSkipLink,
   auditAccessibility,
+  prefersReducedMotion,
+  getSafeAnimationVariants,
 };
+
+/**
+ * Check if user prefers reduced motion
+ */
+export function prefersReducedMotion() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
+ * Get safe animation variants based on user preferences
+ */
+export function getSafeAnimationVariants(normalVariants, reducedVariants) {
+  return prefersReducedMotion() ? reducedVariants : normalVariants;
+}

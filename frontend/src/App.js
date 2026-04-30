@@ -2,6 +2,7 @@ import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
@@ -38,37 +39,39 @@ function MainLayout() {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/studio" element={<StudioPage />} />
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/community" element={<CommunityPage />} />
-          <Route path="/generate" element={<GeneratorPage />} />
-          <Route path="/models" element={<ModelsPage />} />
-          <Route path="/metrics" element={<MetricsPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/developers" element={<DevelopersPage />} />
-        </Route>
-      </Routes>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'rgba(15, 23, 42, 0.96)',
-            color: '#f8fafc',
-            border: '1px solid rgba(96, 165, 250, 0.18)',
-            borderRadius: '16px',
-            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.2)',
-          },
-          iconTheme: {
-            primary: '#3b82f6',
-            secondary: '#f8fafc',
-          },
-        }}
-      />
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          <Route path="/studio" element={<StudioPage />} />
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/generate" element={<GeneratorPage />} />
+            <Route path="/models" element={<ModelsPage />} />
+            <Route path="/metrics" element={<MetricsPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/developers" element={<DevelopersPage />} />
+          </Route>
+        </Routes>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: 'rgba(15, 23, 42, 0.96)',
+              color: '#f8fafc',
+              border: '1px solid rgba(96, 165, 250, 0.18)',
+              borderRadius: '16px',
+              boxShadow: '0 18px 40px rgba(15, 23, 42, 0.2)',
+            },
+            iconTheme: {
+              primary: '#3b82f6',
+              secondary: '#f8fafc',
+            },
+          }}
+        />
+      </Router>
+    </ErrorBoundary>
   );
 }
 
