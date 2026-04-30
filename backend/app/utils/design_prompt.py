@@ -102,6 +102,40 @@ def build_design_parser_prompt(user_prompt: str) -> str:
     CRITICAL_RULES = f"""
     REQUEST_SEED: {variety_seed}
 
+    ════════════════════════════════════════════════════════════════════════════════
+    EGYPTIAN BUILDING CODE (EBC 2023) — الكود المصري للمباني ٢٠٢٣
+    Mandatory minimum dimensions per EBC Chapter 7 and Law 119/2008
+    ════════════════════════════════════════════════════════════════════════════════
+
+    BEDROOM:       min 9.0 m²,   min side 2.75 m (EBC Chapter 7)
+    BATHROOM:      min 2.5 m²,   min side 1.20 m (EBC Chapter 7)
+    KITCHEN:       min 4.0 m²,   min side 1.80 m (EBC Chapter 7)
+    LIVING ROOM:   min 12.0 m²,  min side 3.00 m (EBC Chapter 7)
+    CORRIDOR:      min width 1.20 m (Law 119/2008 Article 74 — HARD LIMIT, NEVER smaller)
+    ENTRANCE:      min 3.0 m²,   min side 1.50 m
+    BALCONY:       min 3.0 m²,   min depth 1.20 m
+
+    EBC FORBIDDEN ADJACENCIES (violations trigger re-generation):
+      ✗ Bathroom door opening directly to Kitchen (regulatory violation)
+      ✗ Bathroom door opening to Dining room
+      ✗ Bedroom door directly to Kitchen
+
+    DOOR WIDTH STANDARDS (EBC Chapter 9, minimum clear opening):
+      Main Entry:    1.00 m
+      Bedroom:       0.90 m
+      Kitchen:       0.80 m
+      Bathroom:      0.70 m (or 0.80 m if accessible)
+      Corridor:      0.90 m
+
+    APARTMENT TYPE BENCHMARKS (Egyptian Housing Ministry — معايير الإسكان المصرية):
+      Studio:        25–45 m²
+      1-Bedroom:     45–75 m²
+      2-Bedroom:     75–120 m²
+      3-Bedroom:     100–160 m²
+      4-Bedroom:     140–220 m²
+      Villa:         200–500 m²
+
+    ════════════════════════════════════════════════════════════════════════════════
     CRITICAL EXTRACTION RULES — violating any rule = invalid output:
 
     ROLE:
@@ -145,7 +179,7 @@ def build_design_parser_prompt(user_prompt: str) -> str:
       Target 85% coverage when distributing areas.
       living room <= 28% of boundary area.
       any single room <= 35% of boundary area.
-      Minimum usable room sizes: bedroom 9 m2, bathroom 3.5 m2, kitchen 6 m2, living 12 m2, corridor width 1.2 m.
+      Minimum usable room sizes per EBC 2023: bedroom 9 m², bathroom 2.5 m², kitchen 4 m², living 12 m², corridor width 1.2 m.
 
     RULE 6 — AREA CALCULATION:
       total_area = boundary.width * boundary.height.

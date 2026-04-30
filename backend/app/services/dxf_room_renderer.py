@@ -890,9 +890,14 @@ class DXFRoomRenderer:
         )
         _set_middle_center(name_entity, name_insert)
 
-        # Add the feet-inch room dimensions directly below the room name so the plan reads like a working drawing.
+        # DXF-FIX: Show metric dimensions (meters) and room area in m² instead of feet-inches
+        # Format: "3.50 × 4.00 m" with area "14.0 m²" below
+        room_area = room_w * room_h
+        metric_dims = f"{room_w:.2f} × {room_h:.2f} m"
+        area_text = f"{room_area:.1f} m²"
+
         dim_entity = self.msp.add_text(
-            f"{_to_ft_in(room_w)} x {_to_ft_in(room_h)}",
+            f"{metric_dims}\n{area_text}",
             dxfattribs={
                 "layer": "ROOM_LABELS",
                 "color": ARCHITECTURAL_LAYERS["ROOM_LABELS"]["color"],
@@ -1052,8 +1057,13 @@ class DXFRoomRenderer:
         center_x = left + (right - left) / 2.0
         title_y = bottom - 1.2
 
+        # DXF-FIX: Bilingual title with area and scale notation
+        total_area = (right - left) * (_top - bottom) if hasattr(self, '_top') else 0
+        # If we can't compute area, just use the title
+        title_text = "FLOOR PLAN — مسقط أفقي"
+
         title_entity = self.msp.add_text(
-            "FLOOR PLAN",
+            title_text,
             dxfattribs={
                 "layer": "ROOM_LABELS",
                 "color": ARCHITECTURAL_LAYERS["ROOM_LABELS"]["color"],

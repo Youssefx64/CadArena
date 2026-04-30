@@ -263,7 +263,8 @@ def test_ensure_room_connectivity_prefers_longest_reachable_wall_and_keeps_bathr
     )
     assert bathroom_opening["hinge"] == "left"
     assert bathroom_opening["swing"] == "in"
-    assert bathroom_opening["cut_end"]["y"] - bathroom_opening["cut_start"]["y"] == pytest.approx(0.8)
+    # EBC-FIX: Door width is now bilateral minimum — bathroom 0.70m per EBC (not hardcoded 0.8)
+    assert bathroom_opening["cut_end"]["y"] - bathroom_opening["cut_start"]["y"] == pytest.approx(0.7)
 
 
 def test_ensure_room_connectivity_uses_living_room_as_hub_when_no_corridor_exists() -> None:

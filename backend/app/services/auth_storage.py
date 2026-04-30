@@ -5,18 +5,25 @@ from __future__ import annotations
 import os
 import re
 import sqlite3
-from datetime import UTC, datetime
 from functools import lru_cache
+from pathlib import Path
 from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.env_loader import load_backend_env
+from app.services.storage_common import (
+    connect_sqlite,
+    normalize_email,
+    normalize_name,
+    normalize_url,
+    utc_now,
+)
+from app.services.storage_logger import StorageLogger
 from app.services.workspace_storage import workspace_db_path
 
 load_backend_env()
 
-_WHITESPACE_RE = re.compile(r"\s+")
 _SUPPORTED_API_KEY_PROVIDERS = (
     "openai",
     "anthropic",
@@ -27,36 +34,16 @@ _SUPPORTED_API_KEY_PROVIDERS = (
     "ollama",
 )
 
-
-def _utc_now() -> str:
-    return datetime.now(UTC).isoformat(timespec="milliseconds")
+logger = StorageLogger()
 
 
 def _connect() -> sqlite3.Connection:
     db_path = workspace_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path)
+    connection = sqlite3.connect(str(db_path))
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
-
-
-def _normalize_name(name: str) -> str:
-    cleaned = _WHITESPACE_RE.sub(" ", name.strip())
-    if not cleaned:
-        raise ValueError("name must not be empty")
-    if len(cleaned) > 120:
-        raise ValueError("name is too long")
-    return cleaned
-
-
-def _normalize_email(email: str) -> str:
-    cleaned = email.strip().lower()
-    if not cleaned:
-        raise ValueError("email must not be empty")
-    if len(cleaned) > 320:
-        raise ValueError("email is too long")
-    return cleaned
 
 
 def _normalize_provider(provider: str) -> str:
@@ -80,7 +67,7 @@ def _normalize_api_key(api_key: str) -> str:
 def _normalize_optional_field(value: str | None, *, max_length: int) -> str | None:
     if value is None:
         return None
-    cleaned = _WHITESPACE_RE.sub(" ", value.strip())
+    cleaned = " ".join(value.split())
     if not cleaned:
         return None
     if len(cleaned) > max_length:
@@ -196,10 +183,10 @@ def init_auth_db() -> None:
 
 
 def create_user(*, name: str, email: str, password_hash: str) -> dict:
-    normalized_name = _normalize_name(name)
-    normalized_email = _normalize_email(email)
+    normalized_name = normalize_name(name)
+    normalized_email = normalize_email(email)
     user_id = uuid4().hex
-    created_at = _utc_now()
+    created_at = utc_now()
 
     with _connect() as connection:
         try:
@@ -218,7 +205,9 @@ def create_user(*, name: str, email: str, password_hash: str) -> dict:
                 (user_id, normalized_name, created_at, created_at),
             )
             connection.commit()
+            logger.log_mutation("CREATE", "users", user_id, user_id=user_id)
         except sqlite3.IntegrityError as exc:
+            logger.log_constraint_violation("users", "email_unique", user_id=user_id)
             raise ValueError("email already registered") from exc
 
     return {

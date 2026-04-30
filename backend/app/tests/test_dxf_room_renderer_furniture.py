@@ -136,7 +136,8 @@ def test_draw_room_label_adds_centered_text_and_bathroom_hatch() -> None:
 
     texts = [entity.dxf.text for entity in renderer.msp if entity.dxftype() == "TEXT"]
     assert "BATHROOM" in texts
-    assert '13\'-1" x 9\'-10"' in texts
+    # DXF-FIX: Now showing metric dimensions (4.00 × 3.00 m) and area (12.0 m²) instead of feet-inches
+    assert any("4.00" in str(t) and "3.00" in str(t) and "m" in str(t) for t in texts), f"Dimension text should show meters, got: {texts}"
     assert any(entity.dxftype() == "HATCH" and entity.dxf.layer == "HATCH" for entity in renderer.msp)
 
 
@@ -161,4 +162,5 @@ def test_save_adds_exterior_dimensions_border_and_title(monkeypatch, tmp_path) -
     assert target_path.exists()
     assert any(entity.dxftype() == "DIMENSION" and entity.dxf.layer == "DIMENSIONS" for entity in renderer.msp)
     assert any(entity.dxftype() == "LWPOLYLINE" and entity.dxf.layer == "BORDER" for entity in renderer.msp)
-    assert any(entity.dxftype() == "TEXT" and entity.dxf.text == "FLOOR PLAN" for entity in renderer.msp)
+    # DXF-FIX: Title is now bilingual "FLOOR PLAN — مسقط أفقي"
+    assert any(entity.dxftype() == "TEXT" and "FLOOR PLAN" in entity.dxf.text for entity in renderer.msp)

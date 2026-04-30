@@ -7,6 +7,14 @@ import logging
 import math
 from typing import Any, Literal
 
+# EBC-FIX: import Egyptian Building Code standards
+from app.services.design_parser.egyptian_building_code import (
+    get_room_standard,
+    EBC_ROOM_STANDARDS,
+    AREA_RATIO_TARGETS,
+    ABSOLUTE_MAX_SINGLE_ROOM_RATIO,
+)
+
 logger = logging.getLogger(__name__)
 
 _EPSILON = 1e-6
@@ -2331,6 +2339,91 @@ def _enforce_room_aspect_ratios(
     return rooms
 
 
+def _apply_ebc_minimums(
+    rooms: list[dict[str, Any]],
+    boundary_w: float,
+    boundary_h: float,
+) -> list[dict[str, Any]]:
+    """
+    EBC-FIX: Enforce Egyptian Building Code minimum dimensions (conservative).
+
+    Final normalization pass that attempts to scale rooms to meet EBC minimums
+    using width-first independent scaling, BUT only if room fits in boundary:
+
+    1. Enforce minimum width (min_dimension), clamped to available space
+    2. Then adjust height to satisfy min_area requirement, clamped to boundary
+
+    This is conservative: prioritizes boundary constraints over EBC minimums.
+
+    Args:
+        rooms: List of room dicts with width, height, room_type, origin
+        boundary_w, boundary_h: Boundary dimensions in meters
+
+    Returns:
+        Rooms list with EBC minimums applied where feasible
+    """
+
+    for room in rooms:
+        if not isinstance(room, dict):
+            continue
+
+        room_type = str(room.get("room_type", "bedroom")).strip().lower()
+        std = get_room_standard(room_type)
+
+        w = float(room.get("width", 0))
+        h = float(room.get("height", 0))
+
+        if w <= 0 or h <= 0:
+            continue
+
+        origin = room.get("origin", {})
+        x0 = float(origin.get("x", 0))
+        y0 = float(origin.get("y", 0))
+
+        # Get available space based on room's current position
+        available_w = boundary_w - x0
+        available_h = boundary_h - y0
+
+        if available_w <= 0 or available_h <= 0:
+            continue
+
+        area = w * h
+        min_dim = min(w, h)
+
+        # ── Step 1: Try to enforce minimum dimension if it fits ──────────────
+        # EBC-FIX: For corridor, this is the HARD 1.20m Law 119/2008 limit
+        min_dim_target = std.min_dimension
+        if w <= h and w < min_dim_target:
+            # Width is narrower — enforce width minimum if it fits
+            new_w = min(min_dim_target, available_w)
+            if new_w > w:
+                w = new_w
+
+        elif h < min_dim_target:
+            # Height is narrower — enforce height minimum if it fits
+            new_h = min(min_dim_target, available_h)
+            if new_h > h:
+                h = new_h
+
+        # ── Step 2: Enforce minimum area if room is way undersized ────────────
+        # But only if adjustment fits in available space
+        if area < std.min_area - 0.1:  # More tolerance for undersizing
+            # Calculate what height we'd need to reach min area with current width
+            required_h = std.min_area / w
+            # Only enforce if it fits in available space
+            if required_h <= available_h:
+                h = max(h, required_h)
+
+        # ── Final safety: never exceed boundary ──────────────────────────────
+        w = min(w, available_w)
+        h = min(h, available_h)
+
+        room["width"] = round(w, 3)
+        room["height"] = round(h, 3)
+
+    return rooms
+
+
 def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
     """
     Post-placement normalizer.
@@ -2476,6 +2569,9 @@ def normalize_layout(layout: dict[str, Any]) -> dict[str, Any]:
         anchors=anchors,
         corridor_contacts=corridor_contacts,
     )
+
+    # EBC-FIX: Final EBC compliance pass — must run LAST after all other normalization
+    rooms = _apply_ebc_minimums(rooms, bw, bh)
 
     normalized_layout["rooms"] = rooms
     return normalized_layout

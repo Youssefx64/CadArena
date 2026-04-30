@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
 from datetime import UTC, datetime
@@ -10,6 +11,8 @@ from uuid import uuid4
 
 from app.models.community import CommunitySort
 from app.services.workspace_storage import workspace_db_path
+
+logger = logging.getLogger(__name__)
 
 _WHITESPACE_RE = re.compile(r"\s+")
 _TAG_CLEAN_RE = re.compile(r"[^a-z0-9+-]+")
@@ -41,7 +44,7 @@ def init_community_db() -> None:
                 title TEXT NOT NULL,
                 body TEXT NOT NULL,
                 tags_json TEXT NOT NULL,
-                score INTEGER NOT NULL DEFAULT 0,
+                score INTEGER NOT NULL DEFAULT 0 CHECK (score >= -999 AND score <= 999),
                 view_count INTEGER NOT NULL DEFAULT 0,
                 accepted_answer_id TEXT,
                 created_at TEXT NOT NULL,
@@ -55,6 +58,8 @@ def init_community_db() -> None:
                 ON community_questions(created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_community_questions_discipline
                 ON community_questions(discipline);
+            CREATE INDEX IF NOT EXISTS idx_community_questions_author_id
+                ON community_questions(author_id);
 
             CREATE TABLE IF NOT EXISTS community_answers (
                 id TEXT PRIMARY KEY,
@@ -62,7 +67,7 @@ def init_community_db() -> None:
                 author_id TEXT,
                 author_name TEXT NOT NULL,
                 body TEXT NOT NULL,
-                score INTEGER NOT NULL DEFAULT 0,
+                score INTEGER NOT NULL DEFAULT 0 CHECK (score >= -999 AND score <= 999),
                 accepted INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -71,6 +76,28 @@ def init_community_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_community_answers_question
                 ON community_answers(question_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_community_answers_author_id
+                ON community_answers(author_id);
+            CREATE INDEX IF NOT EXISTS idx_community_answers_accepted_score
+                ON community_answers(accepted DESC, score DESC);
+
+            CREATE TABLE IF NOT EXISTS community_votes (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                question_id TEXT,
+                answer_id TEXT,
+                value INTEGER NOT NULL CHECK (value IN (-1, 0, 1)),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(user_id, question_id),
+                UNIQUE(user_id, answer_id),
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY(question_id) REFERENCES community_questions(id) ON DELETE CASCADE,
+                FOREIGN KEY(answer_id) REFERENCES community_answers(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_community_votes_user
+                ON community_votes(user_id);
             """
         )
         connection.commit()

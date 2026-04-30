@@ -9,6 +9,8 @@ import logging
 from typing import Any, Literal
 
 from app.services.design_parser.rule_violation import RuleViolationError
+# EBC-FIX: import bilateral door width lookup
+from app.services.design_parser.egyptian_building_code import get_door_width
 
 
 logger = logging.getLogger(__name__)
@@ -999,9 +1001,18 @@ class DeterministicOpeningPlanner:
         first = by_name[room_a]
         second = by_name[room_b]
         self._validate_forbidden_door_pair(first=first, second=second)
+
+        # EBC-FIX: Use bilateral door width logic — minimum of both rooms' EBC requirements
+        width_a = get_door_width(first.room_type)   # Get EBC width for room_a
+        width_b = get_door_width(second.room_type)  # Get EBC width for room_b
+        ebc_door_width = min(width_a, width_b)      # Most restrictive = bilateral
+
+        # Legacy: check if either room is bathroom for minimum width enforcement
         bathroom_pair = self._is_bathroom(first) or self._is_bathroom(second)
-        preferred_door_width = 0.8 if bathroom_pair else 0.9
+        preferred_door_width = ebc_door_width
         min_door_width = _MIN_BATHROOM_DOOR_WIDTH if bathroom_pair else _MIN_STANDARD_DOOR_WIDTH
+        # EBC-FIX: use the calculated EBC minimum instead of hardcoded
+        min_door_width = max(min_door_width, ebc_door_width * 0.9)  # Never go below EBC
 
         end_clearance = _DOOR_END_CLEARANCE
         available_span = boundary.length - (2.0 * end_clearance)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import sqlite3
@@ -14,6 +15,8 @@ from app.core.file_utils import BACKEND_DIR
 from app.services.file_token_registry import issue_workspace_file_token
 
 load_backend_env()
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_workspace_db_path() -> Path:
@@ -156,18 +159,12 @@ def _fetch_project_for_user(
             p.name,
             p.created_at,
             p.updated_at,
-            (
-                SELECT MAX(m.created_at)
-                FROM messages m
-                WHERE m.project_id = p.id
-            ) AS last_message_at,
-            (
-                SELECT COUNT(m.id)
-                FROM messages m
-                WHERE m.project_id = p.id
-            ) AS message_count
+            COALESCE(MAX(m.created_at), p.updated_at) AS last_message_at,
+            COUNT(m.id) AS message_count
         FROM projects p
+        LEFT JOIN messages m ON m.project_id = p.id
         WHERE p.id = ? AND p.user_id = ?
+        GROUP BY p.id
         """,
         (project_id, user_id),
     ).fetchone()
@@ -255,7 +252,8 @@ def _serialize_message_row(row: sqlite3.Row, *, user_id: str) -> dict:
     if dxf_path:
         try:
             payload["file_token"] = issue_workspace_file_token(user_id=user_id, absolute_path=dxf_path)
-        except ValueError:
+        except ValueError as e:
+            logger.warning(f"Failed to issue file token for {dxf_path}: {e}", extra={"user_id": user_id, "dxf_path": dxf_path})
             payload["file_token"] = None
     else:
         payload["file_token"] = None
@@ -284,46 +282,51 @@ def add_message(
     now = _utc_now()
 
     with _connect() as connection:
-        project = _fetch_project_for_user(
-            connection,
-            user_id=normalized_user_id,
-            project_id=project_id,
-        )
-        if project is None:
-            raise KeyError("project not found")
-
-        connection.execute(
-            """
-            INSERT INTO messages (
-                id,
-                project_id,
-                role,
-                text,
-                created_at,
-                dxf_path,
-                dxf_name,
-                model_used,
-                provider_used
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            project = _fetch_project_for_user(
+                connection,
+                user_id=normalized_user_id,
+                project_id=project_id,
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                message_id,
-                project_id,
-                role,
-                cleaned_text,
-                now,
-                dxf_path,
-                dxf_name,
-                model_used,
-                provider_used,
-            ),
-        )
-        connection.execute(
-            "UPDATE projects SET updated_at = ? WHERE id = ?",
-            (now, project_id),
-        )
-        connection.commit()
+            if project is None:
+                raise KeyError("project not found")
+
+            connection.execute(
+                """
+                INSERT INTO messages (
+                    id,
+                    project_id,
+                    role,
+                    text,
+                    created_at,
+                    dxf_path,
+                    dxf_name,
+                    model_used,
+                    provider_used
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    message_id,
+                    project_id,
+                    role,
+                    cleaned_text,
+                    now,
+                    dxf_path,
+                    dxf_name,
+                    model_used,
+                    provider_used,
+                ),
+            )
+            connection.execute(
+                "UPDATE projects SET updated_at = ? WHERE id = ?",
+                (now, project_id),
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
 
     return message_id
 
