@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Construction } from 'lucide-react';
@@ -78,5 +79,16 @@ function ComingSoon({
     </div>
   );
 }
+
+ComingSoon.propTypes = {
+  icon:           PropTypes.elementType,
+  title:          PropTypes.string,
+  subtitle:       PropTypes.string,
+  features:       PropTypes.arrayOf(PropTypes.string),
+  ctaLabel:       PropTypes.string,
+  ctaTo:          PropTypes.string,
+  secondaryLabel: PropTypes.string,
+  secondaryTo:    PropTypes.string,
+};
 
 export default ComingSoon;

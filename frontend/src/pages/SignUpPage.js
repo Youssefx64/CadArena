@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -68,6 +69,11 @@ export default function SignUpPage() {
       <motion.p id={id} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
         className="mt-1.5 text-xs font-semibold text-red-600" role="alert">{msg}</motion.p>
     ) : null;
+
+  FieldError.propTypes = {
+    id:  PropTypes.string,
+    msg: PropTypes.string,
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-4.5rem)] items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 py-12 dark:from-[#060912] dark:to-[#0d1017]">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -109,6 +110,13 @@ function UserMenu({ user, profile, avatarTs, onLogout }) {
     </div>
   );
 }
+
+UserMenu.propTypes = {
+  user:     PropTypes.shape({ name: PropTypes.string, email: PropTypes.string }),
+  profile:  PropTypes.shape({ display_name: PropTypes.string }),
+  avatarTs: PropTypes.number,
+  onLogout: PropTypes.func.isRequired,
+};
 
 export default function Navbar() {
   const [isOpen, setIsOpen]     = useState(false);

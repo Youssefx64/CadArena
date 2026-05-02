@@ -219,7 +219,7 @@ def create_user(*, name: str, email: str, password_hash: str) -> dict:
 
 
 def get_user_by_email(*, email: str) -> dict | None:
-    normalized_email = _normalize_email(email)
+    normalized_email = normalize_email(email)
     with _connect() as connection:
         row = connection.execute(
             """
