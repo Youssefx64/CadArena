@@ -2232,21 +2232,7 @@ body,
   background: rgba(255, 255, 255, 0.84);
 }
 
-/* ─── Hero ambient orb animations ────────────────────────────────────────── */
-@keyframes orb-drift-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%  { transform: translate(44px, -58px) scale(1.07); }
-  66%  { transform: translate(-28px, 30px) scale(0.95); }
-}
-@keyframes orb-drift-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%  { transform: translate(-56px, 40px) scale(1.1); }
-}
-@keyframes orb-drift-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  40%  { transform: translate(30px, -30px) scale(0.93); }
-  80%  { transform: translate(-40px, 15px) scale(1.05); }
-}
+/* ─── Hero ambient orb animations (defined below in enhanced section) ─────── */
 
 .hero-ambient-bg {
   position: absolute;
@@ -2390,5 +2376,153 @@ body,
     var(--gradient-primary);
   background-origin: border-box;
   background-clip: padding-box, border-box;
+}
+
+/* ─── Smooth scroll ───────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Blueprint scan line ─────────────────────────────────────────────────── */
+@keyframes blueprint-scan {
+  0%   { top: 0%; opacity: 0; }
+  4%   { opacity: 0.8; }
+  94%  { opacity: 0.8; }
+  100% { top: 100%; opacity: 0; }
+}
+.blueprint-scan-line {
+  position: absolute;
+  left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.8) 30%, rgba(139,92,246,1) 50%, rgba(99,102,241,0.8) 70%, transparent 100%);
+  box-shadow: 0 0 12px 3px rgba(139,92,246,0.5), 0 0 24px 6px rgba(99,102,241,0.25);
+  pointer-events: none;
+  z-index: 10;
+  animation: blueprint-scan 2s cubic-bezier(0.22, 1, 0.36, 1) 0.1s 1 forwards;
+}
+
+/* ─── Card shimmer on hover ───────────────────────────────────────────────── */
+@keyframes shimmer-slide {
+  0%   { transform: translateX(-110%) skewX(-12deg); }
+  100% { transform: translateX(230%) skewX(-12deg); }
+}
+.app-card-hover {
+  position: relative;
+  overflow: hidden;
+}
+.app-card-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.22) 50%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.app-card-hover:hover::after {
+  opacity: 1;
+  animation: shimmer-slide 0.55s ease-in-out;
+}
+
+/* ─── Connector line draw ─────────────────────────────────────────────────── */
+@keyframes line-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.connector-line-animated {
+  transform-origin: left center;
+  animation: line-draw 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+}
+
+/* ─── Floating particles ─────────────────────────────────────────────────── */
+@keyframes particle-float-a {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.55; }
+  33%       { transform: translate(18px, -22px) rotate(90deg); opacity: 0.9; }
+  66%       { transform: translate(-12px, -10px) rotate(180deg); opacity: 0.7; }
+}
+@keyframes particle-float-b {
+  0%, 100% { transform: translate(0, 0) rotate(45deg); opacity: 0.45; }
+  50%       { transform: translate(-20px, -28px) rotate(225deg); opacity: 0.85; }
+}
+@keyframes particle-float-c {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  40%       { transform: translate(24px, 16px) scale(1.3); opacity: 0.75; }
+  80%       { transform: translate(-8px, 22px) scale(0.8); opacity: 0.55; }
+}
+.particle { position: absolute; pointer-events: none; border-radius: 50%; }
+.particle-a { animation: particle-float-a 8s ease-in-out infinite; }
+.particle-b { animation: particle-float-b 11s ease-in-out infinite 1.5s; }
+.particle-c { animation: particle-float-c 14s ease-in-out infinite 3s; }
+
+/* ─── Enhanced gradient text ─────────────────────────────────────────────── */
+.gradient-text-animated {
+  background-image: linear-gradient(270deg, #6366f1, #7c3aed, #3b82f6, #8b5cf6, #6366f1);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift-wide 5s ease infinite;
+}
+@keyframes gradient-shift-wide {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── Icon badge float on hover ──────────────────────────────────────────── */
+.app-card-hover:hover .app-icon-badge {
+  transform: translateY(-3px) scale(1.06);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.app-icon-badge {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ─── Enhanced orb drift animations ─────────────────────────────────────── */
+@keyframes orb-drift-1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  20%  { transform: translate(52px, -66px) scale(1.09); }
+  45%  { transform: translate(30px, -20px) scale(1.03); }
+  70%  { transform: translate(-38px, 48px) scale(0.94); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes orb-drift-2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  30%  { transform: translate(-60px, 50px) scale(1.12); }
+  60%  { transform: translate(-20px, -30px) scale(0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes orb-drift-3 {
+  0%   { transform: translate(0, 0) scale(1); }
+  25%  { transform: translate(36px, -44px) scale(0.91); }
+  55%  { transform: translate(10px, 20px) scale(1.08); }
+  80%  { transform: translate(-44px, 22px) scale(1.03); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+/* ─── Step index hover ────────────────────────────────────────────────────── */
+.app-card-hover:hover .landing-step-index {
+  transform: scale(1.1) rotate(-4deg);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.landing-step-index {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ─── Glow pulse (enhanced) ──────────────────────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.65; transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  50%       { opacity: 1;    transform: scale(1.2); box-shadow: 0 0 0 4px rgba(99,102,241,0); }
+}
+
+/* ─── App button primary enhanced ───────────────────────────────────────── */
+.app-button-primary {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease !important;
+}
+.app-button-primary:hover {
+  transform: translateY(-2px) scale(1.015);
+}
+.app-button-primary:active {
+  transform: translateY(0) scale(0.985);
 }
 

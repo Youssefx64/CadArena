@@ -14,9 +14,9 @@ const PROMPT_EXAMPLES = [
   'Corner penthouse with panoramic windows and open plan',
 ];
 
-const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.09 } } };
-const fadeUp  = { hidden: { y: 28, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } } };
-const fadeIn  = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.45 } } };
+const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.04 } } };
+const fadeUp  = { hidden: { y: 24, opacity: 0, filter: 'blur(3px)' }, visible: { y: 0, opacity: 1, filter: 'blur(0px)', transition: { duration: 0.52, ease: [0.22, 1, 0.36, 1] } } };
+const fadeIn  = { hidden: { opacity: 0, scale: 0.97 }, visible: { opacity: 1, scale: 1, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } } };
 
 // ─── Animated blueprint preview ───────────────────────────────────────────────
 function BlueprintPreview() {
@@ -36,11 +36,12 @@ function BlueprintPreview() {
       aria-label="Animated floor plan preview" role="img"
     >
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px)', backgroundSize: '24px 24px', opacity: 0.9 }} />
+      <div className="blueprint-scan-line" aria-hidden="true" />
       {rooms.map((r, i) => (
         <motion.div key={r.id}
-          initial={{ opacity: 0, scale: 0.88 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.22 + i * 0.1, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, scale: 0.82, filter: 'blur(4px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          transition={{ delay: 0.18 + i * 0.12, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h, borderRadius: 8,
             border: r.muted
@@ -57,18 +58,22 @@ function BlueprintPreview() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
           {r.label && (
-            <span style={{ fontSize: 'clamp(0.55rem,1vw,0.72rem)', fontWeight: 700, color: r.accent ? 'var(--blueprint-accent-color)' : 'var(--text-muted)', letterSpacing: '0.02em', textAlign: 'center', padding: '0 4px', userSelect: 'none' }}>
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.38 + i * 0.12, duration: 0.28 }}
+              style={{ fontSize: 'clamp(0.55rem,1vw,0.72rem)', fontWeight: 700, color: r.accent ? 'var(--blueprint-accent-color)' : 'var(--text-muted)', letterSpacing: '0.02em', textAlign: 'center', padding: '0 4px', userSelect: 'none' }}>
               {r.label}
-            </span>
+            </motion.span>
           )}
         </motion.div>
       ))}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2, duration: 0.4 }}
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         style={{ position: 'absolute', bottom: '6%', right: '2%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
         <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--blueprint-ebc-color)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>EBC 2023 Compliant</span>
         <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>DXF Export Ready ✓</span>
       </motion.div>
-      <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 1.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 1.5, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#3b82f6,#7c3aed)', transformOrigin: 'left center', borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }} />
     </div>
   );
@@ -175,6 +180,15 @@ const HomePage = () => {
           <div className="hero-orb hero-orb-3" />
         </div>
         <div className="hero-grid-pattern" aria-hidden="true" />
+        {/* Floating particles */}
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+          <div className="particle particle-a" style={{ width: 6, height: 6, background: 'rgba(99,102,241,0.55)', top: '18%', left: '12%' }} />
+          <div className="particle particle-b" style={{ width: 4, height: 4, background: 'rgba(139,92,246,0.5)', top: '32%', left: '80%' }} />
+          <div className="particle particle-c" style={{ width: 5, height: 5, background: 'rgba(59,130,246,0.5)', top: '70%', left: '22%' }} />
+          <div className="particle particle-a" style={{ width: 3, height: 3, background: 'rgba(167,139,250,0.6)', top: '55%', left: '68%', animationDelay: '2s' }} />
+          <div className="particle particle-b" style={{ width: 7, height: 7, background: 'rgba(99,102,241,0.3)', top: '12%', left: '55%', animationDelay: '4s' }} />
+          <div className="particle particle-c" style={{ width: 4, height: 4, background: 'rgba(124,58,237,0.45)', top: '80%', left: '85%', animationDelay: '1s' }} />
+        </div>
 
         <div className="app-shell relative z-10">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="text-center">
@@ -246,10 +260,12 @@ const HomePage = () => {
       <div className="landing-trust-strip border-y border-slate-100 py-5 dark:border-white/6" aria-label="Key capabilities">
         <div className="app-shell">
           <motion.ul
-            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-30px' }} variants={stagger}
             className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:gap-x-10 lg:gap-x-14">
             {TRUST_ITEMS.map(({ value, label }, i) => (
-              <motion.li key={label} variants={fadeIn} className="flex items-center gap-3">
+              <motion.li key={label} variants={fadeIn}
+                whileHover={{ scale: 1.04, transition: { duration: 0.18 } }}
+                className="flex items-center gap-3">
                 <div>
                   <p className="text-sm font-black tracking-tight text-slate-950 dark:text-slate-50 leading-none">{value}</p>
                   <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
@@ -277,18 +293,19 @@ const HomePage = () => {
           </motion.div>
 
           <motion.div
-            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }} variants={stagger}
             className="relative grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div
-              className="pointer-events-none absolute left-[33%] right-[33%] top-10 hidden h-px md:block"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.28) 20%, rgba(99,102,241,0.28) 80%, transparent)' }}
+            <motion.div
+              className="connector-line-animated pointer-events-none absolute left-[33%] right-[33%] top-10 hidden h-px md:block"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.35) 20%, rgba(99,102,241,0.35) 80%, transparent)' }}
               aria-hidden="true"
             />
             {HOW_IT_WORKS.map((step) => {
               const Icon = step.icon;
               return (
                 <motion.div key={step.step} variants={fadeUp}
-                  whileHover={{ y: -6, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }}
+                  whileHover={{ y: -8, scale: 1.015, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }}
+                  whileTap={{ scale: 0.98 }}
                   className="app-card app-card-hover flex flex-col p-8 text-center">
                   <div className="mb-5 flex items-center justify-center gap-3">
                     <span className="landing-step-index">{step.step}</span>
@@ -320,14 +337,15 @@ const HomePage = () => {
           </motion.div>
 
           <motion.div
-            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} variants={stagger}
             className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => {
               const Icon = f.icon;
               return (
                 <motion.div key={f.title} variants={fadeUp}
-                  whileHover={{ y: -6, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }}
-                  className="app-card flex flex-col p-7">
+                  whileHover={{ y: -7, scale: 1.02, transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] } }}
+                  whileTap={{ scale: 0.97 }}
+                  className="app-card app-card-hover flex flex-col p-7">
                   <div className="app-icon-badge mb-5" aria-hidden="true">
                     <Icon className="h-6 w-6" />
                   </div>
