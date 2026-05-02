@@ -19,6 +19,7 @@ const LoginPage      = lazy(() => import('./pages/LoginPage'));
 const SignUpPage      = lazy(() => import('./pages/SignUpPage'));
 const ProfilePage    = lazy(() => import('./pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
+const DocsPage        = lazy(() => import('./pages/DocsPage'));
 
 function PageLoader() {
   return (
@@ -89,6 +90,7 @@ function App() {
               <Route path="/signup"        element={<SignUpPage />} />
               <Route path="/profile"       element={<ProfilePage />} />
               <Route path="/profile/edit"  element={<EditProfilePage />} />
+              <Route path="/docs"          element={<DocsPage />} />
             </Route>
           </Routes>
           <Toaster

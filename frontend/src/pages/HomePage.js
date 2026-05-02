@@ -75,7 +75,7 @@ function HeroPromptBar({ onDark = false }) {
 
   const submit = (e) => {
     e.preventDefault();
-    navigate('/generate', { state: { prefillPrompt: value.trim() || PROMPT_EXAMPLES[phIdx] } });
+    navigate('/studio');
   };
 
   return (
@@ -385,7 +385,7 @@ const HomePage = () => {
                 </motion.button>
               ))}
               <div className="pt-4">
-                <Link to="/generate" className="app-button-primary app-button-compact w-full justify-center">
+                <Link to="/studio" className="app-button-primary app-button-compact w-full justify-center">
                   <Zap className="h-4 w-4" aria-hidden="true" />
                   Try it yourself
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -568,7 +568,7 @@ function ExampleChip({ label }) {
   return (
     <motion.button
       type="button"
-      onClick={() => navigate('/generate', { state: { prefillPrompt: label } })}
+      onClick={() => navigate('/studio')}
       whileHover={{ scale: 1.03, y: -1 }}
       whileTap={{ scale: 0.97 }}
       className="app-pill-muted cursor-pointer py-1.5 text-xs transition-colors hover:border-primary-200 hover:bg-primary-50"

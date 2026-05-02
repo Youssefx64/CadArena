@@ -1,175 +1,219 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Brain, Zap, Target, Code, Lightbulb, Rocket, ArrowRight } from 'lucide-react';
+import {
+  Brain, Zap, Target, Code2, ArrowRight, CheckCircle,
+  FileCode2, Layers, Cpu, Database,
+} from 'lucide-react';
+
+const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.09 } } };
+const fadeUp  = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } } };
 
 const AboutPage = () => {
-  const features = [
+  const PILLARS = [
     {
       icon: Brain,
-      title: 'Advanced AI Models',
-      description: 'State-of-the-art diffusion models fine-tuned specifically for architectural floor plan generation with spatial constraint awareness.',
+      title: 'Constraint-Aware Diffusion',
+      body: 'The core AI uses a modified Stable Diffusion 2.1 model with a custom spatial constraint loss that enforces room adjacency and structural relationships during the denoising process — not as a post-processing filter.',
+    },
+    {
+      icon: Target,
+      title: 'EBC 2023 Compliance',
+      body: 'Generated layouts satisfy Egyptian Building Code 2023 standards for minimum room areas, ceiling heights, and spatial adjacency — making the output usable in real architectural practice, not just as visualizations.',
+    },
+    {
+      icon: FileCode2,
+      title: 'DXF-Ready Output',
+      body: 'Every generated floor plan is automatically exported as a DXF file with per-room layers, room labels, and linear dimension entities — ready to open in AutoCAD, Revit, or any DXF-compatible tool.',
     },
     {
       icon: Zap,
-      title: 'Real-time Generation',
-      description: 'Fast inference pipeline optimized for quick floor plan generation from natural language descriptions in under 3 seconds.',
-    },
-    {
-      icon: Target,
-      title: 'High Accuracy',
-      description: '84.5% generation accuracy with comprehensive evaluation metrics including FID, CLIP-Score, and adjacency consistency.',
-    },
-    {
-      icon: Code,
-      title: 'Open Architecture',
-      description: 'Modular, extensible codebase built with modern technologies and best practices for easy integration and customization.',
+      title: 'Conversational Workflow',
+      body: 'The Studio provides a natural-language interface. Describe what you need in plain English or Arabic, and the AI handles spatial reasoning, constraint satisfaction, and CAD formatting automatically.',
     },
   ];
 
-  const achievements = [
+  const STACK = [
     {
-      category: 'AI Innovation',
-      title: 'Advanced Diffusion Models',
-      description: 'Developed state-of-the-art constraint-aware diffusion models with 84.5% accuracy.',
       icon: Brain,
-      metrics: ['84.5% Accuracy', '57.4 FID Score', '0.75 CLIP Score'],
+      category: 'AI & Machine Learning',
+      items: [
+        { name: 'PyTorch 2.0 + Diffusers 0.35', note: 'Diffusion model training and inference' },
+        { name: 'Stable Diffusion 2.1', note: 'Foundation model (865M parameters)' },
+        { name: 'CLIP + Transformers 4.57', note: 'Text encoder for prompt understanding' },
+        { name: 'Custom constraint U-Net', note: 'Spatial attention + multi-loss training' },
+      ],
     },
     {
-      category: 'Technical Excellence',
-      title: 'Production-Ready Architecture',
-      description: 'Built scalable, modular system with comprehensive API and responsive frontend.',
-      icon: Code,
-      metrics: ['React + FastAPI', 'RESTful API', 'Responsive Design'],
+      icon: Code2,
+      category: 'Backend & API',
+      items: [
+        { name: 'FastAPI 0.128 + Uvicorn', note: 'High-performance async API server' },
+        { name: 'Pydantic v2', note: 'Request/response validation' },
+        { name: 'ezdxf', note: 'DXF generation and export pipeline' },
+        { name: 'bcrypt + JWT cookies', note: 'Secure authentication system' },
+      ],
     },
     {
-      category: 'Performance',
-      title: 'Industry-Leading Results',
-      description: 'Achieved significant improvements over baseline models across all evaluation metrics.',
-      icon: Target,
-      metrics: ['+32.7% FID', '+78% Adjacency', '+18.5% Overall'],
+      icon: Layers,
+      category: 'Frontend & UI',
+      items: [
+        { name: 'React 18 + CRA', note: 'Code-split SPA with lazy loading' },
+        { name: 'Tailwind CSS 3.3', note: 'Design system and utility styling' },
+        { name: 'Framer Motion 10', note: 'Animations and micro-interactions' },
+        { name: 'Lucide React + Recharts', note: 'Icons and data visualization' },
+      ],
     },
     {
-      category: 'User Experience',
-      title: 'Intuitive Interface',
-      description: 'Designed user-friendly interface for seamless conversational CAD workflows.',
-      icon: Lightbulb,
-      metrics: ['2.3s Generation', '94.2% Success Rate', '4.6/5 Rating'],
+      icon: Database,
+      category: 'Data & Infrastructure',
+      items: [
+        { name: 'CubiCasa5K dataset', note: '5,000+ annotated architectural floor plans' },
+        { name: 'SQLite persistence', note: 'Workspace, profiles, and project storage' },
+        { name: 'Google Colab A100', note: 'Training hardware (120+ GPU hours)' },
+        { name: 'CUDA 11.8+', note: 'GPU-accelerated inference pipeline' },
+      ],
     },
   ];
 
-  const team = [
-    {
-      name: 'Youssef Taha Badawi',
-      role: 'Founder, AI Engineer & Systems Architect',
-      description: 'AI Engineer | GenAI Solutions Developer | LLM Systems Engineer | Conversational CAD Systems Engineer | Architecting Agentic & RAG Systems | Building Scalable AI That Solves Real Problems.',
-      icon: Brain,
-    },
-  ];
-
-  const stats = [
-    { label: 'Model Accuracy', value: '84.5%' },
-    { label: 'Generation Speed', value: '2.3s' },
-    { label: 'Training Epochs', value: '5' },
-    { label: 'Dataset Size', value: '1K+' },
+  const METRICS = [
+    { label: 'Model Accuracy',  value: '84.5%', note: 'Constraint-Aware vs 71.3% baseline' },
+    { label: 'FID Score',       value: '57.4',  note: 'Down from 85.2 baseline (lower = better)' },
+    { label: 'CLIP Score',      value: '0.75',  note: 'Text-image alignment (up from 0.62)' },
+    { label: 'Adjacency Score', value: '0.73',  note: '+78% over baseline' },
+    { label: 'Generation Time', value: '2.3s',  note: 'Average on GPU hardware' },
+    { label: 'Training Epochs', value: '5',     note: 'With early stopping and LR scheduling' },
   ];
 
   return (
     <div className="app-page">
       <div className="app-shell">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="app-page-header">
-          <h1 className="app-page-title mb-6">
+
+        {/* Header */}
+        <motion.div initial="hidden" animate="visible" variants={stagger} className="app-page-header mb-16">
+          <motion.div variants={fadeUp} className="mb-5">
+            <span className="app-pill">
+              <Brain className="h-4 w-4" aria-hidden="true" />
+              About the Project
+            </span>
+          </motion.div>
+          <motion.h1 variants={fadeUp} className="app-page-title mb-5">
             About <span className="gradient-text">CadArena</span>
-          </h1>
-          <p className="app-page-copy max-w-4xl">
-            CadArena is an AI-powered conversational CAD platform that transforms natural-language intent
-            into structured architectural layouts, DXF exports, and practical design workflows.
+          </motion.h1>
+          <motion.p variants={fadeUp} className="app-page-copy">
+            CadArena is an AI-powered conversational CAD platform that transforms natural language intent
+            into structured architectural layouts, EBC-compliant floor plans, and DXF-ready CAD exports.
+          </motion.p>
+        </motion.div>
+
+        {/* Mission panel */}
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          className="app-cta-panel relative mb-16 overflow-hidden px-10 py-16 text-center">
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-white opacity-[0.06] blur-3xl" />
+            <div className="absolute -bottom-16 -right-16 h-64 w-64 rounded-full bg-white opacity-[0.06] blur-3xl" />
+          </div>
+          <h2 className="mb-5 text-2xl font-black text-white">Mission</h2>
+          <p className="mx-auto max-w-3xl text-lg leading-relaxed text-primary-100">
+            To make architectural AI genuinely useful in practice — by combining conversational interfaces,
+            reliable CAD outputs, and spatially-aware generative models that help architects and designers
+            move faster from intent to execution, without sacrificing compliance or precision.
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="app-cta-panel mb-16 p-12 text-center"
-        >
-          <h2 className="app-section-title mb-6 text-white">Our Mission</h2>
-          <p className="mx-auto max-w-4xl text-xl leading-8 text-primary-100">
-            To make architectural AI genuinely useful in practice by combining conversational interfaces,
-            reliable CAD outputs, and scalable systems that help designers move faster from intent to execution.
-          </p>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-16">
-          <h2 className="app-section-title mb-12 text-center">Key Features</h2>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
+        {/* Core pillars */}
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16">
+          <motion.h2 variants={fadeUp} className="app-section-title mb-12 text-center">
+            How it works
+          </motion.h2>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {PILLARS.map((p) => {
+              const Icon = p.icon;
               return (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="app-card app-card-hover p-8"
-                >
-                  <div className="app-icon-badge-lg mb-6">
-                    <Icon className="h-8 w-8" />
+                <motion.div key={p.title} variants={fadeUp} className="app-card app-card-hover p-8">
+                  <div className="app-icon-badge-lg mb-5" aria-hidden="true">
+                    <Icon className="h-7 w-7" />
                   </div>
-                  <h3 className="app-card-title mb-4">{feature.title}</h3>
-                  <p className="app-body">{feature.description}</p>
+                  <h3 className="app-card-title mb-3">{p.title}</h3>
+                  <p className="app-body">{p.body}</p>
                 </motion.div>
               );
             })}
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="app-card mb-16 p-12">
-          <h2 className="app-section-title mb-12 text-center">By the Numbers</h2>
-          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="text-center"
-              >
-                <div className="mb-2 text-4xl font-bold text-primary-700 lg:text-5xl">{stat.value}</div>
-                <div className="font-medium text-slate-600">{stat.label}</div>
+        {/* By the numbers */}
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+          className="app-card mb-16 p-8 lg:p-12">
+          <motion.h2 variants={fadeUp} className="app-section-title mb-10 text-center">
+            By the numbers
+          </motion.h2>
+          <div className="grid grid-cols-2 gap-6 lg:grid-cols-3">
+            {METRICS.map((m) => (
+              <motion.div key={m.label} variants={fadeUp} className="text-center">
+                <div
+                  className="mb-1 text-4xl font-black tracking-tight lg:text-5xl"
+                  style={{ backgroundImage: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                >
+                  {m.value}
+                </div>
+                <div className="mb-1 font-semibold text-slate-950">{m.label}</div>
+                <div className="text-xs text-slate-500">{m.note}</div>
               </motion.div>
             ))}
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-16">
-          <h2 className="app-section-title mb-12 text-center">Key Achievements</h2>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {achievements.map((achievement, index) => {
-              const Icon = achievement.icon;
-              return (
-                <motion.div
-                  key={achievement.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="app-card app-card-hover group p-8"
-                >
-                  <div className="mb-6 flex items-start gap-4">
-                    <div className="app-icon-badge-lg transition-transform duration-300 group-hover:scale-105">
-                      <Icon className="h-8 w-8" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="mb-1 text-sm font-semibold text-primary-700">{achievement.category}</div>
-                      <h3 className="app-card-title mb-2">{achievement.title}</h3>
-                    </div>
+        {/* Key improvements */}
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+          className="app-card-muted mb-16 p-8 lg:p-12">
+          <motion.h2 variants={fadeUp} className="app-section-title mb-8 text-center">
+            Constraint-Aware vs Baseline
+          </motion.h2>
+          <div className="mx-auto max-w-2xl space-y-4">
+            {[
+              { metric: 'FID Score', improvement: '−27.8 pts', note: 'Lower is better — significant quality gain' },
+              { metric: 'CLIP Score', improvement: '+0.13 pts', note: 'Better text-to-layout alignment' },
+              { metric: 'Adjacency Consistency', improvement: '+0.32 pts', note: 'Rooms are now spatially coherent' },
+              { metric: 'Overall Accuracy', improvement: '+13.2%', note: 'Measured across all evaluation metrics' },
+            ].map(({ metric, improvement, note }) => (
+              <motion.div key={metric} variants={fadeUp} className="flex items-start gap-3">
+                <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-950">{metric}</span>
+                    <span className="font-black text-primary-700">{improvement}</span>
                   </div>
+                  <p className="mt-0.5 text-sm text-slate-500">{note}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
-                  <p className="mb-6 text-slate-600">{achievement.description}</p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {achievement.metrics.map((metric) => (
-                      <span key={metric} className="app-pill-muted">
-                        {metric}
-                      </span>
+        {/* Technology stack */}
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16">
+          <motion.h2 variants={fadeUp} className="app-section-title mb-12 text-center">
+            Technology Stack
+          </motion.h2>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {STACK.map((s) => {
+              const Icon = s.icon;
+              return (
+                <motion.div key={s.category} variants={fadeUp} className="app-card p-7">
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="app-icon-badge" aria-hidden="true"><Icon className="h-5 w-5" /></div>
+                    <h3 className="app-card-title">{s.category}</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {s.items.map((item) => (
+                      <div key={item.name} className="flex items-start gap-3">
+                        <div className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary-500" aria-hidden="true" />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-950">{item.name}</p>
+                          <p className="text-xs text-slate-500">{item.note}</p>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.div>
@@ -178,145 +222,51 @@ const AboutPage = () => {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-16">
-          <h2 className="app-section-title mb-12 text-center">Project Leadership</h2>
-          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6">
-            {team.map((member, index) => {
-              const Icon = member.icon;
-              return (
-                <motion.div
-                  key={member.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="app-card app-card-hover p-6 text-center"
-                >
-                  <div className="app-icon-badge-lg mx-auto mb-4">
-                    <Icon className="h-8 w-8" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-bold text-slate-950">{member.name}</h3>
-                  <div className="mb-3 font-medium text-primary-700">{member.role}</div>
-                  <p className="text-sm text-slate-600">{member.description}</p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-16">
-          <h2 className="app-section-title mb-12 text-center">Technology Stack</h2>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {[
-              {
-                title: 'AI & Machine Learning',
-                icon: '🧠',
-                technologies: [
-                  { name: 'PyTorch & Diffusers', desc: 'Deep learning framework' },
-                  { name: 'Stable Diffusion 2.1', desc: 'Foundation model' },
-                  { name: 'CLIP & Transformers', desc: 'Text understanding' },
-                  { name: 'Custom Constraints', desc: 'Spatial awareness' },
-                ],
-              },
-              {
-                title: 'Backend & API',
-                icon: '⚙️',
-                technologies: [
-                  { name: 'FastAPI & Python', desc: 'Backend application layer' },
-                  { name: 'RESTful APIs', desc: 'Workspace, auth, and export flows' },
-                  { name: 'DXF Export Pipeline', desc: 'CAD generation and preview delivery' },
-                  { name: 'Persistence Layer', desc: 'Project and profile storage' },
-                ],
-              },
-              {
-                title: 'Frontend & UI',
-                icon: '🎨',
-                technologies: [
-                  { name: 'React 18', desc: 'Modern UI framework' },
-                  { name: 'Tailwind CSS', desc: 'Utility-first styling' },
-                  { name: 'Framer Motion', desc: 'Smooth animations' },
-                  { name: 'Responsive Design', desc: 'Mobile-first approach' },
-                ],
-              },
-            ].map((stack, index) => (
-              <motion.div
-                key={stack.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="app-card app-card-hover p-8"
-              >
-                <div className="mb-6 flex items-center gap-4">
-                  <div className="app-icon-badge text-2xl">{stack.icon}</div>
-                  <h3 className="app-card-title">{stack.title}</h3>
-                </div>
-                <div className="space-y-4">
-                  {stack.technologies.map((tech) => (
-                    <div key={tech.name} className="flex items-start gap-3">
-                      <div className="mt-2 h-2 w-2 rounded-full bg-primary-600" />
-                      <div>
-                        <div className="font-medium text-slate-950">{tech.name}</div>
-                        <div className="text-sm text-slate-600">{tech.desc}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-          <div className="app-cta-panel relative overflow-hidden p-12">
-            <div className="absolute inset-0 bg-slate-950/10" />
-            <div className="relative z-10">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                className="mx-auto mb-8 h-20 w-20"
-              >
-                <Rocket className="h-20 w-20 text-white" />
-              </motion.div>
-              <h2 className="app-section-title mb-6 text-white">The Future of Conversational CAD</h2>
-              <p className="mx-auto mb-12 max-w-4xl text-xl leading-8 text-primary-100">
-                CadArena is being shaped as a practical foundation for agentic design workflows, structured
-                architectural reasoning, and CAD systems that solve real-world problems instead of stopping at demos.
+        {/* Team */}
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16">
+          <motion.h2 variants={fadeUp} className="app-section-title mb-8 text-center">
+            Project Leadership
+          </motion.h2>
+          <motion.div variants={fadeUp} className="mx-auto max-w-lg">
+            <div className="app-card app-card-hover p-8 text-center">
+              <div className="app-icon-badge-lg mx-auto mb-5" aria-hidden="true">
+                <Cpu className="h-8 w-8" />
+              </div>
+              <h3 className="mb-1 text-xl font-black text-slate-950">Youssef Taha Badawi</h3>
+              <p className="mb-4 font-semibold text-primary-700">Founder · AI Engineer · Systems Architect</p>
+              <p className="mb-6 text-sm leading-relaxed text-slate-600">
+                AI Engineer specialising in GenAI, LLM systems, and agentic architectures. Built CadArena
+                end-to-end — from dataset curation and model training to the frontend product and DXF export pipeline.
               </p>
-
-              <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { icon: '🏗️', title: '3D Generation', desc: 'Full 3D architectural models' },
-                  { icon: '🥽', title: 'VR Integration', desc: 'Immersive design experience' },
-                  { icon: '🤝', title: 'Collaboration', desc: 'Real-time team design' },
-                  { icon: '📱', title: 'Mobile Apps', desc: 'Design on the go' },
-                ].map((feature, index) => (
-                  <motion.div
-                    key={feature.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 + index * 0.1 }}
-                    className="rounded-2xl border border-white/15 bg-white/12 p-6 backdrop-blur-md transition-all duration-300 hover:bg-white/18"
-                  >
-                    <div className="mb-3 text-3xl">{feature.icon}</div>
-                    <h3 className="mb-2 font-semibold text-white">{feature.title}</h3>
-                    <p className="text-sm text-primary-100">{feature.desc}</p>
-                  </motion.div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {['Conversational CAD', 'LLM & RAG Systems', 'Diffusion Models', 'FastAPI', 'React'].map((tag) => (
+                  <span key={tag} className="app-pill-muted py-1 text-xs">{tag}</span>
                 ))}
               </div>
-
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1 }}
-                className="inline-flex"
-              >
-                <div className="app-button-secondary cursor-pointer">
-                  <span>Built for Real-World AI Workflows</span>
-                  <ArrowRight className="h-5 w-5" />
-                </div>
-              </motion.div>
             </div>
+          </motion.div>
+        </motion.div>
+
+        {/* CTA */}
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          className="mb-8 flex flex-col items-center gap-4 text-center">
+          <h2 className="app-section-title">Ready to try it?</h2>
+          <p className="app-section-copy max-w-xl">
+            Open the Studio and describe your first floor plan in plain language.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link to="/studio" className="app-button-primary">
+              Launch Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            <Link to="/docs" className="app-button-secondary">
+              Read the Docs
+            </Link>
+            <Link to="/developers" className="app-button-ghost">
+              Meet the Builder
+            </Link>
           </div>
         </motion.div>
+
       </div>
     </div>
   );
