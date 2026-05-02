@@ -84,6 +84,28 @@ Stored in `backend/.env` (see `backend/.env.example` for template). Key vars:
 
 **Avatar cache-busting**: `avatarTs` state (timestamp) in AuthContext, bumped after avatar upload/delete. Used as `?t=${avatarTs}` on all `<img src="/api/v1/profile/me/avatar">` elements.
 
+## Studio Sidebar DXF Viewer
+
+A compact DXF viewer integrated directly into the Studio's sidebar panel (vanilla HTML/CSS/JS, no React). Activated by clicking "DXF Render" in the sidebar tab switcher.
+
+**Location**: `frontend/public/studio-app/` — `index.html`, `scripts/app.js`, `styles/styles.css`
+
+**Features:**
+- Drop zone / click-to-upload for local `.dxf` files (POSTs to `/api/v1/dxf/upload`)
+- Auto-populates from the most recent chat-generated DXF when the tab is opened
+- 190px inline preview canvas with zoom (buttons + Ctrl+scroll), drag-to-pan
+- File bar showing the loaded filename (with ☁ prefix for chat-sourced renders)
+- PNG / PDF download buttons (via `/api/v1/dxf/export`)
+- Clear button to reset the viewer
+
+**Key IDs**: `#sidebar-dxf-viewer-panel`, `#sdv-dropzone`, `#sdv-file-input`, `#sdv-canvas`, `#sdv-image`, `#sdv-empty`, `#sdv-file-bar`, `#sdv-zoom-in-btn`, `#sdv-zoom-out-btn`, `#sdv-zoom-reset-btn`, `#sdv-download-png-btn`, `#sdv-download-pdf-btn`
+
+**CSS classes**: `.sdv-panel`, `.sdv-dropzone`, `.sdv-file-input`, `.sdv-file-bar`, `.sdv-canvas`, `.sdv-empty`, `.sdv-image`, `.sdv-toolbar`, `.sdv-zoom-row`, `.sdv-dl-row`, `.sdv-tool-btn`, `.sdv-zoom-pct`, `.sdv-clear-btn`
+
+**JS state** (in `state` object): `sdvScale`, `sdvPanX`, `sdvPanY`, `sdvBaseWidth`, `sdvBaseHeight`, `sdvFileToken`, `sdvFileName`, `sdvPanSession`
+
+**Sidebar tab behavior**: When "DXF Render" tab is active, `#sidebar-projects-panel` is hidden and `#sidebar-dxf-viewer-panel` is shown. Switching to other tabs reverses this.
+
 ## DXF Viewer (`/viewer`)
 
 Standalone fullscreen page (no Navbar/Footer wrapper) for viewing, uploading, and exporting DXF files.

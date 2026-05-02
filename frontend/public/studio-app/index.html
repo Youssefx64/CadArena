@@ -25,7 +25,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles/styles.css?v=theme50" />
+    <link rel="stylesheet" href="./styles/styles.css?v=theme51" />
     <link rel="stylesheet" href="./styles/back-nav.css?v=1" />
   </head>
   <body>
@@ -361,6 +361,63 @@
             <p class="sidebar-mini-heading">Chat History</p>
             <div class="project-list" id="project-list" role="list"></div>
           </section>
+
+          <section class="sidebar-tab-panel sdv-panel" id="sidebar-dxf-viewer-panel" hidden>
+            <div class="sidebar-panel-header">
+              <h2>DXF Viewer</h2>
+            </div>
+            <label class="sdv-dropzone" id="sdv-dropzone" title="Click or drag a .dxf file here">
+              <input class="sdv-file-input" id="sdv-file-input" type="file" accept=".dxf" />
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3.8v9.1m0 0 3.2-3.2M12 12.9 8.8 9.7M4.9 16.6v1.8A1.8 1.8 0 0 0 6.7 20h10.6a1.8 1.8 0 0 0 1.8-1.6v-1.8"
+                  fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                />
+              </svg>
+              <span class="sdv-dropzone-label">Drop .dxf or click to upload</span>
+            </label>
+            <div class="sdv-file-bar" id="sdv-file-bar" hidden>
+              <span class="sdv-file-name" id="sdv-file-name">file.dxf</span>
+              <button class="sdv-clear-btn" id="sdv-clear-btn" type="button" aria-label="Clear file">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="sdv-canvas" id="sdv-canvas" title="Use Ctrl/Cmd + scroll to zoom">
+              <div class="sdv-empty" id="sdv-empty">Upload a .dxf file or view a chat render here.</div>
+              <img class="sdv-image" id="sdv-image" alt="DXF preview" />
+            </div>
+            <div class="sdv-toolbar">
+              <div class="sdv-zoom-row">
+                <button class="sdv-tool-btn" id="sdv-zoom-out-btn" type="button" aria-label="Zoom out" title="Zoom out">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm7 2-3.1-3.1M8 11h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button class="sdv-tool-btn sdv-zoom-pct" id="sdv-zoom-reset-btn" type="button" aria-label="Reset zoom" title="Reset zoom">100%</button>
+                <button class="sdv-tool-btn" id="sdv-zoom-in-btn" type="button" aria-label="Zoom in" title="Zoom in">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm7 2-3.1-3.1M11 8v6M8 11h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+              <div class="sdv-dl-row">
+                <button class="sdv-tool-btn" id="sdv-download-png-btn" type="button" title="Download PNG" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3.8v9.1m0 0 3.2-3.2M12 12.9 8.8 9.7M4.9 16.6v1.8A1.8 1.8 0 0 0 6.7 20h10.6a1.8 1.8 0 0 0 1.8-1.6v-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span>PNG</span>
+                </button>
+                <button class="sdv-tool-btn" id="sdv-download-pdf-btn" type="button" title="Download PDF" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 4.8h8.8L19 9v10.2H6V4.8Zm8.8 0V9H19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span>PDF</span>
+                </button>
+              </div>
+            </div>
+          </section>
         </aside>
 
         <div
@@ -693,6 +750,6 @@
     </div>
 
     <script src="./scripts/back-nav.js?v=1" defer></script>
-    <script type="module" src="./scripts/app.js?v=theme41"></script>
+    <script type="module" src="./scripts/app.js?v=theme42"></script>
   </body>
 </html>
