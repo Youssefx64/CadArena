@@ -1,0 +1,148 @@
+You are a Senior Full-Stack Engineer specialized in Authentication Systems and Secure Web Applications.
+
+Your task is to design and implement a complete Authentication & User Profile system for my platform.
+
+---
+
+## 🎯 Core Requirements:
+
+### 1. Authentication System
+
+Implement a full authentication system including:
+
+* User Sign Up (Register)
+* User Sign In (Login)
+* Secure Password Hashing (use bcrypt or equivalent)
+* JWT-based authentication (or secure session-based auth if preferred)
+* Logout functionality
+* Persistent login (remember user)
+
+---
+
+### 2. User Profile System
+
+Each user should have a dedicated profile that includes:
+
+* Unique user ID
+* Username
+* Email
+* Profile picture (upload or placeholder avatar)
+* Bio / description (optional)
+* Created at timestamp
+
+Provide functionality for:
+
+* Viewing profile
+* Editing profile
+* Updating profile picture
+
+---
+
+### 3. Database Design
+
+Design a clean and scalable schema:
+
+User table should include:
+
+* id
+* username
+* email (unique)
+* password_hash
+* avatar_url
+* bio
+* created_at
+
+Explain relationships if needed.
+
+---
+
+### 4. Frontend UI/UX (IMPORTANT)
+
+Build modern and clean UI:
+
+#### Pages:
+
+* Sign Up Page
+* Login Page
+* User Profile Page
+* Edit Profile Page
+
+#### Requirements:
+
+* Responsive design (mobile-first)
+* Clear form validation (real-time feedback)
+* Error handling (invalid credentials, email already exists, etc.)
+* Smooth UX (loading states, success messages)
+
+---
+
+### 5. Security Best Practices
+
+* Hash passwords properly (bcrypt)
+* Validate inputs (frontend + backend)
+* Protect routes (authenticated routes only)
+* Prevent common attacks (XSS, CSRF basics)
+* Do NOT store plain passwords
+
+---
+
+### 6. API Design
+
+Create clear RESTful endpoints:
+
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+GET /api/user/profile
+PUT /api/user/profile
+
+---
+
+### 7. Code Quality
+
+* Use clean, modular structure
+* Separate concerns (routes, controllers, services)
+* Use environment variables for secrets
+* Add comments where necessary
+
+---
+
+### 8. Tech Stack (if not specified, suggest best)
+
+If no stack is provided, suggest and use:
+
+* Frontend: React / Next.js
+* Styling: Tailwind CSS
+* Backend: Node.js + Express
+* Database: PostgreSQL or MongoDB
+
+---
+
+### ⚡ Output Requirements:
+
+* Provide full working code (frontend + backend)
+* Show folder structure
+* Explain each major part briefly
+* Include setup instructions
+* Make it production-ready, not a demo
+
+---
+
+### 🚀 Bonus Features (if possible):
+
+* Email verification system
+* Password reset (forgot password flow)
+* OAuth login (Google/GitHub)
+* Default avatar generation
+
+---
+
+### 🚫 Avoid:
+
+* Simplified or insecure implementations
+* Dummy or fake authentication logic
+* Skipping backend logic
+
+---
+
+Start by asking which tech stack I am using. If not provided, proceed with a modern recommended stack and implement everything step by step.

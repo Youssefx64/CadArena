@@ -5,15 +5,20 @@ import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import { AuthProvider } from './contexts/AuthContext';
 
-const HomePage = lazy(() => import('./pages/HomePage'));
-const GeneratorPage = lazy(() => import('./pages/GeneratorPage'));
-const ModelsPage = lazy(() => import('./pages/ModelsPage'));
-const MetricsPage = lazy(() => import('./pages/MetricsPage'));
-const AboutPage = lazy(() => import('./pages/AboutPage'));
+const HomePage       = lazy(() => import('./pages/HomePage'));
+const GeneratorPage  = lazy(() => import('./pages/GeneratorPage'));
+const ModelsPage     = lazy(() => import('./pages/ModelsPage'));
+const MetricsPage    = lazy(() => import('./pages/MetricsPage'));
+const AboutPage      = lazy(() => import('./pages/AboutPage'));
 const DevelopersPage = lazy(() => import('./pages/DevelopersPage'));
-const StudioPage = lazy(() => import('./pages/StudioPage'));
-const CommunityPage = lazy(() => import('./pages/CommunityPage'));
+const StudioPage     = lazy(() => import('./pages/StudioPage'));
+const CommunityPage  = lazy(() => import('./pages/CommunityPage'));
+const LoginPage      = lazy(() => import('./pages/LoginPage'));
+const SignUpPage      = lazy(() => import('./pages/SignUpPage'));
+const ProfilePage    = lazy(() => import('./pages/ProfilePage'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
 
 function PageLoader() {
   return (
@@ -36,7 +41,6 @@ function PageLoader() {
 
 function MainLayout() {
   const location = useLocation();
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -62,44 +66,47 @@ function MainLayout() {
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <Routes>
-          <Route
-            path="/studio"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <StudioPage />
-              </Suspense>
-            }
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route
+              path="/studio"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <StudioPage />
+                </Suspense>
+              }
+            />
+            <Route element={<MainLayout />}>
+              <Route path="/"              element={<HomePage />} />
+              <Route path="/community"     element={<CommunityPage />} />
+              <Route path="/generate"      element={<GeneratorPage />} />
+              <Route path="/models"        element={<ModelsPage />} />
+              <Route path="/metrics"       element={<MetricsPage />} />
+              <Route path="/about"         element={<AboutPage />} />
+              <Route path="/developers"    element={<DevelopersPage />} />
+              <Route path="/login"         element={<LoginPage />} />
+              <Route path="/signup"        element={<SignUpPage />} />
+              <Route path="/profile"       element={<ProfilePage />} />
+              <Route path="/profile/edit"  element={<EditProfilePage />} />
+            </Route>
+          </Routes>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: 'rgba(15, 23, 42, 0.96)',
+                color: '#f8fafc',
+                border: '1px solid rgba(96, 165, 250, 0.18)',
+                borderRadius: '16px',
+                boxShadow: '0 18px 40px rgba(15, 23, 42, 0.2)',
+              },
+              iconTheme: { primary: '#3b82f6', secondary: '#f8fafc' },
+            }}
           />
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/community" element={<CommunityPage />} />
-            <Route path="/generate" element={<GeneratorPage />} />
-            <Route path="/models" element={<ModelsPage />} />
-            <Route path="/metrics" element={<MetricsPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/developers" element={<DevelopersPage />} />
-          </Route>
-        </Routes>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: 'rgba(15, 23, 42, 0.96)',
-              color: '#f8fafc',
-              border: '1px solid rgba(96, 165, 250, 0.18)',
-              borderRadius: '16px',
-              boxShadow: '0 18px 40px rgba(15, 23, 42, 0.2)',
-            },
-            iconTheme: {
-              primary: '#3b82f6',
-              secondary: '#f8fafc',
-            },
-          }}
-        />
-      </Router>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -65,6 +65,25 @@ Stored in `backend/.env` (see `backend/.env.example` for template). Key vars:
 - Python: FastAPI, uvicorn, ezdxf, matplotlib, torch (CPU), transformers, accelerate, langchain, langchain-ollama, bcrypt, cryptography
 - Node: React, react-router-dom, axios, framer-motion, tailwindcss, recharts, lucide-react
 
+## Authentication System
+
+**Backend** (already complete): JWT HTTP-only cookies (`cadarena_auth`, 7-day TTL, SameSite=lax), bcrypt password hashing, profile + avatar endpoints, optional Google OAuth.
+
+**Frontend** (`frontend/src/`):
+- `services/authApi.js` — Dedicated axios instance with `withCredentials: true` and `baseURL: ''` (relative, uses CRA proxy in dev / same-origin in prod). Exports: `register`, `login`, `logout`, `getCurrentUser`, `getProfile`, `updateProfile`, `uploadAvatar`, `deleteAvatar`.
+- `contexts/AuthContext.js` — React context providing `user`, `profile`, `isLoading`, `isAuthenticated`, `avatarTs`, and `login/register/logout/refreshProfile/bumpAvatarTs`. Silently restores session on app mount via `GET /api/v1/auth/me`.
+- `components/auth/ProtectedRoute.js` — Redirects to `/login` (with `state.from`) if not authenticated. Shows spinner while auth state is resolving.
+- `pages/LoginPage.js` — Email + password with show/hide toggle, real-time validation, animated error banner, redirects to originally-intended page on success.
+- `pages/SignUpPage.js` — Name + email + password + confirm fields, 4-level password strength meter, real-time validation.
+- `pages/ProfilePage.js` — Protected. Displays avatar, display name, headline, join date, company, website. Edit button opens EditProfilePage.
+- `pages/EditProfilePage.js` — Protected. Avatar upload/delete with live preview (5 MB max). Form fields: display_name, headline, company, website, timezone. Saves via PATCH + refreshes context.
+
+**Routes**: `/login`, `/signup`, `/profile` (protected), `/profile/edit` (protected).
+
+**Navbar auth state**: Unauthenticated → "Sign In" ghost button + "Sign Up" primary button. Authenticated → "Studio" button + avatar/name button with animated dropdown (My Profile, Edit Profile, Sign Out). Mobile menu shows user card + profile/sign-out actions.
+
+**Avatar cache-busting**: `avatarTs` state (timestamp) in AuthContext, bumped after avatar upload/delete. Used as `?t=${avatarTs}` on all `<img src="/api/v1/profile/me/avatar">` elements.
+
 ## UI/UX Notes
 
 - **Code splitting**: All 8 pages are lazy-loaded via `React.lazy` + `Suspense` with a skeleton fallback (`PageLoader`) for smooth transitions
