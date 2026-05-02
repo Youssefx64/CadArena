@@ -329,7 +329,7 @@ textarea {
     align-items: center;
     gap: 8px;
     min-height: 42px;
-    padding: 10px 2px;
+    padding: 10px 10px;
     color: var(--text-muted);
     font-size: var(--type-caption);
     font-weight: 700;

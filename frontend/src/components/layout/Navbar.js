@@ -164,16 +164,18 @@ export default function Navbar() {
       aria-label="Main navigation"
     >
       <div className="app-shell">
-        <div className="flex h-[68px] items-center justify-between">
-          <Link to="/" className="app-navbar-brand" aria-label="CadArena home">
-            <img src={brandMarkSrc} alt="" aria-hidden="true" className="app-navbar-logo" />
-            <div className="flex flex-col leading-none">
-              <span className="text-lg font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-xl">CadArena</span>
-              <span className="hidden text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-500 sm:block">
-                AI Layout Workspace
-              </span>
-            </div>
-          </Link>
+        <div className="flex h-[68px] items-center">
+          <div className="flex flex-1 items-center">
+            <Link to="/" className="app-navbar-brand" aria-label="CadArena home">
+              <img src={brandMarkSrc} alt="" aria-hidden="true" className="app-navbar-logo" />
+              <div className="flex flex-col leading-none">
+                <span className="text-lg font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-xl">CadArena</span>
+                <span className="hidden text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-500 sm:block">
+                  AI Layout Workspace
+                </span>
+              </div>
+            </Link>
+          </div>
 
           <div className="hidden items-center gap-0.5 md:flex" role="list">
             {NAV_LINKS.map((item) => {
@@ -182,7 +184,7 @@ export default function Navbar() {
               return (
                 <Link key={item.name} to={item.href} role="listitem"
                   aria-current={active ? 'page' : undefined}
-                  className={`app-nav-link px-2 ${active ? 'app-nav-link-active' : ''}`}>
+                  className={`app-nav-link ${active ? 'app-nav-link-active' : ''}`}>
                   <Icon className="w-4 h-4" aria-hidden="true" />
                   <span>{item.name}</span>
                 </Link>
@@ -190,7 +192,7 @@ export default function Navbar() {
             })}
           </div>
 
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden flex-1 items-center justify-end gap-2 md:flex">
             <motion.button
               onClick={toggleDark}
               className="dark-toggle"
