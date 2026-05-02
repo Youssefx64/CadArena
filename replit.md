@@ -107,9 +107,11 @@ Users can upload their own `.dxf` files directly in the right-side DXF Render pa
 - PNG and PDF export after loading
 - Empty state shows icon + "Open a DXF file" + drag-drop hint
 
-**Key element IDs**: `#dxf-render-panel`, `#dxf-render-canvas`, `#dxf-render-image`, `#dxf-render-empty`, `#dxf-render-upload-btn`, `#dxf-render-file-input`
+**Key element IDs**: `#dxf-render-panel`, `#dxf-render-canvas`, `#dxf-render-image`, `#dxf-render-empty`, `#dxf-upload-btn`, `#dxf-file-input`
 
-**Key JS function**: `uploadDxfAndRender(file)` — validates, POSTs, then calls `updateStandaloneDxfRender()`
+**Key JS function**: `uploadDxfAndView(file)` — validates, POSTs to `/api/v1/dxf/upload`, then calls `updateStandaloneDxfRender()`
+
+**Version params**: `styles.css?v=acad2`, `app.js?v=acad2` — bump these whenever Studio files change to bust browser cache.
 
 ## DXF Viewer (`/viewer`)
 

@@ -1389,6 +1389,8 @@ function updatePreview({ fileName, fileToken }) {
   previewImage.src = previewUrl;
 }
 
+const _DXF_DROP_ZONE_HTML = dxfRenderEmpty ? dxfRenderEmpty.innerHTML : "";
+
 function resetDxfRenderPreview({
   emptyMessage = DXF_RENDER_EMPTY_MESSAGE,
   projectId = state.activeProjectId,
@@ -1397,12 +1399,19 @@ function resetDxfRenderPreview({
     return;
   }
   dxfRenderCanvas.classList.remove("loading");
+  dxfRenderCanvas.classList.remove("has-image");
   dxfRenderImage.style.display = "none";
   dxfRenderImage.classList.remove("is-visible");
   dxfRenderImage.removeAttribute("src");
   dxfRenderImage.style.transform = "translate(0px, 0px) scale(1)";
   dxfRenderEmpty.style.display = "grid";
-  dxfRenderEmpty.textContent = emptyMessage;
+  if (emptyMessage === DXF_RENDER_EMPTY_MESSAGE && _DXF_DROP_ZONE_HTML) {
+    dxfRenderEmpty.innerHTML = _DXF_DROP_ZONE_HTML;
+    dxfRenderEmpty.classList.add("dxf-viewer-empty");
+  } else {
+    dxfRenderEmpty.textContent = emptyMessage;
+    dxfRenderEmpty.classList.remove("dxf-viewer-empty");
+  }
   state.dxfRenderScale = 1;
   state.dxfRenderPanX = 0;
   state.dxfRenderPanY = 0;
@@ -1515,6 +1524,7 @@ function updateStandaloneDxfRender({
 
   dxfRenderImage.onload = () => {
     dxfRenderCanvas.classList.remove("loading");
+    dxfRenderCanvas.classList.add("has-image");
     dxfRenderEmpty.style.display = "none";
     dxfRenderImage.style.display = "block";
     dxfRenderImage.classList.add("is-visible");
