@@ -1,18 +1,38 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
-import HomePage from './pages/HomePage';
-import GeneratorPage from './pages/GeneratorPage';
-import ModelsPage from './pages/ModelsPage';
-import MetricsPage from './pages/MetricsPage';
-import AboutPage from './pages/AboutPage';
-import DevelopersPage from './pages/DevelopersPage';
-import StudioPage from './pages/StudioPage';
-import CommunityPage from './pages/CommunityPage';
+
+const HomePage = lazy(() => import('./pages/HomePage'));
+const GeneratorPage = lazy(() => import('./pages/GeneratorPage'));
+const ModelsPage = lazy(() => import('./pages/ModelsPage'));
+const MetricsPage = lazy(() => import('./pages/MetricsPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const DevelopersPage = lazy(() => import('./pages/DevelopersPage'));
+const StudioPage = lazy(() => import('./pages/StudioPage'));
+const CommunityPage = lazy(() => import('./pages/CommunityPage'));
+
+function PageLoader() {
+  return (
+    <div className="app-page">
+      <div className="app-shell space-y-6">
+        <div className="app-page-header">
+          <span className="app-skeleton app-skeleton-pill mx-auto mb-4 block h-8 w-48" />
+          <span className="app-skeleton mx-auto mb-3 block h-12 w-3/4" />
+          <span className="app-skeleton mx-auto block h-6 w-1/2" />
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="app-skeleton block h-48 w-full" style={{ borderRadius: 16 }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MainLayout() {
   const location = useLocation();
@@ -29,7 +49,9 @@ function MainLayout() {
           exit={{ opacity: 0, y: -10, filter: 'blur(3px)' }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </motion.main>
       </AnimatePresence>
       <Footer />
@@ -42,7 +64,14 @@ function App() {
     <ErrorBoundary>
       <Router>
         <Routes>
-          <Route path="/studio" element={<StudioPage />} />
+          <Route
+            path="/studio"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <StudioPage />
+              </Suspense>
+            }
+          />
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/community" element={<CommunityPage />} />

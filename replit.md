@@ -36,7 +36,7 @@ backend/           FastAPI backend
 - AI-powered floor plan generation from natural language
 - DXF export (AutoCAD/Revit compatible)
 - EBC 2023 compliance checking
-- Community Q&A hub
+- Community Q&A hub (coming soon)
 - Multi-language (Arabic & English)
 - JWT authentication with optional Google OAuth
 - Workspace with project management
@@ -64,3 +64,14 @@ Stored in `backend/.env` (see `backend/.env.example` for template). Key vars:
 
 - Python: FastAPI, uvicorn, ezdxf, matplotlib, torch (CPU), transformers, accelerate, langchain, langchain-ollama, bcrypt, cryptography
 - Node: React, react-router-dom, axios, framer-motion, tailwindcss, recharts, lucide-react
+
+## UI/UX Notes
+
+- **Code splitting**: All 8 pages are lazy-loaded via `React.lazy` + `Suspense` with a skeleton fallback (`PageLoader`) for smooth transitions
+- **Navbar**: Animated mobile menu (Framer Motion slide-in with staggered items), Escape key closes menu, body scroll locked when open, "Launch Studio" CTA button on desktop/mobile, ARIA `aria-expanded` and `aria-current` attributes on all nav items
+- **Footer**: All internal links use React Router `<Link>` to avoid full-page reloads
+- **CommunityPage**: No external CDN image dependencies — all icons use lucide-react; includes email notification sign-up with `aria-live` feedback
+- **GeneratorPage**: Status indicator shown inline without toast on page load; blueprint placeholder shown in preview pane before generation; metrics card rendered post-generation
+- **HomePage**: Animated floor plan `BlueprintPreview` component (inline SVG-like rooms with CSS grid + Framer Motion stagger) replaces the old emoji placeholder
+- **CSS**: Design system uses CSS custom properties + `@layer components` in `index.css`; no CSS modules
+- **Accessibility**: ARIA labels on all interactive elements, `role="status"` with `aria-live` on dynamic status regions, `sr-only` labels on icon-only buttons, focus management on mobile menu

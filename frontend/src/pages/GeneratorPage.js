@@ -1,8 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Zap, Settings, Download, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Zap, Settings, Download, Sparkles, AlertCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import cadArenaAPI from '../services/api';
+
+function BlueprintPlaceholder() {
+  return (
+    <div
+      className="generator-placeholder-shell"
+      aria-hidden="true"
+    >
+      <div className="generator-blueprint-frame">
+        <div className="generator-placeholder-grid" />
+        <div className="generator-room generator-room-a" />
+        <div className="generator-room generator-room-b" />
+        <div className="generator-room generator-room-c" />
+        <div className="generator-room generator-room-d" />
+        <div className="generator-room generator-room-e" />
+        <div className="generator-room generator-room-f" />
+      </div>
+      <p className="mt-4 text-center text-sm font-semibold text-slate-500 tracking-wide">
+        Your floor plan will appear here
+      </p>
+      <p className="mt-1 text-center text-xs text-slate-400">
+        Describe a layout and click Generate
+      </p>
+    </div>
+  );
+}
 
 const GeneratorPage = () => {
   const promptRef = useRef(null);
@@ -12,50 +37,41 @@ const GeneratorPage = () => {
   const [generatedImage, setGeneratedImage] = useState(null);
   const [generationMetrics, setGenerationMetrics] = useState(null);
   const [style, setStyle] = useState('modern');
-  const [apiStatus, setApiStatus] = useState('checking');
+  const [apiStatus, setApiStatus] = useState('idle');
   const [modelInfo, setModelInfo] = useState(null);
   const [presets, setPresets] = useState(null);
   const [modelLoaded, setModelLoaded] = useState(false);
 
   const resizePromptField = (field = promptRef.current) => {
-    if (!field) {
-      return;
-    }
-
+    if (!field) return;
     field.style.height = '0px';
     field.style.height = `${Math.min(field.scrollHeight, 360)}px`;
   };
 
-  useEffect(() => {
-    const initializeAPI = async () => {
+  const checkStatus = useCallback(async () => {
+    setApiStatus('checking');
+    try {
+      await cadArenaAPI.checkHealth();
+      setApiStatus('online');
+
       try {
-        await cadArenaAPI.checkHealth();
-        setApiStatus('online');
-        toast.success('CadArena AI is ready!');
+        const info = await cadArenaAPI.getModelInfo();
+        setModelInfo(info.model_info);
+        setModelLoaded(info.model_info?.is_loaded || false);
+      } catch (_) {}
 
-        try {
-          const info = await cadArenaAPI.getModelInfo();
-          setModelInfo(info.model_info);
-          setModelLoaded(info.model_info?.is_loaded || false);
-        } catch (error) {
-          console.warn('Could not load model info:', error);
-        }
-
-        try {
-          const presetsData = await cadArenaAPI.getPresets();
-          setPresets(presetsData.presets);
-        } catch (error) {
-          console.warn('Could not load presets:', error);
-        }
-      } catch (error) {
-        setApiStatus('offline');
-        toast.error('CadArena AI is offline. Please start the backend server.');
-        console.error('API initialization failed:', error);
-      }
-    };
-
-    initializeAPI();
+      try {
+        const presetsData = await cadArenaAPI.getPresets();
+        setPresets(presetsData.presets);
+      } catch (_) {}
+    } catch (_) {
+      setApiStatus('offline');
+    }
   }, []);
+
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
 
   useEffect(() => {
     resizePromptField();
@@ -71,18 +87,9 @@ const GeneratorPage = () => {
   ];
 
   const generationPhases = [
-    {
-      title: 'Parsing your brief',
-      detail: 'Understanding rooms, counts, and adjacency intent.',
-    },
-    {
-      title: 'Balancing the layout',
-      detail: 'Shaping circulation and room proportions.',
-    },
-    {
-      title: 'Rendering the preview',
-      detail: 'Preparing a floor plan image you can inspect.',
-    },
+    { title: 'Parsing your brief', detail: 'Understanding rooms, counts, and adjacency intent.' },
+    { title: 'Balancing the layout', detail: 'Shaping circulation and room proportions.' },
+    { title: 'Rendering the preview', detail: 'Preparing a floor plan image you can inspect.' },
   ];
 
   const promptWordCount = prompt.trim() ? prompt.trim().split(/\s+/).length : 0;
@@ -95,23 +102,18 @@ const GeneratorPage = () => {
       toast.error('Backend server is not available');
       return;
     }
-
     setApiStatus('loading_model');
-
     try {
-      toast.loading('Loading CadArena AI model...', { duration: 2000 });
-
+      toast.loading('Loading CadArena AI model…', { duration: 2000 });
       const result = await cadArenaAPI.loadModel();
-
       if (result.status === 'success') {
         setModelLoaded(true);
         setModelInfo(result.model_info);
-        toast.success('🎉 CadArena AI model loaded successfully!');
+        toast.success('CadArena AI model loaded successfully!');
       } else {
         throw new Error(result.error || 'Failed to load model');
       }
     } catch (error) {
-      console.error('Model loading error:', error);
       toast.error(`Failed to load model: ${error.message}`);
       setModelLoaded(false);
     } finally {
@@ -124,12 +126,10 @@ const GeneratorPage = () => {
       toast.error('Please enter a description for your floor plan');
       return;
     }
-
     if (apiStatus !== 'online') {
       toast.error('CadArena AI is not available. Please check the backend server.');
       return;
     }
-
     if (!modelLoaded) {
       toast.error('Please load the CadArena AI model first.');
       return;
@@ -157,13 +157,11 @@ const GeneratorPage = () => {
           generation_time: (Date.now() - startTime) / 1000,
           metadata: result.metadata,
         });
-
-        toast.success('🎉 Floor plan generated successfully!');
+        toast.success('Floor plan generated successfully!');
       } else {
         throw new Error('Generation failed');
       }
     } catch (error) {
-      console.error('Generation error:', error);
       toast.error(`Generation failed: ${error.message}`);
       setGeneratedImage(null);
       setGenerationMetrics(null);
@@ -182,65 +180,33 @@ const GeneratorPage = () => {
     requestAnimationFrame(() => {
       if (promptRef.current) {
         promptRef.current.focus();
-        const promptLength = samplePrompt.length;
-        promptRef.current.setSelectionRange(promptLength, promptLength);
+        const len = samplePrompt.length;
+        promptRef.current.setSelectionRange(len, len);
       }
     });
   };
 
   const handleDownload = async () => {
-    if (generatedImage) {
-      try {
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        const filename = `cadarena_layout_${timestamp}.png`;
-
-        await cadArenaAPI.downloadImage(generatedImage, filename);
-        toast.success('🎉 Floor plan downloaded successfully!');
-      } catch (error) {
-        console.error('Download error:', error);
-        toast.error('Download failed. Please try again.');
-      }
+    if (!generatedImage) return;
+    try {
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      await cadArenaAPI.downloadImage(generatedImage, `cadarena_layout_${timestamp}.png`);
+      toast.success('Floor plan downloaded successfully!');
+    } catch (_) {
+      toast.error('Download failed. Please try again.');
     }
   };
 
   const statusConfig = (() => {
-    if (apiStatus === 'offline') {
-      return {
-        label: 'CadArena AI Offline',
-        classes: 'border-red-200 bg-red-50 text-red-700',
-        dot: 'bg-red-500',
-      };
-    }
-
-    if (apiStatus === 'loading_model') {
-      return {
-        label: 'Loading AI Model...',
-        classes: 'border-secondary-200 bg-secondary-50 text-secondary-700',
-        dot: 'bg-secondary-500 animate-pulse',
-      };
-    }
-
-    if (apiStatus === 'checking') {
-      return {
-        label: 'Connecting to CadArena AI...',
-        classes: 'border-primary-200 bg-primary-50 text-primary-700',
-        dot: 'bg-primary-500 animate-pulse',
-      };
-    }
-
-    if (modelLoaded) {
-      return {
-        label: 'CadArena AI Ready',
-        classes: 'border-primary-200 bg-primary-50 text-primary-700',
-        dot: 'bg-primary-600',
-      };
-    }
-
-    return {
-      label: 'Model Not Loaded',
-      classes: 'border-secondary-200 bg-secondary-50 text-secondary-700',
-      dot: 'bg-secondary-500',
-    };
+    if (apiStatus === 'offline')
+      return { label: 'Backend Offline', classes: 'border-red-200 bg-red-50 text-red-700', dot: 'bg-red-500' };
+    if (apiStatus === 'loading_model')
+      return { label: 'Loading AI Model…', classes: 'border-secondary-200 bg-secondary-50 text-secondary-700', dot: 'bg-secondary-500 animate-pulse' };
+    if (apiStatus === 'checking')
+      return { label: 'Connecting…', classes: 'border-primary-200 bg-primary-50 text-primary-700', dot: 'bg-primary-500 animate-pulse' };
+    if (modelLoaded)
+      return { label: 'AI Ready', classes: 'border-green-200 bg-green-50 text-green-700', dot: 'bg-green-500' };
+    return { label: 'Model Not Loaded', classes: 'border-secondary-200 bg-secondary-50 text-secondary-700', dot: 'bg-secondary-500' };
   })();
 
   const previewCopy = isGenerating
@@ -248,6 +214,8 @@ const GeneratorPage = () => {
     : generatedImage
       ? 'Review the rendered output, inspect the result, and download when you are ready.'
       : 'Describe the plan you want and your generated concept will appear here.';
+
+  const canGenerate = !isGenerating && prompt.trim() && modelLoaded && apiStatus === 'online';
 
   return (
     <div className="app-page">
@@ -260,15 +228,35 @@ const GeneratorPage = () => {
             Transform your ideas into detailed architectural floor plans using your trained AI model.
           </p>
 
-          <div className="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-soft ${statusConfig.classes}`}>
-              <span className={`app-status-dot ${statusConfig.dot}`} />
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-soft ${statusConfig.classes}`}
+              role="status"
+              aria-live="polite"
+              aria-label={`AI status: ${statusConfig.label}`}
+            >
+              <span className={`app-status-dot ${statusConfig.dot}`} aria-hidden="true" />
               {statusConfig.label}
             </div>
 
+            {apiStatus === 'offline' && (
+              <button
+                onClick={checkStatus}
+                className="app-button-secondary app-button-compact"
+                aria-label="Retry connection"
+              >
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                Retry Connection
+              </button>
+            )}
+
             {apiStatus === 'online' && !modelLoaded && (
-              <button onClick={handleLoadModel} className="app-button-primary app-button-compact">
-                <Zap className="h-4 w-4" />
+              <button
+                onClick={handleLoadModel}
+                className="app-button-primary app-button-compact"
+                aria-label="Load AI model"
+              >
+                <Zap className="h-4 w-4" aria-hidden="true" />
                 Load AI Model
               </button>
             )}
@@ -276,48 +264,70 @@ const GeneratorPage = () => {
         </motion.div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] xl:gap-10">
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
             <div className="app-card p-6 lg:p-7">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-950">Describe Your Floor Plan</label>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <label
+                    htmlFor="floor-plan-prompt"
+                    className="block text-sm font-semibold text-slate-950"
+                  >
+                    Describe Your Floor Plan
+                  </label>
+                  <p className="mt-1 text-sm text-slate-600" id="prompt-hint">
                     Include room count, desired adjacencies, special spaces, and overall style direction.
                   </p>
                 </div>
-                <span className="app-pill-muted">Auto-expands as you write</span>
+                <span className="app-pill-muted shrink-0" aria-hidden="true">Auto-expands</span>
               </div>
 
               <div className="generator-prompt-shell">
                 <textarea
+                  id="floor-plan-prompt"
                   ref={promptRef}
                   value={prompt}
                   onChange={handlePromptChange}
-                  placeholder="Enter a detailed description of your desired floor plan..."
+                  placeholder="e.g. 3-bedroom apartment with open kitchen, large living area, and two bathrooms…"
                   className="app-textarea generator-prompt-input"
                   rows={8}
                   disabled={isGenerating}
+                  aria-describedby="prompt-hint prompt-meta"
+                  aria-label="Floor plan description"
                 />
               </div>
 
-              <div className="generator-prompt-meta">
-                <p className="app-caption">Detailed prompts usually produce cleaner room relationships and flow.</p>
-                <span className="app-pill-muted">{promptWordCount} {promptWordCount === 1 ? 'word' : 'words'}</span>
+              <div className="generator-prompt-meta" id="prompt-meta">
+                <p className="app-caption">Detailed prompts produce cleaner room relationships.</p>
+                <span className="app-pill-muted" aria-label={`${promptWordCount} words`}>
+                  {promptWordCount} {promptWordCount === 1 ? 'word' : 'words'}
+                </span>
               </div>
 
               <div className="mt-4">
-                <p className="mb-3 text-sm font-semibold text-slate-700">Try these examples:</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="mb-3 text-sm font-semibold text-slate-700" id="samples-label">
+                  Example prompts:
+                </p>
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="list"
+                  aria-labelledby="samples-label"
+                >
                   {showPresetSkeletons
                     ? [0, 1, 2].map((item) => (
-                      <span key={item} className="app-skeleton app-skeleton-pill h-11 w-40" />
+                      <span key={item} className="app-skeleton app-skeleton-pill h-11 w-40" aria-hidden="true" />
                     ))
                     : samplePrompts.slice(0, 3).map((sample) => (
                       <button
                         key={sample}
+                        role="listitem"
                         onClick={() => handleSamplePrompt(sample)}
                         className="app-button-ghost app-button-compact text-xs"
                         disabled={isGenerating}
+                        aria-label={`Use example: ${sample}`}
                       >
                         {sample}
                       </button>
@@ -327,11 +337,11 @@ const GeneratorPage = () => {
             </div>
 
             <div className="app-card p-6 lg:p-7">
-              <label className="mb-3 block text-sm font-semibold text-slate-950">
-                <Settings className="mr-2 inline h-4 w-4" />
+              <p className="mb-3 block text-sm font-semibold text-slate-950" id="model-label">
+                <Settings className="mr-2 inline h-4 w-4" aria-hidden="true" />
                 Model Selection
-              </label>
-              <div className="space-y-3">
+              </p>
+              <div className="space-y-3" role="radiogroup" aria-labelledby="model-label">
                 <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-primary-100/70 bg-white/80 p-4 shadow-soft transition-colors hover:border-primary-200">
                   <input
                     type="radio"
@@ -341,37 +351,38 @@ const GeneratorPage = () => {
                     onChange={(e) => setModelType(e.target.value)}
                     className="text-primary-600 focus:ring-primary-500"
                     disabled={isGenerating}
+                    aria-describedby="baseline-desc"
                   />
                   <div className="flex-1">
-                    <div className="font-medium text-slate-950">
+                    <div className="font-medium text-slate-950 flex items-center gap-2 flex-wrap">
                       CadArena Baseline Model
                       {apiStatus === 'online' && (
-                        <span className="ml-2 rounded-full border border-primary-200 bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700">
+                        <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700">
                           Ready
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-slate-600">
-                      Your trained Stable Diffusion model (Recommended)
+                    <div id="baseline-desc" className="text-sm text-slate-600">
+                      Fine-tuned Stable Diffusion model (Recommended)
                     </div>
                     {modelInfo && (
                       <div className="mt-1 text-xs text-slate-500">
-                        Resolution: {modelInfo.resolution || '512x512'} • Device: {modelInfo.device || 'Auto'}
+                        {modelInfo.resolution || '512×512'} · {modelInfo.device || 'Auto'}
                       </div>
                     )}
                     {showModelInfoSkeleton && (
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-2 flex gap-2" aria-hidden="true">
                         <span className="app-skeleton h-3 w-24" />
                         <span className="app-skeleton h-3 w-20" />
                       </div>
                     )}
                   </div>
-                  <div className="rounded-full border border-secondary-200 bg-secondary-50 px-3 py-1 text-xs font-semibold text-secondary-700">
-                    71.7% Accuracy
-                  </div>
+                  <span className="shrink-0 rounded-full border border-secondary-200 bg-secondary-50 px-3 py-1 text-xs font-semibold text-secondary-700">
+                    71.7%
+                  </span>
                 </label>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/60 p-4 opacity-70 shadow-soft">
+                <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/60 p-4 opacity-60 shadow-soft">
                   <input
                     type="radio"
                     name="model"
@@ -380,89 +391,101 @@ const GeneratorPage = () => {
                     onChange={(e) => setModelType(e.target.value)}
                     className="text-primary-600 focus:ring-primary-500"
                     disabled
+                    aria-describedby="constraint-desc"
                   />
                   <div className="flex-1">
-                    <div className="font-medium text-slate-950">Constraint-Aware Model</div>
-                    <div className="text-sm text-slate-600">
-                      Advanced model with spatial consistency (Coming Soon)
+                    <div className="font-medium text-slate-950 flex items-center gap-2">
+                      Constraint-Aware Model
+                      <Info className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                    </div>
+                    <div id="constraint-desc" className="text-sm text-slate-600">
+                      Advanced spatial consistency model
                     </div>
                   </div>
-                  <div className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                    In Development
-                  </div>
+                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                    Coming Soon
+                  </span>
                 </label>
               </div>
             </div>
 
             <div className="app-card p-6 lg:p-7">
-              <label className="mb-3 block text-sm font-semibold text-slate-950">
-                <Sparkles className="mr-2 inline h-4 w-4" />
-                Advanced Options
-              </label>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Architectural Style
-                  </label>
-                  <select
-                    value={style}
-                    onChange={(e) => setStyle(e.target.value)}
-                    disabled={isGenerating}
-                    className="app-select"
-                  >
-                    <option value="modern">Modern</option>
-                    <option value="contemporary">Contemporary</option>
-                    <option value="traditional">Traditional</option>
-                    <option value="minimalist">Minimalist</option>
-                    <option value="industrial">Industrial</option>
-                    <option value="scandinavian">Scandinavian</option>
-                  </select>
-                </div>
-              </div>
+              <p className="mb-3 block text-sm font-semibold text-slate-950" id="style-label">
+                <Sparkles className="mr-2 inline h-4 w-4" aria-hidden="true" />
+                Architectural Style
+              </p>
+              <select
+                value={style}
+                onChange={(e) => setStyle(e.target.value)}
+                disabled={isGenerating}
+                className="app-select"
+                aria-labelledby="style-label"
+              >
+                <option value="modern">Modern</option>
+                <option value="contemporary">Contemporary</option>
+                <option value="traditional">Traditional</option>
+                <option value="minimalist">Minimalist</option>
+                <option value="industrial">Industrial</option>
+                <option value="scandinavian">Scandinavian</option>
+              </select>
             </div>
 
             <motion.button
               onClick={handleGenerate}
-              disabled={isGenerating || !prompt.trim() || !modelLoaded || apiStatus !== 'online'}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              disabled={!canGenerate}
+              whileHover={canGenerate ? { scale: 1.01 } : {}}
+              whileTap={canGenerate ? { scale: 0.99 } : {}}
               className="app-button-primary w-full"
+              aria-label={isGenerating ? 'Generating floor plan…' : 'Generate floor plan'}
+              aria-disabled={!canGenerate}
             >
               {isGenerating ? (
-                <div className="flex items-center justify-center gap-2">
-                  <motion.div
-                    className="h-5 w-5 rounded-full border-2 border-white border-t-transparent"
+                <span className="flex items-center justify-center gap-2">
+                  <motion.span
+                    className="block h-5 w-5 rounded-full border-2 border-white border-t-transparent"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    aria-hidden="true"
                   />
-                  <span>Generating Floor Plan...</span>
-                </div>
+                  Generating…
+                </span>
               ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  <span>Generate Floor Plan</span>
-                </div>
+                <span className="flex items-center justify-center gap-2">
+                  <Zap className="h-5 w-5" aria-hidden="true" />
+                  Generate Floor Plan
+                </span>
               )}
             </motion.button>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
             <div className="app-card p-6 lg:p-7">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="app-card-title">Generated Floor Plan</h3>
+                  <h2 className="app-card-title">Generated Floor Plan</h2>
                   <p className="mt-1 text-sm text-slate-600">{previewCopy}</p>
                 </div>
                 {generatedImage && !isGenerating && (
-                  <button onClick={handleDownload} className="app-button-secondary app-button-compact">
-                    <Download className="h-4 w-4" />
+                  <button
+                    onClick={handleDownload}
+                    className="app-button-secondary app-button-compact shrink-0"
+                    aria-label="Download generated floor plan as PNG"
+                  >
+                    <Download className="h-4 w-4" aria-hidden="true" />
                     <span>Download</span>
                   </button>
                 )}
               </div>
 
-              <div className={`generator-preview-stage app-card-muted ${isGenerating ? 'generator-preview-stage-loading' : ''}`}>
+              <div
+                className={`generator-preview-stage app-card-muted ${isGenerating ? 'generator-preview-stage-loading' : ''}`}
+                aria-live="polite"
+                aria-label={isGenerating ? 'Generating floor plan' : generatedImage ? 'Generated floor plan image' : 'Floor plan preview area'}
+              >
                 <AnimatePresence mode="wait">
                   {isGenerating ? (
                     <motion.div
@@ -473,7 +496,7 @@ const GeneratorPage = () => {
                       transition={{ duration: 0.3, ease: 'easeOut' }}
                       className="generator-state-shell"
                     >
-                      <div className="generator-loading-orb">
+                      <div className="generator-loading-orb" aria-hidden="true">
                         <motion.div
                           className="generator-loading-ring"
                           animate={{ scale: [0.92, 1.08, 0.92], opacity: [0.28, 0.7, 0.28] }}
@@ -495,15 +518,15 @@ const GeneratorPage = () => {
 
                       <div className="mb-6 text-center">
                         <span className="generator-state-badge">Generating Preview</span>
-                        <h4 className="mt-4 text-2xl font-bold text-slate-950">
-                          CadArena is composing your floor plan
-                        </h4>
+                        <h3 className="mt-4 text-2xl font-bold text-slate-950">
+                          Composing your floor plan
+                        </h3>
                         <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-600">
-                          We&apos;re translating your prompt into rooms, adjacency logic, and a polished layout image.
+                          Translating your prompt into rooms, adjacency logic, and a polished layout.
                         </p>
                       </div>
 
-                      <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
+                      <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3" aria-hidden="true">
                         {generationPhases.map((phase, index) => (
                           <motion.div
                             key={phase.title}
@@ -523,7 +546,7 @@ const GeneratorPage = () => {
                         ))}
                       </div>
 
-                      <div className="mt-6 w-full max-w-md">
+                      <div className="mt-6 w-full max-w-md" aria-hidden="true">
                         <div className="flex items-center justify-between text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-slate-500">
                           <span>Render Progress</span>
                           <span>Live</span>
@@ -548,155 +571,52 @@ const GeneratorPage = () => {
                     >
                       <img
                         src={generatedImage}
-                        alt="Generated Floor Plan"
+                        alt="Generated architectural floor plan"
                         className="h-full w-full bg-white object-contain"
-                        onError={(e) => {
-                          console.error('Image load error:', e);
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
                       />
-
-                      <div className="absolute left-0 top-0 hidden h-full w-full items-center justify-center rounded-[24px] bg-primary-50/80">
-                        <div className="text-center text-slate-600">
-                          <ImageIcon className="mx-auto mb-4 h-20 w-20 text-primary-500" />
-                          <p className="text-lg font-semibold">Floor Plan Generated</p>
-                          <p className="mt-1 text-sm font-medium text-primary-700">Image ready for download</p>
-                        </div>
-                      </div>
-
-                      <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/[0.88] px-3 py-2 text-xs font-semibold text-primary-700 shadow-soft backdrop-blur-sm">
-                        <span className="app-status-dot bg-primary-500" />
-                        Preview Ready
-                      </div>
-
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: [0, 1.2, 1] }}
-                        transition={{ delay: 0.45, duration: 0.5 }}
-                        className="app-gradient-primary absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full shadow-lg"
-                      >
-                        <span className="text-sm text-white">✓</span>
-                      </motion.div>
                     </motion.div>
                   ) : (
                     <motion.div
                       key="empty"
-                      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -12, scale: 0.98 }}
-                      transition={{ duration: 0.3, ease: 'easeOut' }}
-                      className="generator-state-shell"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25 }}
                     >
-                      <motion.div
-                        className="generator-placeholder-shell"
-                        animate={{ y: [0, -8, 0] }}
-                        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                      >
-                        <div className="generator-blueprint-frame">
-                          <div className="generator-placeholder-grid" />
-                          <div className="generator-room generator-room-a" />
-                          <div className="generator-room generator-room-b" />
-                          <div className="generator-room generator-room-c" />
-                          <div className="generator-room generator-room-d" />
-                          <div className="generator-room generator-room-e" />
-                          <div className="generator-room generator-room-f" />
-
-                          <div className="absolute inset-x-6 bottom-5 flex items-center justify-between rounded-full border border-white/[0.65] bg-white/[0.82] px-4 py-2 text-xs shadow-soft backdrop-blur-sm">
-                            <span className="font-semibold uppercase tracking-[0.18em] text-primary-700">Live Preview</span>
-                            <span className="text-slate-500">Awaiting input</span>
-                          </div>
-                        </div>
-
-                        <div className="text-center">
-                          <div className="app-gradient-primary mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-medium">
-                            <ImageIcon className="h-6 w-6" />
-                          </div>
-                          <h4 className="text-xl font-bold text-slate-950">Ready for your next concept</h4>
-                          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-                            Describe the rooms you want, how they should connect, and the style you&apos;re after.
-                            Your generated floor plan will appear here.
-                          </p>
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap justify-center gap-2">
-                          <span className="app-pill-muted">Room count</span>
-                          <span className="app-pill-muted">Adjacency rules</span>
-                          <span className="app-pill-muted">Architectural style</span>
-                        </div>
-                      </motion.div>
+                      <BlueprintPlaceholder />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             </div>
 
-            {isGenerating && (
+            {generationMetrics && !isGenerating && (
               <motion.div
-                initial={{ opacity: 0, y: 18 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.3 }}
                 className="app-card p-6"
+                role="region"
+                aria-label="Generation metrics"
               >
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <span className="app-skeleton h-5 w-40" />
-                  <span className="app-skeleton app-skeleton-pill h-8 w-24" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {[0, 1, 2, 3].map((item) => (
-                    <div key={item} className="app-card-muted p-4 text-center">
-                      <span className="app-skeleton mx-auto mb-3 h-8 w-16" />
-                      <span className="app-skeleton mx-auto h-3 w-20" />
+                <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">
+                  Generation Metrics
+                </h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { label: 'Time', value: `${generationMetrics.generation_time.toFixed(1)}s` },
+                    { label: 'CLIP Score', value: generationMetrics.metadata?.clip_score?.toFixed(2) ?? '—' },
+                    { label: 'Adjacency', value: generationMetrics.metadata?.adjacency_score?.toFixed(2) ?? '—' },
+                    { label: 'Accuracy', value: generationMetrics.metadata?.accuracy ? `${generationMetrics.metadata.accuracy.toFixed(1)}%` : '—' },
+                  ].map((m) => (
+                    <div key={m.label} className="app-card-muted p-3 text-center">
+                      <div className="text-lg font-bold text-primary-700">{m.value}</div>
+                      <div className="text-xs text-slate-500">{m.label}</div>
                     </div>
                   ))}
                 </div>
               </motion.div>
             )}
-
-            {generationMetrics && !isGenerating && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="app-card p-6">
-                <h3 className="app-card-title mb-4">Generation Metrics</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="app-card-muted p-4 text-center">
-                    <div className="text-2xl font-bold text-primary-700">
-                      {generationMetrics.metadata.clip_score.toFixed(2)}
-                    </div>
-                    <div className="text-sm text-slate-600">CLIP Score</div>
-                  </div>
-                  <div className="app-card-muted p-4 text-center">
-                    <div className="text-2xl font-bold text-secondary-700">
-                      {generationMetrics.metadata.adjacency_score.toFixed(2)}
-                    </div>
-                    <div className="text-sm text-slate-600">Adjacency</div>
-                  </div>
-                  <div className="app-card-muted p-4 text-center">
-                    <div className="text-2xl font-bold text-primary-700">
-                      {generationMetrics.metadata.accuracy.toFixed(1)}%
-                    </div>
-                    <div className="text-sm text-slate-600">Accuracy</div>
-                  </div>
-                  <div className="app-card-muted p-4 text-center">
-                    <div className="text-2xl font-bold text-secondary-700">
-                      {generationMetrics.generation_time.toFixed(1)}s
-                    </div>
-                    <div className="text-sm text-slate-600">Gen Time</div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            <div className="app-card-muted p-6">
-              <h3 className="app-card-title mb-3">
-                <Sparkles className="mr-2 inline h-5 w-5" />
-                Pro Tips
-              </h3>
-              <ul className="space-y-2 text-sm text-slate-700">
-                <li>• Be specific about room types and their relationships.</li>
-                <li>• Mention desired adjacencies such as &quot;kitchen next to dining room.&quot;</li>
-                <li>• Include approximate sizes or room counts for better results.</li>
-                <li>• Use architectural terms for more precise layouts.</li>
-              </ul>
-            </div>
           </motion.div>
         </div>
       </div>
