@@ -84,27 +84,32 @@ Stored in `backend/.env` (see `backend/.env.example` for template). Key vars:
 
 **Avatar cache-busting**: `avatarTs` state (timestamp) in AuthContext, bumped after avatar upload/delete. Used as `?t=${avatarTs}` on all `<img src="/api/v1/profile/me/avatar">` elements.
 
-## Studio Sidebar DXF Viewer
+## Studio — AutoCAD Dark Theme + DXF Viewer
 
-A compact DXF viewer integrated directly into the Studio's sidebar panel (vanilla HTML/CSS/JS, no React). Activated by clicking "DXF Render" in the sidebar tab switcher.
+The Studio (`/studio`) is an iframe wrapping a vanilla HTML/CSS/JS app at `frontend/public/studio-app/`. It has been redesigned with a full **AutoCAD model-space dark theme**.
 
 **Location**: `frontend/public/studio-app/` — `index.html`, `scripts/app.js`, `styles/styles.css`
 
-**Features:**
-- Drop zone / click-to-upload for local `.dxf` files (POSTs to `/api/v1/dxf/upload`)
-- Auto-populates from the most recent chat-generated DXF when the tab is opened
-- 190px inline preview canvas with zoom (buttons + Ctrl+scroll), drag-to-pan
-- File bar showing the loaded filename (with ☁ prefix for chat-sourced renders)
-- PNG / PDF download buttons (via `/api/v1/dxf/export`)
-- Clear button to reset the viewer
+### AutoCAD Dark Theme
+Applied via an inline `<style id="autocad-theme">` block in `index.html` (no cache issues). Key visuals:
+- Page background: `#080b10` (near-black)
+- Panels: `#161b22` (dark steel)
+- Model space canvas: `#05090f` + green CAD grid (`rgba(0,110,70,.22)` major / `rgba(0,80,50,.12)` minor lines at 100px/20px intervals)
+- Accent: `#38bd9b` (teal-green — AutoCAD-ish)
+- Text: `#cdd9e5`, muted: `#768390`
 
-**Key IDs**: `#sidebar-dxf-viewer-panel`, `#sdv-dropzone`, `#sdv-file-input`, `#sdv-canvas`, `#sdv-image`, `#sdv-empty`, `#sdv-file-bar`, `#sdv-zoom-in-btn`, `#sdv-zoom-out-btn`, `#sdv-zoom-reset-btn`, `#sdv-download-png-btn`, `#sdv-download-pdf-btn`
+### DXF Viewer Feature (in DXF Render panel)
+Users can upload their own `.dxf` files directly in the right-side DXF Render panel:
+- **"Open DXF" button** in the panel header triggers file picker
+- **Drag & drop** `.dxf` files onto the model space canvas
+- Upload POSTs to `/api/v1/dxf/upload` → gets `file_token` → calls `updateStandaloneDxfRender()` to render
+- Pan (drag) and zoom (scroll/buttons) on the rendered drawing
+- PNG and PDF export after loading
+- Empty state shows icon + "Open a DXF file" + drag-drop hint
 
-**CSS classes**: `.sdv-panel`, `.sdv-dropzone`, `.sdv-file-input`, `.sdv-file-bar`, `.sdv-canvas`, `.sdv-empty`, `.sdv-image`, `.sdv-toolbar`, `.sdv-zoom-row`, `.sdv-dl-row`, `.sdv-tool-btn`, `.sdv-zoom-pct`, `.sdv-clear-btn`
+**Key element IDs**: `#dxf-render-panel`, `#dxf-render-canvas`, `#dxf-render-image`, `#dxf-render-empty`, `#dxf-render-upload-btn`, `#dxf-render-file-input`
 
-**JS state** (in `state` object): `sdvScale`, `sdvPanX`, `sdvPanY`, `sdvBaseWidth`, `sdvBaseHeight`, `sdvFileToken`, `sdvFileName`, `sdvPanSession`
-
-**Sidebar tab behavior**: When "DXF Render" tab is active, `#sidebar-projects-panel` is hidden and `#sidebar-dxf-viewer-panel` is shown. Switching to other tabs reverses this.
+**Key JS function**: `uploadDxfAndRender(file)` — validates, POSTs, then calls `updateStandaloneDxfRender()`
 
 ## DXF Viewer (`/viewer`)
 
