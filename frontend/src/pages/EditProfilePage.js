@@ -197,7 +197,7 @@ function EditProfileContent() {
                       {label}
                     </label>
                     <div className="relative">
-                      <Icon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                      <Icon className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                       <input id={`ep-${name}`} type={type} name={name} value={fields[name]} onChange={onFieldChange}
                         placeholder={placeholder} autoComplete="off" className="app-input pl-11" disabled={isSaving} />
                     </div>
