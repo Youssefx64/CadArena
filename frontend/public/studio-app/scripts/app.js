@@ -87,6 +87,16 @@ const sidebarDxfUploadTriggerButton = document.getElementById("sidebar-dxf-uploa
 const sidebarChatSearchInput = document.getElementById("sidebar-chat-search-input");
 const sidebarChatPanel = document.getElementById("sidebar-chat-panel");
 const sidebarProjectsPanel = document.getElementById("sidebar-projects-panel");
+const sidebarDxfViewerPanel = document.getElementById("sidebar-dxf-viewer-panel");
+const sdvDropzone = document.getElementById("sdv-dropzone");
+const sdvFileInput = document.getElementById("sdv-file-input");
+const sdvFileInfo = document.getElementById("sdv-file-info");
+const sdvFileName = document.getElementById("sdv-file-name");
+const sdvFileStatus = document.getElementById("sdv-file-status");
+const sdvClearBtn = document.getElementById("sdv-clear-btn");
+const sdvHint = document.getElementById("sdv-hint");
+const dxfRenderTitle = document.getElementById("dxf-render-title");
+const dxfRenderFilename = document.getElementById("dxf-render-filename");
 const sidebarFocusChatButton = document.getElementById("sidebar-focus-chat-btn");
 const sidebarManageProjectsButton = document.getElementById("sidebar-manage-projects-btn");
 const sidebarQuickHideButton = document.getElementById("sidebar-quick-hide-btn");
@@ -903,6 +913,9 @@ function setSidebarTab(tab) {
   if (sidebarProjectsPanel) {
     const shouldMuteProjectsPanel = chatActive && Boolean(sidebarChatPanel);
     sidebarProjectsPanel.classList.toggle("is-muted", shouldMuteProjectsPanel);
+  }
+  if (sidebarDxfViewerPanel) {
+    sidebarDxfViewerPanel.hidden = !renderActive;
   }
 }
 
@@ -3272,8 +3285,104 @@ if (sidebarDxfUploadTriggerButton) {
         projectId: state.dxfRenderProjectId,
         source: state.dxfRenderSource || "chat",
       });
-      dxfRenderRefreshButton?.focus({ preventScroll: true });
     }
+  });
+}
+
+function setSdvFileState(fileName, status = "Ready") {
+  if (sdvFileName) sdvFileName.textContent = fileName;
+  if (sdvFileStatus) sdvFileStatus.textContent = status;
+  if (sdvFileInfo) sdvFileInfo.hidden = false;
+  if (sdvDropzone) sdvDropzone.hidden = true;
+  if (sdvHint) sdvHint.hidden = true;
+  if (dxfRenderFilename) {
+    dxfRenderFilename.textContent = fileName;
+    dxfRenderFilename.hidden = false;
+  }
+  if (dxfRenderTitle) dxfRenderTitle.textContent = "File Preview";
+}
+
+function clearSdvFileState() {
+  if (sdvFileInfo) sdvFileInfo.hidden = true;
+  if (sdvDropzone) sdvDropzone.hidden = false;
+  if (sdvHint) sdvHint.hidden = false;
+  if (dxfRenderFilename) dxfRenderFilename.hidden = true;
+  if (dxfRenderTitle) dxfRenderTitle.textContent = "File Preview";
+  if (sdvFileInput) sdvFileInput.value = "";
+  resetDxfRenderPreview({ emptyMessage: "Upload a DXF file from the sidebar to view it here." });
+}
+
+async function uploadDxfFileFromSdv(file) {
+  if (!file || !file.name.toLowerCase().endsWith(".dxf")) {
+    if (sdvFileStatus) sdvFileStatus.textContent = "Only .dxf files are supported";
+    return;
+  }
+  setSdvFileState(file.name, "Uploading…");
+  revealDxfRenderPanel({ scrollIntoView: false });
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const payload = await apiFetch("/api/v1/dxf/upload", { method: "POST", body: formData });
+    const fileToken = payload?.file_token;
+    if (!fileToken) {
+      throw new Error("Upload succeeded but no file token was returned.");
+    }
+    setSdvFileState(file.name, "Loaded");
+    updateStandaloneDxfRender({
+      fileName: file.name,
+      fileToken,
+      projectId: null,
+      source: "upload",
+    });
+  } catch (error) {
+    setSdvFileState(file.name, `Upload failed: ${error.message}`);
+    if (sdvFileStatus) sdvFileStatus.classList.add("is-error");
+  }
+}
+
+if (sdvDropzone) {
+  sdvDropzone.addEventListener("click", () => {
+    sdvFileInput?.click();
+  });
+
+  sdvDropzone.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      sdvFileInput?.click();
+    }
+  });
+
+  sdvDropzone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    sdvDropzone.classList.add("is-drag-over");
+  });
+
+  sdvDropzone.addEventListener("dragleave", () => {
+    sdvDropzone.classList.remove("is-drag-over");
+  });
+
+  sdvDropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    sdvDropzone.classList.remove("is-drag-over");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      uploadDxfFileFromSdv(file);
+    }
+  });
+}
+
+if (sdvFileInput) {
+  sdvFileInput.addEventListener("change", () => {
+    const file = sdvFileInput.files?.[0];
+    if (file) {
+      uploadDxfFileFromSdv(file);
+    }
+  });
+}
+
+if (sdvClearBtn) {
+  sdvClearBtn.addEventListener("click", () => {
+    clearSdvFileState();
   });
 }
 
