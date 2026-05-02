@@ -13,9 +13,9 @@ const PROMPT_EXAMPLES = [
   'Corner penthouse with panoramic windows and open plan',
 ];
 
-const stagger  = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.09 } } };
-const fadeUp   = { hidden: { y: 24, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.52, ease: [0.22, 1, 0.36, 1] } } };
-const fadeIn   = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.45 } } };
+const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.09 } } };
+const fadeUp  = { hidden: { y: 28, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } } };
+const fadeIn  = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.45 } } };
 
 // ─── Animated blueprint preview ───────────────────────────────────────────────
 function BlueprintPreview() {
@@ -31,32 +31,44 @@ function BlueprintPreview() {
   return (
     <div
       className="relative w-full overflow-hidden"
-      style={{ aspectRatio: '16/9', background: 'rgba(248,250,255,0.9)', borderRadius: 14 }}
+      style={{ aspectRatio: '16/9', background: 'var(--surface-2)', borderRadius: 14 }}
       aria-label="Animated floor plan preview" role="img"
     >
-      <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(rgba(37,99,235,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.05) 1px,transparent 1px)', backgroundSize:'24px 24px', opacity:0.9 }} />
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px)', backgroundSize: '24px 24px', opacity: 0.9 }} />
       {rooms.map((r, i) => (
         <motion.div key={r.id}
           initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.22 + i * 0.1, duration: 0.38, ease: [0.22,1,0.36,1] }}
+          transition={{ delay: 0.22 + i * 0.1, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
           style={{
-            position:'absolute', left:r.x, top:r.y, width:r.w, height:r.h, borderRadius:8,
-            border: r.muted ? '1px dashed rgba(99,102,241,0.22)' : r.accent ? '1.5px solid rgba(59,130,246,0.45)' : '1.5px solid rgba(99,102,241,0.28)',
-            background: r.muted ? 'transparent' : r.accent ? 'rgba(239,246,255,0.75)' : 'rgba(255,255,255,0.72)',
-            boxShadow: r.accent ? '0 2px 12px rgba(59,130,246,0.1),inset 0 1px 0 rgba(255,255,255,0.7)' : 'inset 0 1px 0 rgba(255,255,255,0.6)',
-            display:'flex', alignItems:'center', justifyContent:'center',
+            position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h, borderRadius: 8,
+            border: r.muted
+              ? '1px dashed var(--line-soft)'
+              : r.accent
+                ? '1.5px solid rgba(59,130,246,0.45)'
+                : '1.5px solid var(--line-strong)',
+            background: r.muted
+              ? 'transparent'
+              : r.accent
+                ? 'rgba(239,246,255,0.55)'
+                : 'var(--surface-1)',
+            boxShadow: r.accent ? '0 2px 12px rgba(59,130,246,0.1),inset 0 1px 0 rgba(255,255,255,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-          {r.label && <span style={{ fontSize:'clamp(0.55rem,1vw,0.72rem)', fontWeight:700, color:r.accent?'#1d4ed8':'#64748b', letterSpacing:'0.02em', textAlign:'center', padding:'0 4px', userSelect:'none' }}>{r.label}</span>}
+          {r.label && (
+            <span style={{ fontSize: 'clamp(0.55rem,1vw,0.72rem)', fontWeight: 700, color: r.accent ? '#1d4ed8' : 'var(--text-muted)', letterSpacing: '0.02em', textAlign: 'center', padding: '0 4px', userSelect: 'none' }}>
+              {r.label}
+            </span>
+          )}
         </motion.div>
       ))}
-      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:1.2, duration:0.4 }}
-        style={{ position:'absolute', bottom:'6%', right:'2%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
-        <span style={{ fontSize:'0.6rem', fontWeight:800, color:'#3b82f6', letterSpacing:'0.12em', textTransform:'uppercase' }}>EBC 2023 Compliant</span>
-        <span style={{ fontSize:'0.6rem', fontWeight:600, color:'#94a3b8', letterSpacing:'0.08em' }}>DXF Export Ready ✓</span>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2, duration: 0.4 }}
+        style={{ position: 'absolute', bottom: '6%', right: '2%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '0.12em', textTransform: 'uppercase' }}>EBC 2023 Compliant</span>
+        <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>DXF Export Ready ✓</span>
       </motion.div>
-      <motion.div initial={{ scaleX:0 }} animate={{ scaleX:1 }} transition={{ delay:1.4, duration:0.5, ease:[0.22,1,0.36,1] }}
-        style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#3b82f6,#7c3aed)', transformOrigin:'left center', borderBottomLeftRadius:14, borderBottomRightRadius:14 }} />
+      <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 1.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#3b82f6,#7c3aed)', transformOrigin: 'left center', borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }} />
     </div>
   );
 }
@@ -80,14 +92,14 @@ function HeroPromptBar({ onDark = false }) {
 
   return (
     <form onSubmit={submit} className={`hero-prompt-bar${onDark ? ' hero-prompt-bar-dark' : ''}`}>
-      <Edit3 className="h-5 w-5 flex-shrink-0 text-slate-400" aria-hidden="true" />
+      <Edit3 className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
       <div className="relative flex min-w-0 flex-1 items-center">
         <AnimatePresence mode="wait">
           {!value && (
             <motion.span key={phIdx}
               initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.24 }}
-              className="pointer-events-none absolute inset-y-0 left-0 flex items-center truncate pr-2 text-sm text-slate-400 sm:text-[0.9375rem]"
+              className="pointer-events-none absolute inset-y-0 left-0 flex items-center truncate pr-2 text-sm text-slate-400 dark:text-slate-500 sm:text-[0.9375rem]"
               aria-hidden="true">
               {PROMPT_EXAMPLES[phIdx]}
             </motion.span>
@@ -99,12 +111,12 @@ function HeroPromptBar({ onDark = false }) {
           onChange={(e) => setValue(e.target.value)}
           placeholder=""
           aria-label="Describe your floor plan"
-          className="hero-prompt-input"
+          className="hero-prompt-input dark:bg-transparent dark:text-slate-100"
         />
       </div>
       <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
         className="app-button-primary app-button-compact flex-shrink-0">
-        <Zap className="h-4 w-4" aria-hidden="true" />
+        <Sparkles className="h-4 w-4" aria-hidden="true" />
         <span className="hidden sm:inline">Generate</span>
         <span className="sm:hidden"><ArrowRight className="h-4 w-4" /></span>
       </motion.button>
@@ -154,67 +166,53 @@ const HomePage = () => {
     <div className="min-h-screen">
 
       {/* ═══ HERO ══════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden pb-16 pt-20 sm:pb-24 sm:pt-32">
-        <div className="hero-premium-bg" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <div className="absolute left-10 top-20 h-72 w-72 rounded-full bg-primary-200 opacity-25 blur-3xl" />
-          <div className="absolute right-10 top-40 h-72 w-72 rounded-full bg-secondary-200 opacity-20 blur-3xl" />
-          <div className="absolute -bottom-8 left-20 h-72 w-72 rounded-full bg-primary-100 opacity-20 blur-3xl" />
+      <section className="relative overflow-hidden pb-20 pt-28 sm:pb-32 sm:pt-40">
+        {/* Ambient orb background */}
+        <div className="hero-ambient-bg" aria-hidden="true">
+          <div className="hero-orb hero-orb-1" />
+          <div className="hero-orb hero-orb-2" />
+          <div className="hero-orb hero-orb-3" />
         </div>
+        <div className="hero-grid-pattern" aria-hidden="true" />
 
-        <div className="app-shell relative">
+        <div className="app-shell relative z-10">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="text-center">
-            <div className="hero-copy-stack">
-              <motion.div variants={fadeUp}>
-                <motion.span className="app-pill" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  AI-Powered Architecture · Live Demo Available
-                </motion.span>
-              </motion.div>
 
-              <motion.h1 variants={fadeUp} className="app-hero-title hero-title-contrast">
-                <motion.span
-                  className="gradient-text hero-brand-mark inline-block"
-                  animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                  transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}>
-                  CadArena
-                </motion.span>
-                <span className="hero-title-subline">Conversational CAD Studio</span>
-              </motion.h1>
+            <motion.div variants={fadeUp} className="mb-8 flex justify-center">
+              <motion.span className="app-pill" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                AI-Powered Architecture · Live Demo Available
+              </motion.span>
+            </motion.div>
 
-              <motion.p variants={fadeUp} className="hero-subtitle">
-                Describe your space in plain language. Get a precise, constraint-aware floor plan —
-                EBC 2023-compliant and DXF-ready — straight from the Studio.
-              </motion.p>
+            <motion.h1 variants={fadeUp} className="app-hero-title mb-6 mx-auto max-w-5xl">
+              Design floor plans
+              <br />
+              <span className="gradient-text-animated">with natural language</span>
+            </motion.h1>
 
-              {/* ── Interactive prompt input ── */}
-              <motion.div variants={fadeUp} className="flex w-full justify-center">
-                <HeroPromptBar />
-              </motion.div>
+            <motion.p variants={fadeUp} className="app-page-copy mx-auto mb-10">
+              Describe your space and get a precise, constraint-aware floor plan —
+              EBC 2023-compliant and DXF-ready — straight from the Studio.
+            </motion.p>
 
-              {/* Quick example chips */}
-              <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-2">
-                <span className="text-xs text-slate-400">Try:</span>
-                {['3-bedroom apartment', 'Studio flat', 'Family home'].map((hint) => (
-                  <ExampleChip key={hint} label={hint} />
-                ))}
-              </motion.div>
+            <motion.div variants={fadeUp} className="mb-7 flex w-full justify-center">
+              <HeroPromptBar />
+            </motion.div>
 
-              <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-3">
-                <Link to="/models" className="app-button-ghost app-button-compact">
-                  View Models
-                </Link>
-                <Link to="/metrics" className="app-button-ghost app-button-compact">
-                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                  Performance
-                </Link>
-              </motion.div>
-            </div>
+            <motion.div variants={fadeUp} className="mb-10 flex flex-wrap items-center justify-center gap-2">
+              <span className="text-xs font-medium text-slate-400 dark:text-slate-600">Try:</span>
+              {['3-bedroom apartment', 'Studio flat', 'Family home'].map((hint) => (
+                <ExampleChip key={hint} label={hint} />
+              ))}
+            </motion.div>
 
             {/* ── Blueprint preview card ── */}
-            <motion.div variants={fadeUp} className="hero-preview-wrap">
-              <div className="hero-preview-glass" aria-hidden="true" />
-              <div className="hero-preview-card app-card app-card-strong mx-auto max-w-4xl p-5 sm:p-7">
+            <motion.div
+              variants={fadeUp}
+              className="hero-preview-wrap"
+            >
+              <div className="app-card app-card-strong mx-auto max-w-4xl p-5 sm:p-7">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2.5">
                     <div className="flex gap-1.5" aria-hidden="true">
@@ -222,28 +220,29 @@ const HomePage = () => {
                       <div className="h-3 w-3 rounded-full bg-yellow-400" />
                       <div className="h-3 w-3 rounded-full bg-green-400" />
                     </div>
-                    <span className="hidden text-xs font-semibold text-slate-400 sm:block">CadArena Studio</span>
+                    <span className="hidden text-xs font-semibold text-slate-400 dark:text-slate-500 sm:block">CadArena Studio</span>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" aria-hidden="true" />
+                  <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-300">
+                    <span className="glow-dot h-1.5 w-1.5 rounded-full bg-primary-500 dark:bg-violet-400" aria-hidden="true" />
                     Live Preview
                   </div>
                 </div>
                 <div className="app-card-muted rounded-xl p-3 text-left">
-                  <div className="mb-2 flex items-center gap-2 font-mono text-xs text-slate-500">
-                    <span className="font-bold text-primary-600">›</span>
+                  <div className="mb-2 flex items-center gap-2 font-mono text-xs text-slate-500 dark:text-slate-400">
+                    <span className="font-bold text-primary-600 dark:text-violet-400">›</span>
                     <span>&quot;3-bedroom apartment with open kitchen and living room&quot;</span>
                   </div>
                   <BlueprintPreview />
                 </div>
               </div>
             </motion.div>
+
           </motion.div>
         </div>
       </section>
 
       {/* ═══ TRUST STRIP ══════════════════════════════════════════════════════ */}
-      <div className="landing-trust-strip py-5" aria-label="Key performance indicators">
+      <div className="landing-trust-strip border-y border-slate-100 py-5 dark:border-white/6" aria-label="Key capabilities">
         <div className="app-shell">
           <motion.ul
             initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
@@ -251,11 +250,11 @@ const HomePage = () => {
             {TRUST_ITEMS.map(({ value, label }, i) => (
               <motion.li key={label} variants={fadeIn} className="flex items-center gap-3">
                 <div>
-                  <p className="text-sm font-black tracking-tight text-slate-950 leading-none">{value}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-slate-500">{label}</p>
+                  <p className="text-sm font-black tracking-tight text-slate-950 dark:text-slate-50 leading-none">{value}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-500">{label}</p>
                 </div>
                 {i < TRUST_ITEMS.length - 1 && (
-                  <div className="ml-4 hidden h-6 w-px bg-slate-200 lg:block" aria-hidden="true" />
+                  <div className="ml-4 hidden h-6 w-px bg-slate-200 dark:bg-white/8 lg:block" aria-hidden="true" />
                 )}
               </motion.li>
             ))}
@@ -264,11 +263,11 @@ const HomePage = () => {
       </div>
 
       {/* ═══ HOW IT WORKS ═════════════════════════════════════════════════════ */}
-      <section className="py-24" aria-labelledby="how-heading">
+      <section className="py-28" aria-labelledby="how-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
             <motion.p variants={fadeUp} className="app-eyebrow mb-4">How It Works</motion.p>
-            <motion.h2 id="how-heading" variants={fadeUp} className="app-section-title mb-4">
+            <motion.h2 id="how-heading" variants={fadeUp} className="app-section-title mb-5">
               From description to floor plan in seconds
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
@@ -279,18 +278,16 @@ const HomePage = () => {
           <motion.div
             initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
             className="relative grid grid-cols-1 gap-6 md:grid-cols-3">
-            {/* Connector line — desktop only */}
             <div
               className="pointer-events-none absolute left-[33%] right-[33%] top-10 hidden h-px md:block"
               style={{ background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.28) 20%, rgba(99,102,241,0.28) 80%, transparent)' }}
               aria-hidden="true"
             />
-
             {HOW_IT_WORKS.map((step) => {
               const Icon = step.icon;
               return (
                 <motion.div key={step.step} variants={fadeUp}
-                  whileHover={{ y: -5, transition: { duration: 0.22 } }}
+                  whileHover={{ y: -6, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }}
                   className="app-card app-card-hover flex flex-col p-8 text-center">
                   <div className="mb-5 flex items-center justify-center gap-3">
                     <span className="landing-step-index">{step.step}</span>
@@ -308,11 +305,11 @@ const HomePage = () => {
       </section>
 
       {/* ═══ FEATURES ═════════════════════════════════════════════════════════ */}
-      <section className="bg-white/50 py-24" aria-labelledby="features-heading">
+      <section className="py-28 dark:bg-transparent" style={{ background: 'rgba(255,255,255,0.4)' }} aria-labelledby="features-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
             <motion.p variants={fadeUp} className="app-eyebrow mb-4">Capabilities</motion.p>
-            <motion.h2 id="features-heading" variants={fadeUp} className="app-section-title mb-4">
+            <motion.h2 id="features-heading" variants={fadeUp} className="app-section-title mb-5">
               Built for precision. Designed for speed.
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
@@ -323,19 +320,19 @@ const HomePage = () => {
 
           <motion.div
             initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
-            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => {
               const Icon = f.icon;
               return (
                 <motion.div key={f.title} variants={fadeUp}
-                  whileHover={{ y: -5, transition: { duration: 0.22 } }}
+                  whileHover={{ y: -6, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }}
                   className="app-card flex flex-col p-7">
                   <div className="app-icon-badge mb-5" aria-hidden="true">
                     <Icon className="h-6 w-6" />
                   </div>
                   <h3 className="app-card-title mb-3">{f.title}</h3>
                   <p className="app-body flex-1">{f.body}</p>
-                  <div className="mt-5 flex items-center gap-1 text-xs font-bold text-primary-600">
+                  <div className="mt-5 flex items-center gap-1 text-xs font-bold text-primary-600 dark:text-violet-400">
                     Learn more <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </div>
                 </motion.div>
@@ -346,11 +343,11 @@ const HomePage = () => {
       </section>
 
       {/* ═══ LIVE DEMO ════════════════════════════════════════════════════════ */}
-      <section className="py-24" aria-labelledby="demo-heading">
+      <section className="py-28" aria-labelledby="demo-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
             <motion.p variants={fadeUp} className="app-eyebrow mb-4">Live Demo</motion.p>
-            <motion.h2 id="demo-heading" variants={fadeUp} className="app-section-title mb-4">
+            <motion.h2 id="demo-heading" variants={fadeUp} className="app-section-title mb-5">
               See it in action
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
@@ -362,25 +359,24 @@ const HomePage = () => {
           <motion.div
             initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
             className="grid grid-cols-1 items-center gap-10 lg:grid-cols-5">
-            {/* Prompt selector */}
             <motion.div variants={fadeUp} className="space-y-3 lg:col-span-2">
-              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">
                 Example prompts
               </p>
               {DEMO_PROMPTS.map((p, i) => (
                 <motion.button
                   key={p}
                   onClick={() => setDemoIdx(i)}
-                  whileHover={{ x: 3 }}
+                  whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.98 }}
                   className={`w-full rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-colors duration-200 ${
                     demoIdx === i
-                      ? 'border-primary-300 bg-primary-50 text-primary-800 shadow-soft'
-                      : 'border-slate-100 bg-white/60 text-slate-700 hover:border-primary-200 hover:bg-primary-50/50'
+                      ? 'border-primary-300 bg-primary-50 text-primary-800 shadow-soft dark:border-violet-800/50 dark:bg-violet-950/30 dark:text-violet-200'
+                      : 'border-slate-100 bg-white/60 text-slate-700 hover:border-primary-200 hover:bg-primary-50/50 dark:border-white/7 dark:bg-white/3 dark:text-slate-400 dark:hover:border-violet-800/40 dark:hover:bg-violet-950/20'
                   }`}
                   aria-pressed={demoIdx === i}
                 >
-                  <span className="mr-2 font-mono text-primary-400">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="mr-2 font-mono text-primary-400 dark:text-violet-500">{String(i + 1).padStart(2, '0')}</span>
                   {p}
                 </motion.button>
               ))}
@@ -393,7 +389,6 @@ const HomePage = () => {
               </div>
             </motion.div>
 
-            {/* Preview card */}
             <motion.div variants={fadeUp} className="lg:col-span-3">
               <div className="app-card app-card-strong p-5 sm:p-7">
                 <div className="mb-4 flex items-center justify-between gap-4">
@@ -403,10 +398,10 @@ const HomePage = () => {
                       <div className="h-3 w-3 rounded-full bg-yellow-400" />
                       <div className="h-3 w-3 rounded-full bg-green-400" />
                     </div>
-                    <span className="text-xs font-semibold text-slate-400">AI Generation</span>
+                    <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">AI Generation</span>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full border border-green-100 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
+                  <div className="flex items-center gap-2 rounded-full border border-green-100 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-400">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 dark:bg-green-400" aria-hidden="true" />
                     DXF Ready
                   </div>
                 </div>
@@ -415,14 +410,13 @@ const HomePage = () => {
                     <motion.div key={demoIdx}
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.22 }}
-                      className="mb-2 flex items-center gap-2 font-mono text-xs text-slate-500">
-                      <span className="font-bold text-primary-600">›</span>
+                      className="mb-2 flex items-center gap-2 font-mono text-xs text-slate-500 dark:text-slate-400">
+                      <span className="font-bold text-primary-600 dark:text-violet-400">›</span>
                       <span>&quot;{DEMO_PROMPTS[demoIdx]}&quot;</span>
                     </motion.div>
                   </AnimatePresence>
                   <BlueprintPreview />
                 </div>
-                {/* Output chips */}
                 <div className="mt-4 grid grid-cols-4 gap-2">
                   {[
                     { label: 'Rooms',      value: '✓' },
@@ -430,9 +424,9 @@ const HomePage = () => {
                     { label: 'Dimensions', value: '✓' },
                     { label: 'EBC 2023',   value: '✓' },
                   ].map(({ label, value }) => (
-                    <div key={label} className="rounded-xl border border-slate-100 bg-white/80 px-2 py-2.5 text-center">
-                      <p className="text-sm font-black text-primary-700 leading-none">{value}</p>
-                      <p className="mt-1 text-xs text-slate-500 leading-none">{label}</p>
+                    <div key={label} className="rounded-xl border border-slate-100 bg-white/80 px-2 py-2.5 text-center dark:border-white/7 dark:bg-white/4">
+                      <p className="text-sm font-black text-primary-700 dark:text-violet-300 leading-none">{value}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500 leading-none">{label}</p>
                     </div>
                   ))}
                 </div>
@@ -443,11 +437,11 @@ const HomePage = () => {
       </section>
 
       {/* ═══ CAPABILITIES ═════════════════════════════════════════════════════ */}
-      <section className="bg-white/50 py-24" aria-labelledby="perf-heading">
+      <section className="py-28 dark:bg-transparent" style={{ background: 'rgba(255,255,255,0.4)' }} aria-labelledby="perf-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
             <motion.p variants={fadeUp} className="app-eyebrow mb-4">What you get</motion.p>
-            <motion.h2 id="perf-heading" variants={fadeUp} className="app-section-title mb-4">
+            <motion.h2 id="perf-heading" variants={fadeUp} className="app-section-title mb-5">
               From a single prompt to a complete CAD file
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
@@ -464,19 +458,19 @@ const HomePage = () => {
                 <h3 className="app-card-title mb-6 text-xl">What the Studio produces</h3>
                 <div className="space-y-5" role="list">
                   {[
-                    { metric: 'Labelled room polygons',  value: 'Per room',   desc: 'Living, bedroom, kitchen, bath — each correctly placed and sized' },
-                    { metric: 'DXF layer assignment',    value: '12+ layers', desc: 'One layer per room type, ready for AutoCAD or Revit filtering' },
-                    { metric: 'Linear dimensions',       value: 'Built-in',   desc: 'Width and height entities added automatically to each room' },
-                    { metric: 'EBC 2023 compliance',     value: 'Enforced',   desc: 'Minimum room areas and adjacency rules applied during generation' },
+                    { metric: 'Labelled room polygons', value: 'Per room',   desc: 'Living, bedroom, kitchen, bath — each correctly placed and sized' },
+                    { metric: 'DXF layer assignment',   value: '12+ layers', desc: 'One layer per room type, ready for AutoCAD or Revit filtering' },
+                    { metric: 'Linear dimensions',      value: 'Built-in',   desc: 'Width and height entities added automatically to each room' },
+                    { metric: 'EBC 2023 compliance',    value: 'Enforced',   desc: 'Minimum room areas and adjacency rules applied during generation' },
                   ].map(({ metric, value, desc }) => (
                     <div key={metric} className="flex items-start gap-3" role="listitem">
-                      <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
+                      <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600 dark:text-violet-400" aria-hidden="true" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between gap-4">
-                          <span className="font-semibold text-slate-950">{metric}</span>
-                          <span className="font-black text-primary-700">{value}</span>
+                          <span className="font-semibold text-slate-950 dark:text-slate-100">{metric}</span>
+                          <span className="font-black text-primary-700 dark:text-violet-300">{value}</span>
                         </div>
-                        <p className="mt-0.5 text-sm text-slate-500">{desc}</p>
+                        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-500">{desc}</p>
                       </div>
                     </div>
                   ))}
@@ -496,12 +490,12 @@ const HomePage = () => {
                   >
                     .DXF
                   </motion.div>
-                  <p className="mb-6 text-sm text-slate-500">AutoCAD 2013+ · Revit · Any DXF-compatible tool</p>
+                  <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">AutoCAD 2013+ · Revit · Any DXF-compatible tool</p>
                   <div className="space-y-2">
                     {['Room polygons', 'Room labels', 'Layer system', 'Dimensions'].map((item) => (
-                      <div key={item} className="flex items-center justify-between rounded-xl bg-primary-50 px-4 py-2">
-                        <span className="text-sm font-semibold text-slate-700">{item}</span>
-                        <span className="text-sm font-black text-primary-600">✓</span>
+                      <div key={item} className="flex items-center justify-between rounded-xl border border-slate-100 bg-primary-50/60 px-4 py-2 dark:border-white/6 dark:bg-violet-950/20">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{item}</span>
+                        <span className="text-sm font-black text-primary-600 dark:text-violet-400">✓</span>
                       </div>
                     ))}
                   </div>
@@ -513,25 +507,26 @@ const HomePage = () => {
       </section>
 
       {/* ═══ CTA ══════════════════════════════════════════════════════════════ */}
-      <section className="py-24" aria-labelledby="cta-heading">
+      <section className="py-28" aria-labelledby="cta-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.div variants={fadeUp}
-              className="app-cta-panel relative overflow-hidden px-8 py-16 text-center sm:px-14 sm:py-20">
+              className="app-cta-panel relative overflow-hidden px-8 py-20 text-center sm:px-14 sm:py-24">
               <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-                <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-white opacity-[0.07] blur-3xl" />
-                <div className="absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-white opacity-[0.07] blur-3xl" />
+                <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-white opacity-[0.07] blur-3xl" />
+                <div className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-white opacity-[0.07] blur-3xl" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent" />
                 <div className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-white opacity-20" />
               </div>
 
-              <motion.p variants={fadeUp} className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-200">
+              <motion.p variants={fadeUp} className="mb-4 text-xs font-bold uppercase tracking-widest text-primary-200">
                 Start building today
               </motion.p>
               <motion.h2 id="cta-heading" variants={fadeUp}
-                className="mb-4 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+                className="mb-5 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
                 Design your first floor plan.
                 <br />
-                <span className="opacity-80">No CAD experience needed.</span>
+                <span className="opacity-75">No CAD experience needed.</span>
               </motion.h2>
               <motion.p variants={fadeUp} className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-primary-100">
                 Type what you want to build. CadArena handles constraints, adjacencies, compliance, and export automatically.
@@ -564,9 +559,9 @@ function ExampleChip({ label }) {
     <motion.button
       type="button"
       onClick={() => navigate('/studio')}
-      whileHover={{ scale: 1.03, y: -1 }}
+      whileHover={{ scale: 1.04, y: -1 }}
       whileTap={{ scale: 0.97 }}
-      className="app-pill-muted cursor-pointer py-1.5 text-xs transition-colors hover:border-primary-200 hover:bg-primary-50"
+      className="app-pill-muted cursor-pointer py-1.5 text-xs transition-colors hover:border-primary-200 hover:bg-primary-50 dark:hover:border-violet-800/40 dark:hover:bg-violet-950/20"
     >
       {label}
     </motion.button>

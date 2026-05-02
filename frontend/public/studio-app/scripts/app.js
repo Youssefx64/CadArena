@@ -90,20 +90,6 @@ const sidebarProjectsPanel = document.getElementById("sidebar-projects-panel");
 const sidebarFocusChatButton = document.getElementById("sidebar-focus-chat-btn");
 const sidebarManageProjectsButton = document.getElementById("sidebar-manage-projects-btn");
 const sidebarQuickHideButton = document.getElementById("sidebar-quick-hide-btn");
-const sidebarDxfViewerPanel = document.getElementById("sidebar-dxf-viewer-panel");
-const sdvDropzone = document.getElementById("sdv-dropzone");
-const sdvFileInput = document.getElementById("sdv-file-input");
-const sdvFileBar = document.getElementById("sdv-file-bar");
-const sdvFileName = document.getElementById("sdv-file-name");
-const sdvClearButton = document.getElementById("sdv-clear-btn");
-const sdvCanvas = document.getElementById("sdv-canvas");
-const sdvImage = document.getElementById("sdv-image");
-const sdvEmpty = document.getElementById("sdv-empty");
-const sdvZoomInButton = document.getElementById("sdv-zoom-in-btn");
-const sdvZoomOutButton = document.getElementById("sdv-zoom-out-btn");
-const sdvZoomResetButton = document.getElementById("sdv-zoom-reset-btn");
-const sdvDownloadPngButton = document.getElementById("sdv-download-png-btn");
-const sdvDownloadPdfButton = document.getElementById("sdv-download-pdf-btn");
 const authTabFromQuery = new URLSearchParams(window.location.search).get("auth");
 const explicitAuthTab = authTabFromQuery === "register" || authTabFromQuery === "login" ? authTabFromQuery : null;
 
@@ -157,14 +143,6 @@ const state = {
   dxfRenderSource: null,
   dxfRenderProjectId: null,
   latestProjectDxfToken: null,
-  sdvScale: 1,
-  sdvPanX: 0,
-  sdvPanY: 0,
-  sdvBaseWidth: 0,
-  sdvBaseHeight: 0,
-  sdvFileToken: null,
-  sdvFileName: null,
-  sdvPanSession: null,
   authMode: "unknown",
   authUser: null,
   profile: null,
@@ -925,17 +903,6 @@ function setSidebarTab(tab) {
   if (sidebarProjectsPanel) {
     const shouldMuteProjectsPanel = chatActive && Boolean(sidebarChatPanel);
     sidebarProjectsPanel.classList.toggle("is-muted", shouldMuteProjectsPanel);
-    sidebarProjectsPanel.hidden = renderActive;
-  }
-  if (sidebarDxfViewerPanel) {
-    sidebarDxfViewerPanel.hidden = !renderActive;
-    if (renderActive && state.dxfRenderFileToken && !state.sdvFileToken) {
-      loadSdvPreview({
-        fileToken: state.dxfRenderFileToken,
-        fileName: state.dxfRenderFileName || "chat_render.dxf",
-        source: "chat",
-      });
-    }
   }
 }
 
@@ -3296,7 +3263,17 @@ if (sidebarManageProjectsButton) {
 if (sidebarDxfUploadTriggerButton) {
   sidebarDxfUploadTriggerButton.addEventListener("click", () => {
     setSidebarTab("render");
+    revealDxfRenderPanel({ scrollIntoView: true });
     keepWorkspaceViewportStable();
+    if (state.dxfRenderFileToken) {
+      updateStandaloneDxfRender({
+        fileName: state.dxfRenderFileName || "generated_file.dxf",
+        fileToken: state.dxfRenderFileToken,
+        projectId: state.dxfRenderProjectId,
+        source: state.dxfRenderSource || "chat",
+      });
+      dxfRenderRefreshButton?.focus({ preventScroll: true });
+    }
   });
 }
 
@@ -3595,281 +3572,3 @@ initializeApplication().catch((error) => {
   renderChatHistory([]);
   setAuthFeedback(`Workspace failed to initialize: ${error.message}`, "error");
 });
-
-/* ── Sidebar DXF Viewer (SDV) ── */
-
-function resetSdvViewer({ message = "Upload a .dxf file or view a chat render here." } = {}) {
-  if (!sdvCanvas || !sdvImage || !sdvEmpty) {
-    return;
-  }
-  sdvCanvas.classList.remove("loading", "has-image", "is-zoomed");
-  sdvImage.style.display = "none";
-  sdvImage.classList.remove("is-visible");
-  sdvImage.removeAttribute("src");
-  sdvImage.style.transform = "translate(0px, 0px) scale(1)";
-  sdvEmpty.style.display = "";
-  sdvEmpty.textContent = message;
-  state.sdvScale = 1;
-  state.sdvPanX = 0;
-  state.sdvPanY = 0;
-  state.sdvBaseWidth = 0;
-  state.sdvBaseHeight = 0;
-  state.sdvFileToken = null;
-  state.sdvFileName = null;
-  state.sdvPanSession = null;
-  setSdvDownloadsEnabled(false);
-  updateSdvZoomLabel();
-  if (sdvFileBar) {
-    sdvFileBar.hidden = true;
-  }
-  if (sdvFileInput) {
-    sdvFileInput.value = "";
-  }
-}
-
-function setSdvDownloadsEnabled(enabled) {
-  if (sdvDownloadPngButton) {
-    sdvDownloadPngButton.disabled = !enabled;
-  }
-  if (sdvDownloadPdfButton) {
-    sdvDownloadPdfButton.disabled = !enabled;
-  }
-}
-
-function updateSdvZoomLabel() {
-  if (!sdvZoomResetButton) {
-    return;
-  }
-  sdvZoomResetButton.textContent = `${Math.round(state.sdvScale * 100)}%`;
-}
-
-function setSdvScale(next) {
-  state.sdvScale = Math.max(0.4, Math.min(next, 4));
-  if (state.sdvScale <= 1.01) {
-    state.sdvPanX = 0;
-    state.sdvPanY = 0;
-  }
-  applySdvTransform();
-  updateSdvZoomLabel();
-  if (sdvCanvas) {
-    sdvCanvas.classList.toggle("is-zoomed", state.sdvScale > 1.01);
-  }
-}
-
-function applySdvTransform() {
-  if (!sdvImage) {
-    return;
-  }
-  sdvImage.style.transform = `translate(${state.sdvPanX}px, ${state.sdvPanY}px) scale(${state.sdvScale})`;
-}
-
-function clampSdvPan() {
-  const cw = sdvCanvas ? sdvCanvas.clientWidth : 0;
-  const ch = sdvCanvas ? sdvCanvas.clientHeight : 0;
-  const rw = state.sdvBaseWidth * state.sdvScale;
-  const rh = state.sdvBaseHeight * state.sdvScale;
-  const maxX = Math.max(0, (rw - cw) / 2);
-  const maxY = Math.max(0, (rh - ch) / 2);
-  state.sdvPanX = clamp(state.sdvPanX, -maxX, maxX);
-  state.sdvPanY = clamp(state.sdvPanY, -maxY, maxY);
-}
-
-function loadSdvPreview({ fileToken, fileName, source = "upload" }) {
-  if (!sdvCanvas || !sdvImage || !sdvEmpty) {
-    return;
-  }
-  state.sdvFileToken = fileToken;
-  state.sdvFileName = fileName || "dxf_render.dxf";
-  setSdvDownloadsEnabled(true);
-  sdvEmpty.textContent = "Rendering...";
-  sdvEmpty.style.display = "";
-  sdvImage.style.display = "none";
-  sdvImage.classList.remove("is-visible");
-  sdvCanvas.classList.add("loading");
-  sdvCanvas.classList.remove("has-image", "is-zoomed");
-
-  const url = `/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
-
-  sdvImage.onload = () => {
-    sdvCanvas.classList.remove("loading");
-    sdvEmpty.style.display = "none";
-    sdvImage.style.display = "block";
-    sdvImage.classList.add("is-visible");
-    sdvCanvas.classList.add("has-image");
-    const cw = sdvCanvas.clientWidth || 1;
-    const ch = sdvCanvas.clientHeight || 1;
-    const nw = sdvImage.naturalWidth || cw;
-    const nh = sdvImage.naturalHeight || ch;
-    const fitScale = Math.min(cw / nw, ch / nh);
-    state.sdvBaseWidth = Math.max(1, nw * fitScale);
-    state.sdvBaseHeight = Math.max(1, nh * fitScale);
-    state.sdvPanX = 0;
-    state.sdvPanY = 0;
-    state.sdvScale = 1;
-    applySdvTransform();
-    updateSdvZoomLabel();
-  };
-
-  sdvImage.onerror = () => {
-    sdvCanvas.classList.remove("loading");
-    sdvEmpty.style.display = "";
-    sdvEmpty.textContent = "Preview unavailable.";
-    sdvImage.style.display = "none";
-    setSdvDownloadsEnabled(false);
-  };
-
-  sdvImage.src = url;
-
-  if (sdvFileBar) {
-    sdvFileBar.hidden = false;
-  }
-  if (sdvFileName) {
-    sdvFileName.textContent = source === "chat"
-      ? `\u2601 ${fileName || "chat_render.dxf"}`
-      : (fileName || "dxf_render.dxf");
-  }
-}
-
-async function handleSdvFileUpload(file) {
-  if (!file) {
-    return;
-  }
-  if (!file.name.toLowerCase().endsWith(".dxf")) {
-    resetSdvViewer({ message: "Only .dxf files are supported." });
-    return;
-  }
-  resetSdvViewer({ message: "Uploading..." });
-  if (sdvCanvas) {
-    sdvCanvas.classList.add("loading");
-  }
-  const formData = new FormData();
-  formData.append("file", file);
-  try {
-    const result = await apiFetch("/api/v1/dxf/upload", { method: "POST", body: formData });
-    if (result && result.file_token) {
-      loadSdvPreview({ fileToken: result.file_token, fileName: file.name, source: "upload" });
-    } else {
-      resetSdvViewer({ message: "Upload returned no token." });
-    }
-  } catch (err) {
-    resetSdvViewer({ message: `Upload failed: ${err.message}` });
-  }
-}
-
-if (sdvFileInput) {
-  sdvFileInput.addEventListener("change", () => {
-    const file = sdvFileInput.files && sdvFileInput.files[0];
-    if (file) {
-      void handleSdvFileUpload(file);
-    }
-  });
-}
-
-if (sdvDropzone) {
-  sdvDropzone.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    sdvDropzone.classList.add("is-drag-over");
-  });
-
-  sdvDropzone.addEventListener("dragleave", () => {
-    sdvDropzone.classList.remove("is-drag-over");
-  });
-
-  sdvDropzone.addEventListener("drop", (event) => {
-    event.preventDefault();
-    sdvDropzone.classList.remove("is-drag-over");
-    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
-    if (file) {
-      void handleSdvFileUpload(file);
-    }
-  });
-}
-
-if (sdvClearButton) {
-  sdvClearButton.addEventListener("click", () => {
-    resetSdvViewer();
-  });
-}
-
-if (sdvZoomInButton) {
-  sdvZoomInButton.addEventListener("click", () => {
-    setSdvScale(state.sdvScale * 1.25);
-  });
-}
-
-if (sdvZoomOutButton) {
-  sdvZoomOutButton.addEventListener("click", () => {
-    setSdvScale(state.sdvScale / 1.25);
-  });
-}
-
-if (sdvZoomResetButton) {
-  sdvZoomResetButton.addEventListener("click", () => {
-    setSdvScale(1);
-  });
-}
-
-if (sdvCanvas) {
-  sdvCanvas.addEventListener("wheel", (event) => {
-    if (!event.ctrlKey && !event.metaKey) {
-      return;
-    }
-    event.preventDefault();
-    const delta = event.deltaY > 0 ? 1 / 1.12 : 1.12;
-    setSdvScale(state.sdvScale * delta);
-  }, { passive: false });
-
-  sdvCanvas.addEventListener("pointerdown", (event) => {
-    if (!sdvCanvas.classList.contains("has-image")) {
-      return;
-    }
-    if (event.button !== 0) {
-      return;
-    }
-    state.sdvPanSession = { startX: event.clientX, startY: event.clientY, panX: state.sdvPanX, panY: state.sdvPanY };
-    sdvCanvas.classList.add("is-panning");
-    sdvCanvas.setPointerCapture(event.pointerId);
-  });
-
-  sdvCanvas.addEventListener("pointermove", (event) => {
-    if (!state.sdvPanSession) {
-      return;
-    }
-    const dx = event.clientX - state.sdvPanSession.startX;
-    const dy = event.clientY - state.sdvPanSession.startY;
-    state.sdvPanX = state.sdvPanSession.panX + dx;
-    state.sdvPanY = state.sdvPanSession.panY + dy;
-    clampSdvPan();
-    applySdvTransform();
-  });
-
-  sdvCanvas.addEventListener("pointerup", () => {
-    state.sdvPanSession = null;
-    sdvCanvas.classList.remove("is-panning");
-  });
-
-  sdvCanvas.addEventListener("pointercancel", () => {
-    state.sdvPanSession = null;
-    sdvCanvas.classList.remove("is-panning");
-  });
-}
-
-if (sdvDownloadPngButton) {
-  sdvDownloadPngButton.addEventListener("click", () => {
-    if (!state.sdvFileToken) {
-      return;
-    }
-    const base = sanitizeExportBaseName(state.sdvFileName || "dxf_viewer", "dxf_viewer");
-    downloadDxfExport(state.sdvFileToken, "png", base);
-  });
-}
-
-if (sdvDownloadPdfButton) {
-  sdvDownloadPdfButton.addEventListener("click", () => {
-    if (!state.sdvFileToken) {
-      return;
-    }
-    const base = sanitizeExportBaseName(state.sdvFileName || "dxf_viewer", "dxf_viewer");
-    downloadDxfExport(state.sdvFileToken, "pdf", base);
-  });
-}

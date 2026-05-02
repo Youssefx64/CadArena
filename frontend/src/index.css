@@ -1864,3 +1864,351 @@ textarea {
     background: rgba(226, 232, 240, 0.7);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE + PREMIUM UPGRADES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Smooth theme transition on colour-bearing elements only */
+body,
+.app-navbar,
+.app-card, .app-card-strong, .app-card-muted,
+.app-pill, .app-pill-muted,
+.app-button-secondary, .app-button-ghost,
+.app-input, .app-select, .app-textarea,
+.app-navbar-mobile,
+.app-skeleton,
+.landing-trust-strip {
+  transition-property: background, background-color, border-color, color, box-shadow;
+  transition-duration: 0.22s;
+  transition-timing-function: ease;
+}
+
+/* ─── Dark mode CSS variable overrides ────────────────────────────────────── */
+[data-theme="dark"] {
+  --page-background: #09090b;
+  --surface-0: #111113;
+  --surface-1: rgba(20, 20, 24, 0.96);
+  --surface-2: rgba(14, 14, 18, 0.94);
+  --line-soft: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(139, 92, 246, 0.22);
+  --text-strong: #fafafa;
+  --text-main: #a1a1aa;
+  --text-muted: #52525b;
+  --gradient-surface: linear-gradient(135deg, rgba(22, 22, 28, 0.97) 0%, rgba(14, 14, 20, 0.95) 100%);
+  --card-stroke: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 100%);
+  --card-stroke-muted: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.38);
+  --shadow-medium: 0 18px 40px rgba(0, 0, 0, 0.48);
+  --shadow-strong: 0 28px 64px rgba(0, 0, 0, 0.58);
+  --shadow-card-hover: 0 24px 56px rgba(0, 0, 0, 0.44), 0 28px 68px rgba(99, 102, 241, 0.14);
+  --shadow-card-hover-strong: 0 32px 72px rgba(0, 0, 0, 0.54), 0 38px 84px rgba(99, 102, 241, 0.18);
+  --button-secondary-bg: rgba(255, 255, 255, 0.06);
+  --button-secondary-bg-hover: rgba(255, 255, 255, 0.1);
+  --button-secondary-border: rgba(255, 255, 255, 0.1);
+  --button-secondary-border-hover: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="dark"] body {
+  color: var(--text-strong);
+  background: var(--page-background);
+}
+
+/* ─── Dark scrollbar ──────────────────────────────────────────────────────── */
+[data-theme="dark"] ::-webkit-scrollbar-track { background: rgba(18, 18, 22, 0.95); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(80, 80, 100, 0.55); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(110, 110, 135, 0.7); }
+
+/* ─── Dark navbar ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-navbar {
+  background: rgba(9, 9, 11, 0.86);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.3), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] .app-navbar.is-scrolled {
+  background: rgba(9, 9, 11, 0.94);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.4), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="dark"] .app-navbar-logo {
+  background: rgba(28, 28, 36, 0.9);
+  border-color: rgba(139, 92, 246, 0.22);
+}
+[data-theme="dark"] .app-nav-link { color: #52525b; }
+[data-theme="dark"] .app-nav-link:hover { color: #a78bfa; }
+[data-theme="dark"] .app-nav-link-active { color: #a78bfa; text-shadow: none; }
+[data-theme="dark"] .app-nav-link:hover::after,
+[data-theme="dark"] .app-nav-link-active::after { box-shadow: 0 0 18px rgba(139, 92, 246, 0.3); }
+[data-theme="dark"] .app-navbar-menu-button {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.09);
+  color: #71717a;
+}
+[data-theme="dark"] .app-navbar-menu-button:hover {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.25);
+  color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.08);
+}
+[data-theme="dark"] .app-navbar-mobile {
+  background: rgba(9, 9, 11, 0.97);
+  border-top-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .app-nav-link-mobile.app-nav-link-active {
+  border-color: rgba(139, 92, 246, 0.22);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* ─── Dark cards ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-card { background-color: rgba(20, 20, 26, 0.9); }
+[data-theme="dark"] .app-card-strong { background-color: rgba(24, 24, 30, 0.95); }
+[data-theme="dark"] .app-card-muted { background-color: rgba(14, 14, 18, 0.88); }
+[data-theme="dark"] .app-card::before,
+[data-theme="dark"] .app-card-strong::before,
+[data-theme="dark"] .app-card-muted::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 54%);
+}
+
+/* ─── Dark pills ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-pill {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.22);
+  color: #c4b5fd;
+}
+[data-theme="dark"] .app-pill-muted {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.09);
+  color: #71717a;
+}
+
+/* ─── Dark buttons ────────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-button-secondary { color: #c4b5fd; }
+[data-theme="dark"] .app-button-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: #a5b4fc;
+}
+
+/* ─── Dark eyebrow ────────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-eyebrow { color: #a78bfa; }
+
+/* ─── Dark inputs ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-input,
+[data-theme="dark"] .app-select,
+[data-theme="dark"] .app-textarea {
+  background: rgba(20, 20, 28, 0.96);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] .app-input:focus,
+[data-theme="dark"] .app-select:focus,
+[data-theme="dark"] .app-textarea:focus {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+}
+
+/* ─── Dark skeleton ───────────────────────────────────────────────────────── */
+[data-theme="dark"] .app-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(28, 28, 36, 0.8) 0%,
+    rgba(45, 45, 58, 0.95) 42%,
+    rgba(28, 28, 36, 0.8) 84%
+  );
+  background-size: 220% 100%;
+  box-shadow: none;
+}
+
+/* ─── Dark trust strip ────────────────────────────────────────────────────── */
+[data-theme="dark"] .landing-trust-strip {
+  background: rgba(12, 12, 16, 0.88);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Dark hero ───────────────────────────────────────────────────────────── */
+[data-theme="dark"] .hero-premium-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% -10%, rgba(99, 102, 241, 0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% -5%, rgba(124, 58, 237, 0.11) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 50% 100%, rgba(37, 99, 235, 0.08) 0%, transparent 60%);
+}
+
+/* ─── Dark hero prompt bar ────────────────────────────────────────────────── */
+[data-theme="dark"] .hero-prompt-bar {
+  background: rgba(20, 20, 28, 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .hero-prompt-bar-dark {
+  background: rgba(14, 14, 20, 0.95);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Dark community ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .community-question-card-active {
+  border-color: rgba(99, 102, 241, 0.35);
+  background:
+    linear-gradient(135deg, rgba(30, 30, 50, 0.95), rgba(20, 20, 35, 0.9)),
+    var(--card-stroke);
+}
+
+/* ─── Dark metrics ────────────────────────────────────────────────────────── */
+[data-theme="dark"] .metrics-change-pill {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+}
+[data-theme="dark"] .metrics-chart-frame {
+  background: rgba(18, 18, 24, 0.7);
+  border-color: rgba(99, 102, 241, 0.14);
+}
+
+/* ─── Dark mode toggle button ─────────────────────────────────────────────── */
+.dark-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-pill);
+  background: var(--button-secondary-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s ease,
+    background 0.22s ease,
+    color 0.22s ease;
+}
+.dark-toggle:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  transform: scale(1.07) rotate(14deg);
+}
+
+/* ─── Navbar scroll state ─────────────────────────────────────────────────── */
+.app-navbar.is-scrolled {
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.11), inset 0 -1px 0 rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+/* ─── Hero ambient orb animations ────────────────────────────────────────── */
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(44px, -58px) scale(1.07); }
+  66%  { transform: translate(-28px, 30px) scale(0.95); }
+}
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(-56px, 40px) scale(1.1); }
+}
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%  { transform: translate(30px, -30px) scale(0.93); }
+  80%  { transform: translate(-40px, 15px) scale(1.05); }
+}
+
+.hero-ambient-bg {
+  position: absolute;
+  inset: -30% -15%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(88px);
+  will-change: transform;
+}
+.hero-orb-1 {
+  width: 720px; height: 720px;
+  top: -5%; left: -8%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, transparent 70%);
+  animation: orb-drift-1 22s ease-in-out infinite;
+}
+.hero-orb-2 {
+  width: 620px; height: 620px;
+  top: -12%; right: -6%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.18) 0%, transparent 70%);
+  animation: orb-drift-2 28s ease-in-out infinite;
+}
+.hero-orb-3 {
+  width: 520px; height: 520px;
+  bottom: -10%; left: 36%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.14) 0%, transparent 70%);
+  animation: orb-drift-3 34s ease-in-out infinite;
+}
+.hero-grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.033) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.033) 1px, transparent 1px);
+  background-size: 52px 52px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dark orbs */
+[data-theme="dark"] .hero-orb-1 {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.34) 0%, transparent 70%);
+}
+[data-theme="dark"] .hero-orb-2 {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.29) 0%, transparent 70%);
+}
+[data-theme="dark"] .hero-orb-3 {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.23) 0%, transparent 70%);
+}
+[data-theme="dark"] .hero-grid-pattern {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.055) 1px, transparent 1px);
+}
+
+/* ─── Bento grid ──────────────────────────────────────────────────────────── */
+.bento-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 18px;
+}
+.bento-main { grid-row: span 2; }
+@media (max-width: 768px) {
+  .bento-grid { grid-template-columns: 1fr; }
+  .bento-main { grid-row: span 1; }
+}
+
+/* ─── Animated gradient headline ─────────────────────────────────────────── */
+.gradient-text-animated {
+  background-image: var(--gradient-primary);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 6s ease infinite;
+}
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ─── Glow pulse dot ──────────────────────────────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.glow-dot { animation: glow-pulse 2.2s ease-in-out infinite; }
+
+/* ─── Feature accent borders ──────────────────────────────────────────────── */
+.feature-card-accent {
+  border-top: 2px solid transparent;
+  background-image:
+    linear-gradient(var(--gradient-surface), var(--gradient-surface)),
+    var(--gradient-primary);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+

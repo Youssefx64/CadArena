@@ -136,14 +136,16 @@ Standalone fullscreen page (no Navbar/Footer wrapper) for viewing, uploading, an
 - **Footer**: All internal links use React Router `<Link>` to avoid full-page reloads
 - **CommunityPage**: No external CDN image dependencies — all icons use lucide-react; includes email notification sign-up with `aria-live` feedback
 - **GeneratorPage**: Status indicator shown inline without toast on page load; blueprint placeholder shown in preview pane before generation; metrics card rendered post-generation. Accepts `location.state.prefillPrompt` from navigation to pre-fill the prompt textarea.
+- **Dark Mode**: Full dark mode system — `useDarkMode` hook (`src/hooks/useDarkMode.js`) persists preference to localStorage, applies `data-theme="dark"` + `class="dark"` to `<html>`. Toggle button (Sun/Moon, animated) in Navbar. Tailwind `darkMode: 'class'` enabled. ~300 lines of dark mode CSS overrides appended to `index.css` covering all component classes.
+- **Navbar**: Scroll-aware (gains `.is-scrolled` class + deeper shadow after 12px scroll). Dark mode toggle added (desktop + mobile). `useDarkMode` hook integrated.
 - **HomePage**: Full redesigned landing page with 7 sections:
-  1. **Hero** — Animated gradient background, gradient headline, `HeroPromptBar` (pill-shaped input with Framer Motion cycling placeholder, navigates to `/generate` with prefilled prompt), quick-try example chips, ghost CTAs, `BlueprintPreview` card
-  2. **Trust Strip** — 5 key metrics (84.5% accuracy, 2.3s generation, +13.2% over baseline, EBC 2023, DXF-ready) in a glass-morphism horizontal band
-  3. **How It Works** — 3-step section (Describe → Generate → Export) with numbered `landing-step-index` badges, icon badges, and a desktop connector line
-  4. **Features** — 4 cards: AI Generation, Constraint-Aware Design, Measurable Quality, DXF Export
-  5. **Live Demo** — 2-column layout: interactive prompt selector (4 examples) + `BlueprintPreview` with animated output metric chips (FID, CLIP, Adjacency, EBC)
-  6. **Performance** — Improvements list + animated progress bar for 84.5% accuracy
+  1. **Hero** — Three animated ambient gradient orbs (`.hero-orb-1/2/3`, CSS keyframe drift), grid-pattern overlay, animated gradient headline (`gradient-text-animated`), `HeroPromptBar`, example chips, `BlueprintPreview` card
+  2. **Trust Strip** — 5 key capability labels with dark-mode borders
+  3. **How It Works** — 3-step section (Describe → Generate → Export) with icon badges, desktop connector line, enhanced hover lift animations
+  4. **Features** — 4 cards: AI Generation, Constraint-Aware Design, Structured Output, DXF Export
+  5. **Live Demo** — 2-column: interactive prompt selector + `BlueprintPreview` with output chips — all dark-mode compatible
+  6. **Capabilities** — Checklist + animated `.DXF` badge card with dark-mode accent colors
   7. **CTA** — `app-cta-panel` gradient with `HeroPromptBar` (dark variant) + Studio link
-- **CSS additions** (`index.css`): `.hero-prompt-bar`, `.hero-prompt-bar-dark`, `.hero-prompt-input`, `.landing-trust-strip`, `.landing-step-index`
+- **CSS additions** (`index.css`): `.hero-prompt-bar`, `.hero-prompt-bar-dark`, `.hero-prompt-input`, `.landing-trust-strip`, `.landing-step-index`, `.dark-toggle`, `.hero-ambient-bg`, `.hero-orb`, `.hero-orb-1/2/3`, `.hero-grid-pattern`, `.gradient-text-animated`, `.glow-dot`, `.bento-grid`, `.bento-main`, `.app-navbar.is-scrolled`, full `[data-theme="dark"]` block
 - **CSS**: Design system uses CSS custom properties + `@layer components` in `index.css`; no CSS modules
 - **Accessibility**: ARIA labels on all interactive elements, `role="status"` with `aria-live` on dynamic status regions, `sr-only` labels on icon-only buttons, focus management on mobile menu
