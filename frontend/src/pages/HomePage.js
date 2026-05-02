@@ -52,8 +52,8 @@ function BlueprintPreview() {
       ))}
       <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:1.2, duration:0.4 }}
         style={{ position:'absolute', bottom:'6%', right:'2%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
-        <span style={{ fontSize:'0.6rem', fontWeight:800, color:'#3b82f6', letterSpacing:'0.12em', textTransform:'uppercase' }}>84.5% accuracy</span>
-        <span style={{ fontSize:'0.6rem', fontWeight:600, color:'#94a3b8', letterSpacing:'0.08em' }}>2.3s · EBC 2023 ✓</span>
+        <span style={{ fontSize:'0.6rem', fontWeight:800, color:'#3b82f6', letterSpacing:'0.12em', textTransform:'uppercase' }}>EBC 2023 Compliant</span>
+        <span style={{ fontSize:'0.6rem', fontWeight:600, color:'#94a3b8', letterSpacing:'0.08em' }}>DXF Export Ready ✓</span>
       </motion.div>
       <motion.div initial={{ scaleX:0 }} animate={{ scaleX:1 }} transition={{ delay:1.4, duration:0.5, ease:[0.22,1,0.36,1] }}
         style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#3b82f6,#7c3aed)', transformOrigin:'left center', borderBottomLeftRadius:14, borderBottomRightRadius:14 }} />
@@ -115,23 +115,23 @@ function HeroPromptBar({ onDark = false }) {
 // ─── Page data ────────────────────────────────────────────────────────────────
 const HOW_IT_WORKS = [
   { step: '01', icon: Edit3, title: 'Describe your space', body: 'Write your requirements in natural language — room count, style, adjacencies, or specific constraints. No CAD knowledge needed.' },
-  { step: '02', icon: Brain, title: 'AI generates the plan', body: 'Our constraint-aware diffusion model produces a structured, EBC 2023-compliant floor plan with room adjacencies in seconds.' },
+  { step: '02', icon: Brain, title: 'AI generates the plan', body: 'An LLM-based generation pipeline interprets your description and produces a structured, EBC 2023-compliant floor plan with labelled rooms and spatial relationships.' },
   { step: '03', icon: Download, title: 'Export and refine', body: 'Download a DXF file ready for AutoCAD or Revit, or continue iterating inside the full CadArena Studio workspace.' },
 ];
 
 const FEATURES = [
-  { icon: Brain, title: 'AI-Powered Generation', body: 'Diffusion models fine-tuned on 5,000+ architectural datasets produce realistic, usable floor plans from any description.' },
+  { icon: Brain, title: 'AI-Powered Generation', body: 'An LLM-based pipeline converts your natural language description into a structured, EBC-compliant floor plan with labelled rooms and correct spatial adjacencies.' },
   { icon: Zap, title: 'Constraint-Aware Design', body: 'Automatically enforces spatial consistency, structural adjacencies, and flow relationships — so you don\'t have to.' },
-  { icon: BarChart3, title: 'Measurable Quality', body: 'Benchmarked on FID, CLIP-Score, and adjacency consistency. 84.5% accuracy over baseline — not just vibes.' },
+  { icon: BarChart3, title: 'Structured Output', body: 'Every generated plan includes labelled rooms, spatial adjacency relationships, and EBC 2023 compliance — structured for real architectural use.' },
   { icon: Download, title: 'DXF Export', body: 'Every generated plan exports as a CAD-compatible DXF file, ready to open in AutoCAD, Revit, or any DXF-compatible tool.' },
 ];
 
 const TRUST_ITEMS = [
-  { value: '84.5%',  label: 'Accuracy' },
-  { value: '2.3s',   label: 'Avg. Generation' },
-  { value: '+13.2%', label: 'Over Baseline' },
-  { value: 'EBC 2023', label: 'Compliant' },
-  { value: 'DXF',    label: 'Export-Ready' },
+  { value: 'Prompt → DXF', label: 'Core Workflow' },
+  { value: 'EBC 2023',     label: 'Compliant' },
+  { value: 'DXF',          label: 'Export-Ready' },
+  { value: 'AR + EN',      label: 'Language Support' },
+  { value: '12+ Layers',   label: 'CAD Output' },
 ];
 
 const DEMO_PROMPTS = [
@@ -184,7 +184,7 @@ const HomePage = () => {
 
               <motion.p variants={fadeUp} className="hero-subtitle">
                 Describe your space in plain language. Get a precise, constraint-aware floor plan —
-                EBC 2023-compliant and DXF-ready — in under 3 seconds.
+                EBC 2023-compliant and DXF-ready — straight from the Studio.
               </motion.p>
 
               {/* ── Interactive prompt input ── */}
@@ -407,7 +407,7 @@ const HomePage = () => {
                   </div>
                   <div className="flex items-center gap-2 rounded-full border border-green-100 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
-                    Generated in 2.3s
+                    DXF Ready
                   </div>
                 </div>
                 <div className="app-card-muted rounded-xl p-3 text-left">
@@ -422,12 +422,12 @@ const HomePage = () => {
                   </AnimatePresence>
                   <BlueprintPreview />
                 </div>
-                {/* Metric chips */}
+                {/* Output chips */}
                 <div className="mt-4 grid grid-cols-4 gap-2">
                   {[
-                    { label: 'FID Score',  value: '57.4' },
-                    { label: 'CLIP Score', value: '0.75' },
-                    { label: 'Adjacency',  value: '0.82' },
+                    { label: 'Rooms',      value: '✓' },
+                    { label: 'DXF Layers', value: '✓' },
+                    { label: 'Dimensions', value: '✓' },
                     { label: 'EBC 2023',   value: '✓' },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-xl border border-slate-100 bg-white/80 px-2 py-2.5 text-center">
@@ -442,17 +442,17 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ═══ PERFORMANCE ══════════════════════════════════════════════════════ */}
+      {/* ═══ CAPABILITIES ═════════════════════════════════════════════════════ */}
       <section className="bg-white/50 py-24" aria-labelledby="perf-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
-            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Performance</motion.p>
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">What you get</motion.p>
             <motion.h2 id="perf-heading" variants={fadeUp} className="app-section-title mb-4">
-              Numbers that matter
+              From a single prompt to a complete CAD file
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
-              CadArena&apos;s constraint-aware diffusion model is benchmarked against published
-              architectural AI baselines.
+              The Studio&apos;s LLM pipeline handles spatial reasoning, constraint enforcement, and
+              DXF formatting — so you can focus on the design intent.
             </motion.p>
           </motion.div>
 
@@ -461,13 +461,13 @@ const HomePage = () => {
             className="app-card-muted p-8 lg:p-12">
             <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
               <motion.div variants={fadeUp}>
-                <h3 className="app-card-title mb-6 text-xl">Key Improvements over Baseline</h3>
+                <h3 className="app-card-title mb-6 text-xl">What the Studio produces</h3>
                 <div className="space-y-5" role="list">
                   {[
-                    { metric: 'FID Score Improvement',    value: '−27.8 pts', desc: 'Lower FID = better visual quality' },
-                    { metric: 'CLIP Score Improvement',   value: '+0.13 pts',  desc: 'Better text-to-image alignment' },
-                    { metric: 'Adjacency Consistency',    value: '+0.32 pts',  desc: 'Spatial relationship accuracy' },
-                    { metric: 'Overall Accuracy',         value: '+13.2%',     desc: 'Compared to baseline models' },
+                    { metric: 'Labelled room polygons',  value: 'Per room',   desc: 'Living, bedroom, kitchen, bath — each correctly placed and sized' },
+                    { metric: 'DXF layer assignment',    value: '12+ layers', desc: 'One layer per room type, ready for AutoCAD or Revit filtering' },
+                    { metric: 'Linear dimensions',       value: 'Built-in',   desc: 'Width and height entities added automatically to each room' },
+                    { metric: 'EBC 2023 compliance',     value: 'Enforced',   desc: 'Minimum room areas and adjacency rules applied during generation' },
                   ].map(({ metric, value, desc }) => (
                     <div key={metric} className="flex items-start gap-3" role="listitem">
                       <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
@@ -485,7 +485,7 @@ const HomePage = () => {
 
               <motion.div variants={fadeUp} className="text-center">
                 <div className="app-card app-card-strong app-card-hover p-10 shadow-lg">
-                  <p className="app-eyebrow mb-3">Overall Accuracy</p>
+                  <p className="app-eyebrow mb-3">Output Format</p>
                   <motion.div
                     className="mb-1 text-6xl font-black tracking-tight"
                     style={{ backgroundImage: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
@@ -494,21 +494,16 @@ const HomePage = () => {
                     viewport={{ once: true }}
                     transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    84.5%
+                    .DXF
                   </motion.div>
-                  <p className="mb-6 text-sm text-slate-500">Constraint-Aware Diffusion Model</p>
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-primary-100"
-                    role="progressbar" aria-valuenow={84.5} aria-valuemin={0} aria-valuemax={100} aria-label="Overall accuracy 84.5%">
-                    <motion.div
-                      className="app-gradient-primary h-3 rounded-full"
-                      initial={{ width: '0%' }}
-                      whileInView={{ width: '84.5%' }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.35, duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-                    />
-                  </div>
-                  <div className="mt-3 flex justify-between text-xs font-semibold text-slate-400">
-                    <span>0%</span><span>100%</span>
+                  <p className="mb-6 text-sm text-slate-500">AutoCAD 2013+ · Revit · Any DXF-compatible tool</p>
+                  <div className="space-y-2">
+                    {['Room polygons', 'Room labels', 'Layer system', 'Dimensions'].map((item) => (
+                      <div key={item} className="flex items-center justify-between rounded-xl bg-primary-50 px-4 py-2">
+                        <span className="text-sm font-semibold text-slate-700">{item}</span>
+                        <span className="text-sm font-black text-primary-600">✓</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </motion.div>

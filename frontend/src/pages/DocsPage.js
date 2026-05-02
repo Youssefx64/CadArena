@@ -15,7 +15,7 @@ const SECTIONS = [
   { id: 'quickstart',  label: 'Quick Start',  icon: Zap },
   { id: 'studio',      label: 'The Studio',   icon: Layers },
   { id: 'api',         label: 'API Reference',icon: Server },
-  { id: 'models',      label: 'Models',       icon: Brain },
+  { id: 'models',      label: 'Generation',   icon: Brain },
   { id: 'export',      label: 'DXF Export',   icon: Download },
   { id: 'faq',         label: 'FAQ',          icon: HelpCircle },
 ];
@@ -130,13 +130,13 @@ const DocsPage = () => {
               <SectionHeading id="overview" icon={BookOpen}>Overview</SectionHeading>
               <p className="app-body mb-6">
                 CadArena is an AI-powered conversational CAD platform that transforms natural language descriptions into structured,
-                EBC 2023-compliant architectural floor plans. It combines a constraint-aware diffusion model with a FastAPI backend,
+                EBC 2023-compliant architectural floor plans. It combines an LLM-based generation pipeline with a FastAPI backend,
                 a React frontend, and a full studio workspace for iterative design.
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {[
-                  { icon: Brain, title: 'Constraint-Aware AI', body: 'Diffusion model trained with spatial adjacency and structural constraints.' },
-                  { icon: Cpu,   title: '84.5% Accuracy',     body: 'Benchmarked on FID, CLIP-Score, and adjacency consistency metrics.' },
+                  { icon: Brain, title: 'LLM-Based AI', body: 'LangChain + Ollama pipeline interprets your prompt and produces a structured floor plan.' },
+                  { icon: Cpu,   title: 'EBC 2023 Compliant', body: 'Egyptian Building Code 2023 constraints are enforced during generation — not as post-processing.' },
                   { icon: FileCode2, title: 'DXF Export',     body: 'Every generated plan is exported as a CAD-compatible DXF file.' },
                 ].map(({ icon: Icon, title, body }) => (
                   <div key={title} className="app-card p-5">
@@ -269,29 +269,31 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
 
             {/* MODELS */}
             <section>
-              <SectionHeading id="models" icon={Brain}>Models</SectionHeading>
+              <SectionHeading id="models" icon={Brain}>Generation Pipeline</SectionHeading>
               <p className="app-body mb-6">
-                CadArena ships with two trained diffusion models. Both are built on top of Stable Diffusion 2.1
-                and fine-tuned on the CubiCasa5K floor plan dataset.
+                CadArena&apos;s core generation is driven by a large language model pipeline built with
+                LangChain and Ollama. The LLM receives your natural language prompt, applies EBC 2023
+                spatial constraints, and outputs a structured JSON layout that is converted to DXF by
+                the <code className="rounded bg-slate-100 px-1 font-mono text-xs">ezdxf</code> export pipeline.
               </p>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {[
                   {
-                    id: 'baseline',
-                    name: 'Baseline',
-                    badge: 'Foundation',
-                    badgeColor: 'border-primary-200 bg-primary-50 text-primary-700',
-                    desc: 'Standard fine-tuned Stable Diffusion 2.1 on architectural data. Good for quick prototyping and baseline comparisons.',
-                    metrics: [['Accuracy', '71.3%'], ['FID', '85.2'], ['CLIP', '0.62'], ['Adjacency', '0.41']],
+                    id: 'studio',
+                    name: 'Studio (LLM)',
+                    badge: 'Active',
+                    badgeColor: 'border-secondary-200 bg-secondary-50 text-secondary-700',
+                    desc: 'The primary generation path. Accepts an Arabic or English prompt and returns a multi-layer DXF floor plan with labelled rooms, dimensions, and EBC 2023 compliance.',
+                    caps: [['Output', 'DXF file'], ['Languages', 'AR + EN'], ['Compliance', 'EBC 2023'], ['Layers', '12+']],
                   },
                   {
-                    id: 'constraint_aware',
-                    name: 'Constraint-Aware',
-                    badge: 'Recommended',
-                    badgeColor: 'border-secondary-200 bg-secondary-50 text-secondary-700',
-                    desc: 'Enhanced with spatial constraint loss and adjacency modeling. Use this for production-quality floor plans.',
-                    metrics: [['Accuracy', '84.5%'], ['FID', '57.4'], ['CLIP', '0.75'], ['Adjacency', '0.73']],
+                    id: 'image_gen',
+                    name: 'AI Image Generator',
+                    badge: 'Coming Soon',
+                    badgeColor: 'border-slate-200 bg-slate-50 text-slate-500',
+                    desc: 'A fine-tuned Stable Diffusion model for generating floor plan images. Currently in development — not integrated into the platform yet.',
+                    caps: [['Output', 'PNG image'], ['Base Model', 'SD 2.1'], ['Status', 'Planned'], ['Dataset', 'CubiCasa5K']],
                   },
                 ].map((m) => (
                   <div key={m.id} className="app-card p-6">
@@ -301,7 +303,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                     </div>
                     <p className="mb-4 text-sm text-slate-600">{m.desc}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {m.metrics.map(([label, value]) => (
+                      {m.caps.map(([label, value]) => (
                         <div key={label} className="app-card-muted rounded-xl p-3 text-center">
                           <p className="text-sm font-black text-slate-950">{value}</p>
                           <p className="text-xs text-slate-500">{label}</p>
@@ -315,10 +317,10 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               <div className="app-card-muted mt-6 flex items-start gap-3 rounded-2xl p-5">
                 <Cpu className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
                 <div>
-                  <p className="font-semibold text-slate-950">Training hardware</p>
+                  <p className="font-semibold text-slate-950">Inference stack</p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Models were trained on Google Colab with an A100 GPU (CUDA 11.8+), totalling 120+ GPU hours.
-                    Architecture: 865M parameter Stable Diffusion 2.1 base with custom constraint layers.
+                    The Studio uses LangChain for chain orchestration and Ollama for local LLM inference.
+                    DXF output is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs">ezdxf</code> library with a custom per-room-type layer system.
                   </p>
                 </div>
               </div>
@@ -360,11 +362,11 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   },
                   {
                     q: 'What languages are supported for prompts?',
-                    a: 'English and Arabic are both supported. The CLIP text encoder handles multilingual input, though English prompts tend to produce the most consistent results.',
+                    a: 'English and Arabic are both supported. The underlying LLM handles both languages natively, though English prompts tend to produce the most consistent results.',
                   },
                   {
                     q: 'How long does generation take?',
-                    a: 'Average generation time is 2.3 seconds on GPU. CPU inference is significantly slower (30-120s depending on hardware).',
+                    a: 'Generation time depends on the LLM backend and hardware. With Ollama running locally, expect a few seconds to a minute. The Studio streams the output progressively.',
                   },
                   {
                     q: 'Can I use the generated floor plans commercially?',
@@ -372,11 +374,11 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   },
                   {
                     q: 'What is the difference between the Studio and the Generator?',
-                    a: 'The Studio (/studio) is a full CAD workspace with a conversational interface and iterative design tools. The Generator page (/generate) is a simpler text-to-floor-plan form — both use the same underlying AI models.',
+                    a: 'The Studio (/studio) is a full CAD workspace with a conversational interface and iterative design tools. The Generator page (/generate) is a simpler, single-shot text-to-floor-plan form — both use the same LLM generation pipeline.',
                   },
                   {
                     q: 'What is EBC 2023 compliance?',
-                    a: 'The Egyptian Building Code 2023 defines minimum room sizes, adjacency requirements, and spatial standards. CadArena\'s constraint-aware model is trained to satisfy these constraints automatically.',
+                    a: 'The Egyptian Building Code 2023 defines minimum room sizes, adjacency requirements, and spatial standards. CadArena\'s generation pipeline encodes these constraints so that every generated floor plan satisfies them automatically.',
                   },
                 ].map(({ q, a }) => (
                   <details key={q} className="app-card group rounded-2xl p-0 open:shadow-lg">

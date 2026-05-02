@@ -13,13 +13,13 @@ const AboutPage = () => {
   const PILLARS = [
     {
       icon: Brain,
-      title: 'Constraint-Aware Diffusion',
-      body: 'The core AI uses a modified Stable Diffusion 2.1 model with a custom spatial constraint loss that enforces room adjacency and structural relationships during the denoising process — not as a post-processing filter.',
+      title: 'LLM-Driven Generation',
+      body: 'The core AI uses a large language model pipeline — built with LangChain and Ollama — that interprets your natural language description and generates a structured floor plan with correct room types, areas, and spatial adjacencies.',
     },
     {
       icon: Target,
       title: 'EBC 2023 Compliance',
-      body: 'Generated layouts satisfy Egyptian Building Code 2023 standards for minimum room areas, ceiling heights, and spatial adjacency — making the output usable in real architectural practice, not just as visualizations.',
+      body: 'Generated layouts satisfy Egyptian Building Code 2023 standards for minimum room areas, ceiling heights, and spatial adjacency — making the output usable in real architectural practice, not just as visualisations.',
     },
     {
       icon: FileCode2,
@@ -38,17 +38,17 @@ const AboutPage = () => {
       icon: Brain,
       category: 'AI & Machine Learning',
       items: [
-        { name: 'PyTorch 2.0 + Diffusers 0.35', note: 'Diffusion model training and inference' },
-        { name: 'Stable Diffusion 2.1', note: 'Foundation model (865M parameters)' },
-        { name: 'CLIP + Transformers 4.57', note: 'Text encoder for prompt understanding' },
-        { name: 'Custom constraint U-Net', note: 'Spatial attention + multi-loss training' },
+        { name: 'LangChain', note: 'LLM orchestration and chain composition' },
+        { name: 'Ollama + langchain-ollama', note: 'Local LLM inference backend' },
+        { name: 'Transformers (HuggingFace)', note: 'Tokenisation and model utilities' },
+        { name: 'EBC 2023 constraint encoding', note: 'Spatial rules built into the generation pipeline' },
       ],
     },
     {
       icon: Code2,
       category: 'Backend & API',
       items: [
-        { name: 'FastAPI 0.128 + Uvicorn', note: 'High-performance async API server' },
+        { name: 'FastAPI + Uvicorn', note: 'High-performance async API server' },
         { name: 'Pydantic v2', note: 'Request/response validation' },
         { name: 'ezdxf', note: 'DXF generation and export pipeline' },
         { name: 'bcrypt + JWT cookies', note: 'Secure authentication system' },
@@ -61,28 +61,28 @@ const AboutPage = () => {
         { name: 'React 18 + CRA', note: 'Code-split SPA with lazy loading' },
         { name: 'Tailwind CSS 3.3', note: 'Design system and utility styling' },
         { name: 'Framer Motion 10', note: 'Animations and micro-interactions' },
-        { name: 'Lucide React + Recharts', note: 'Icons and data visualization' },
+        { name: 'Lucide React + Recharts', note: 'Icons and data visualisation' },
       ],
     },
     {
       icon: Database,
       category: 'Data & Infrastructure',
       items: [
-        { name: 'CubiCasa5K dataset', note: '5,000+ annotated architectural floor plans' },
         { name: 'SQLite persistence', note: 'Workspace, profiles, and project storage' },
-        { name: 'Google Colab A100', note: 'Training hardware (120+ GPU hours)' },
-        { name: 'CUDA 11.8+', note: 'GPU-accelerated inference pipeline' },
+        { name: 'JWT HTTP-only cookies', note: 'Secure, stateless session management' },
+        { name: 'Replit deployment', note: 'Containerised cloud hosting' },
+        { name: 'EBC 2023 ruleset', note: 'Embedded constraint library for compliance checks' },
       ],
     },
   ];
 
   const METRICS = [
-    { label: 'Model Accuracy',  value: '84.5%', note: 'Constraint-Aware vs 71.3% baseline' },
-    { label: 'FID Score',       value: '57.4',  note: 'Down from 85.2 baseline (lower = better)' },
-    { label: 'CLIP Score',      value: '0.75',  note: 'Text-image alignment (up from 0.62)' },
-    { label: 'Adjacency Score', value: '0.73',  note: '+78% over baseline' },
-    { label: 'Generation Time', value: '2.3s',  note: 'Average on GPU hardware' },
-    { label: 'Training Epochs', value: '5',     note: 'With early stopping and LR scheduling' },
+    { label: 'Core Workflow',     value: 'Prompt → DXF', note: 'Natural language directly to CAD file' },
+    { label: 'Output Format',     value: 'DXF',           note: 'AutoCAD 2013+ and Revit compatible' },
+    { label: 'Language Support',  value: 'AR + EN',       note: 'Arabic and English prompt support' },
+    { label: 'Compliance',        value: 'EBC 2023',      note: 'Egyptian Building Code 2023 built-in' },
+    { label: 'DXF Layers',        value: '12+',           note: 'One layer per room type' },
+    { label: 'Generation Engine', value: 'LLM',           note: 'LangChain + Ollama inference pipeline' },
   ];
 
   return (
@@ -164,18 +164,18 @@ const AboutPage = () => {
           </div>
         </motion.div>
 
-        {/* Key improvements */}
+        {/* Key capabilities */}
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
           className="app-card-muted mb-16 p-8 lg:p-12">
           <motion.h2 variants={fadeUp} className="app-section-title mb-8 text-center">
-            Constraint-Aware vs Baseline
+            What the Studio delivers
           </motion.h2>
           <div className="mx-auto max-w-2xl space-y-4">
             {[
-              { metric: 'FID Score', improvement: '−27.8 pts', note: 'Lower is better — significant quality gain' },
-              { metric: 'CLIP Score', improvement: '+0.13 pts', note: 'Better text-to-layout alignment' },
-              { metric: 'Adjacency Consistency', improvement: '+0.32 pts', note: 'Rooms are now spatially coherent' },
-              { metric: 'Overall Accuracy', improvement: '+13.2%', note: 'Measured across all evaluation metrics' },
+              { metric: 'Natural Language Input', improvement: 'AR + EN', note: 'Describe your space in plain Arabic or English — no CAD knowledge needed' },
+              { metric: 'Structured DXF Output', improvement: '12+ layers', note: 'Per-room-type layers with labels and linear dimension entities' },
+              { metric: 'EBC 2023 Compliance', improvement: 'Built-in', note: 'Egyptian Building Code constraints enforced during generation' },
+              { metric: 'Conversational Workflow', improvement: 'Iterative', note: 'Refine your floor plan across multiple turns in the Studio workspace' },
             ].map(({ metric, improvement, note }) => (
               <motion.div key={metric} variants={fadeUp} className="flex items-start gap-3">
                 <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
