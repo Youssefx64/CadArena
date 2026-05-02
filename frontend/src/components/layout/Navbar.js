@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Menu, X, Home, Zap, BarChart3, Brain, Info, Users,
   MessageCircle, MessageSquare, LogIn, UserPlus, LogOut,
-  User, Settings, ChevronDown, BookOpen,
+  User, Settings, ChevronDown, BookOpen, FileSearch2,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { name: 'About',      href: '/about',      icon: Info },
   { name: 'Developers', href: '/developers', icon: Users },
   { name: 'Docs',       href: '/docs',       icon: BookOpen },
+  { name: 'Viewer',     href: '/viewer',     icon: FileSearch2 },
 ];
 
 function UserMenu({ user, profile, avatarTs, onLogout }) {

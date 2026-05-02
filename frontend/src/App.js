@@ -20,6 +20,7 @@ const SignUpPage      = lazy(() => import('./pages/SignUpPage'));
 const ProfilePage    = lazy(() => import('./pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
 const DocsPage        = lazy(() => import('./pages/DocsPage'));
+const ViewerPage      = lazy(() => import('./pages/ViewerPage'));
 
 function PageLoader() {
   return (
@@ -75,6 +76,14 @@ function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <StudioPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/viewer"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <ViewerPage />
                 </Suspense>
               }
             />

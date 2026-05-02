@@ -84,9 +84,32 @@ Stored in `backend/.env` (see `backend/.env.example` for template). Key vars:
 
 **Avatar cache-busting**: `avatarTs` state (timestamp) in AuthContext, bumped after avatar upload/delete. Used as `?t=${avatarTs}` on all `<img src="/api/v1/profile/me/avatar">` elements.
 
+## DXF Viewer (`/viewer`)
+
+Standalone fullscreen page (no Navbar/Footer wrapper) for viewing, uploading, and exporting DXF files.
+
+**Entry points:**
+- Navbar "Viewer" link → `/viewer` (upload mode)
+- Deep-link with URL params → `/viewer?token=<file_token>&name=<filename.dxf>` (loaded mode)
+
+**Components** (`frontend/src/components/viewer/`):
+- `DxfCanvas.js` — CSS-transform zoom/pan canvas with cursor-aware wheel zoom, drag-to-pan, upload drop zone when no token is active. Exposes `getContainerSize()` via `forwardRef`.
+- `LayerPanel.js` — Collapsible sidebar listing DXF layer names (parsed from raw DXF text) with coloured dot indicators and eye-toggle visibility icons.
+- `ViewerToolbar.js` — 56 px top bar: back, file icon + name + DXF badge, zoom group (−/100%/+), fit-to-screen, reset, download DXF, export PNG/PDF, open-file button.
+
+**State & logic** (`frontend/src/pages/ViewerPage.js`):
+- Reads `?token` and `?name` from URL search params (`useSearchParams`)
+- Fetches DXF raw text via `/api/v1/dxf/download` to parse layer names; falls back to CadArena's 12 known layers
+- Preview image fetched from `/api/v1/dxf/preview?file_token=` (server-rendered PNG via matplotlib)
+- Upload via `POST /api/v1/dxf/upload` (multipart), updates URL params on success
+- Keyboard shortcuts: `F` = fit, `R` = reset, `+`/`-` = zoom
+- Cursor-aware zoom (point under cursor stays fixed through zoom)
+
+**CSS classes** (added to `@layer components` in `index.css`): `.viewer-shell`, `.viewer-toolbar`, `.viewer-toolbar-sep`, `.viewer-zoom-group`, `.viewer-zoom-display`, `.viewer-body`, `.viewer-layer-panel`, `.viewer-layer-panel-collapsed`, `.viewer-layer-item`, `.viewer-layer-dot`, `.viewer-canvas-wrap`, `.viewer-canvas-inner`, `.viewer-canvas-img`, `.viewer-canvas-state`, `.viewer-upload-zone`
+
 ## UI/UX Notes
 
-- **Code splitting**: All 8 pages are lazy-loaded via `React.lazy` + `Suspense` with a skeleton fallback (`PageLoader`) for smooth transitions
+- **Code splitting**: All pages are lazy-loaded via `React.lazy` + `Suspense` with a skeleton fallback (`PageLoader`) for smooth transitions
 - **Navbar**: Animated mobile menu (Framer Motion slide-in with staggered items), Escape key closes menu, body scroll locked when open, "Launch Studio" CTA button on desktop/mobile, ARIA `aria-expanded` and `aria-current` attributes on all nav items
 - **Footer**: All internal links use React Router `<Link>` to avoid full-page reloads
 - **CommunityPage**: No external CDN image dependencies — all icons use lucide-react; includes email notification sign-up with `aria-live` feedback
