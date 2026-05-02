@@ -8,7 +8,7 @@ export function useDarkMode() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) return stored === 'dark';
     } catch {}
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    return false;
   });
 
   useEffect(() => {

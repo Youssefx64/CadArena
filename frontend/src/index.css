@@ -327,9 +327,9 @@ textarea {
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 42px;
-    padding: 10px 10px;
+    padding: 10px 8px;
     color: var(--text-muted);
     font-size: var(--type-caption);
     font-weight: 700;
