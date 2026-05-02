@@ -1,13 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-/**
- * Card Component - Reusable card container
- * @param {React.ReactNode} children - Card content
- * @param {string} variant - Card variant: 'default', 'hover', 'elevated'
- * @param {boolean} interactive - Add hover effects
- * @param {string} className - Additional classes
- */
 export default function Card({
   children,
   variant = 'default',
@@ -16,9 +9,9 @@ export default function Card({
   ...props
 }) {
   const variantClasses = {
-    default: 'border border-slate-200 bg-white',
-    hover: 'border border-slate-200 bg-white hover:border-primary-300 hover:shadow-md',
-    elevated: 'border border-slate-200 bg-white shadow-lg',
+    default:  'border border-slate-200 bg-white dark:border-white/10 dark:bg-zinc-900',
+    hover:    'border border-slate-200 bg-white hover:border-primary-300 hover:shadow-md dark:border-white/10 dark:bg-zinc-900 dark:hover:border-violet-700',
+    elevated: 'border border-slate-200 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900',
   };
 
   const Component = interactive ? motion.div : 'div';

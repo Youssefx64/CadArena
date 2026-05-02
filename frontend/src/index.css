@@ -831,6 +831,7 @@ textarea {
     min-height: 44px;
     padding: 10px 20px;
     font-size: var(--type-caption);
+    white-space: nowrap;
   }
 
   .app-button-primary:hover,

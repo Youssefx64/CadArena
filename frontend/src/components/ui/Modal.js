@@ -2,18 +2,6 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
-/**
- * Modal Component - Reusable modal dialog
- * @param {boolean} isOpen - Whether modal is open
- * @param {function} onClose - Callback when modal closes
- * @param {string} title - Modal title
- * @param {React.ReactNode} children - Modal content
- * @param {string} size - Modal size: 'sm', 'md', 'lg', 'xl'
- * @param {boolean} closeButton - Show close button
- * @param {function} onConfirm - Callback for confirm action
- * @param {string} confirmText - Confirm button text
- * @param {boolean} isLoading - Show loading state
- */
 export default function Modal({
   isOpen,
   onClose,
@@ -25,19 +13,14 @@ export default function Modal({
   confirmText = 'Confirm',
   isLoading = false,
 }) {
-  // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
+      if (e.key === 'Escape' && isOpen) onClose();
     };
-
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
@@ -55,7 +38,6 @@ export default function Modal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -65,27 +47,25 @@ export default function Modal({
             aria-hidden="true"
           />
 
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className={`fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 ${sizeClasses[size]} rounded-2xl border border-slate-200 bg-white shadow-2xl`}
+            className={`fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 ${sizeClasses[size]} rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-zinc-900`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-title"
           >
-            {/* Header */}
             {title && (
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <h2 id="modal-title" className="text-xl font-bold text-slate-950">
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-white/8">
+                <h2 id="modal-title" className="text-xl font-bold text-slate-950 dark:text-slate-100">
                   {title}
                 </h2>
                 {closeButton && (
                   <button
                     onClick={onClose}
-                    className="rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/8 dark:hover:text-slate-200"
                     aria-label="Close modal"
                   >
                     <X className="h-5 w-5" />
@@ -94,12 +74,10 @@ export default function Modal({
               </div>
             )}
 
-            {/* Content */}
             <div className="px-6 py-4">{children}</div>
 
-            {/* Footer with actions */}
             {onConfirm && (
-              <div className="flex gap-3 border-t border-slate-200 px-6 py-4">
+              <div className="flex gap-3 border-t border-slate-200 px-6 py-4 dark:border-white/8">
                 <button
                   onClick={onClose}
                   className="app-button-secondary flex-1"

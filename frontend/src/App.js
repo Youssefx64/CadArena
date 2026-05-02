@@ -1,11 +1,21 @@
 import React, { Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+function RequireAuth({ children }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  if (isLoading) return null;
+  if (!isAuthenticated) {
+    return <Navigate to={`/login?from=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+  return children;
+}
 
 const HomePage       = lazy(() => import('./pages/HomePage'));
 const GeneratorPage  = lazy(() => import('./pages/GeneratorPage'));
@@ -74,9 +84,11 @@ function App() {
             <Route
               path="/studio"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <StudioPage />
-                </Suspense>
+                <RequireAuth>
+                  <Suspense fallback={<PageLoader />}>
+                    <StudioPage />
+                  </Suspense>
+                </RequireAuth>
               }
             />
             <Route

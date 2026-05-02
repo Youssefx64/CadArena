@@ -1,12 +1,15 @@
 import React from 'react';
 import Navbar from '../components/layout/Navbar';
+import { useDarkMode } from '../hooks/useDarkMode';
 
 export default function StudioPage() {
+  const { isDark } = useDarkMode();
+
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#f8faff',
+        background: isDark ? '#09090b' : '#f8faff',
         display: 'flex',
         flexDirection: 'column',
       }}
