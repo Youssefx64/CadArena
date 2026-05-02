@@ -323,8 +323,8 @@ def ensure_user_profile(*, user_id: str, default_display_name: str) -> dict:
     cleaned_user_id = user_id.strip()
     if not cleaned_user_id:
         raise ValueError("user_id must not be empty")
-    name = _normalize_name(default_display_name)
-    now = _utc_now()
+    name = normalize_name(default_display_name)
+    now = utc_now()
 
     with _connect() as connection:
         existing = connection.execute(
@@ -365,7 +365,7 @@ def update_user_profile(
     normalized_company = _normalize_optional_field(company, max_length=160)
     normalized_website = _normalize_optional_field(website, max_length=320)
     normalized_timezone = _normalize_optional_field(timezone, max_length=80)
-    now = _utc_now()
+    now = utc_now()
 
     with _connect() as connection:
         updated = connection.execute(
@@ -406,8 +406,8 @@ def update_user_profile_image(*, user_id: str, profile_image_path: str | None) -
         raise ValueError("user_id must not be empty")
 
     normalized_profile_image_path = _normalize_optional_path(profile_image_path, max_length=1024)
-    profile_image_updated_at = _utc_now() if normalized_profile_image_path else None
-    now = _utc_now()
+    profile_image_updated_at = utc_now() if normalized_profile_image_path else None
+    now = utc_now()
 
     with _connect() as connection:
         updated = connection.execute(
@@ -474,7 +474,7 @@ def upsert_user_provider_api_key(*, user_id: str, provider: str, api_key: str) -
     normalized_provider = _normalize_provider(provider)
     normalized_key = _normalize_api_key(api_key)
     encrypted_key = _encrypt_provider_api_key(normalized_key)
-    now = _utc_now()
+    now = utc_now()
 
     with _connect() as connection:
         connection.execute(
