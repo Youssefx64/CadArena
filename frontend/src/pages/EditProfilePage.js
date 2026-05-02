@@ -103,7 +103,8 @@ function EditProfileContent() {
     }
   };
 
-  const currentAvatarSrc = avatarPreview || `/api/v1/profile/me/avatar?t=${avatarTs}`;
+  const hasRealAvatar = !!avatarPreview || !!profile?.avatar_url;
+  const currentAvatarSrc = avatarPreview || (profile?.avatar_url ? `${profile.avatar_url}?t=${avatarTs}` : null);
 
   return (
     <div className="app-page">
@@ -124,18 +125,18 @@ function EditProfileContent() {
             <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Profile Picture</h2>
             <div className="flex flex-col items-center gap-5 sm:flex-row">
               <div className="relative h-24 w-24 flex-shrink-0">
-                {avatarImgError ? (
-                  <div className="h-24 w-24 rounded-full border-4 border-primary-100 shadow-medium bg-primary-50 dark:bg-primary-950/30 flex items-center justify-center">
-                    <User className="h-10 w-10 text-primary-300 dark:text-primary-700" aria-hidden="true" />
-                  </div>
-                ) : (
+                {hasRealAvatar && !avatarImgError ? (
                   <img
                     key={avatarPreview || avatarTs}
                     src={currentAvatarSrc}
                     alt=""
-                    className="h-24 w-24 rounded-full border-4 border-primary-100 object-cover shadow-medium"
+                    className="h-24 w-24 rounded-full border-4 border-slate-200 dark:border-slate-700 object-cover shadow-md"
                     onError={() => setAvatarImgError(true)}
                   />
+                ) : (
+                  <div className="h-24 w-24 rounded-full border-4 border-slate-200 dark:border-slate-700 shadow-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <User className="h-10 w-10 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                  </div>
                 )}
                 <AnimatePresence>
                   {(isUploadingAvatar || isDeletingAvatar) && (
