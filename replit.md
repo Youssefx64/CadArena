@@ -90,7 +90,15 @@ Stored in `backend/.env` (see `backend/.env.example` for template). Key vars:
 - **Navbar**: Animated mobile menu (Framer Motion slide-in with staggered items), Escape key closes menu, body scroll locked when open, "Launch Studio" CTA button on desktop/mobile, ARIA `aria-expanded` and `aria-current` attributes on all nav items
 - **Footer**: All internal links use React Router `<Link>` to avoid full-page reloads
 - **CommunityPage**: No external CDN image dependencies — all icons use lucide-react; includes email notification sign-up with `aria-live` feedback
-- **GeneratorPage**: Status indicator shown inline without toast on page load; blueprint placeholder shown in preview pane before generation; metrics card rendered post-generation
-- **HomePage**: Animated floor plan `BlueprintPreview` component (inline SVG-like rooms with CSS grid + Framer Motion stagger) replaces the old emoji placeholder
+- **GeneratorPage**: Status indicator shown inline without toast on page load; blueprint placeholder shown in preview pane before generation; metrics card rendered post-generation. Accepts `location.state.prefillPrompt` from navigation to pre-fill the prompt textarea.
+- **HomePage**: Full redesigned landing page with 7 sections:
+  1. **Hero** — Animated gradient background, gradient headline, `HeroPromptBar` (pill-shaped input with Framer Motion cycling placeholder, navigates to `/generate` with prefilled prompt), quick-try example chips, ghost CTAs, `BlueprintPreview` card
+  2. **Trust Strip** — 5 key metrics (84.5% accuracy, 2.3s generation, +13.2% over baseline, EBC 2023, DXF-ready) in a glass-morphism horizontal band
+  3. **How It Works** — 3-step section (Describe → Generate → Export) with numbered `landing-step-index` badges, icon badges, and a desktop connector line
+  4. **Features** — 4 cards: AI Generation, Constraint-Aware Design, Measurable Quality, DXF Export
+  5. **Live Demo** — 2-column layout: interactive prompt selector (4 examples) + `BlueprintPreview` with animated output metric chips (FID, CLIP, Adjacency, EBC)
+  6. **Performance** — Improvements list + animated progress bar for 84.5% accuracy
+  7. **CTA** — `app-cta-panel` gradient with `HeroPromptBar` (dark variant) + Studio link
+- **CSS additions** (`index.css`): `.hero-prompt-bar`, `.hero-prompt-bar-dark`, `.hero-prompt-input`, `.landing-trust-strip`, `.landing-step-index`
 - **CSS**: Design system uses CSS custom properties + `@layer components` in `index.css`; no CSS modules
 - **Accessibility**: ARIA labels on all interactive elements, `role="status"` with `aria-live` on dynamic status regions, `sr-only` labels on icon-only buttons, focus management on mobile menu

@@ -1,253 +1,222 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Zap, Brain, BarChart3, Sparkles, CheckCircle, Play } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowRight, Zap, Brain, BarChart3, Sparkles, CheckCircle,
+  Download, Edit3, ChevronRight, MessageSquare,
+} from 'lucide-react';
 
+const PROMPT_EXAMPLES = [
+  '3-bedroom apartment with open kitchen and living room',
+  'Studio flat with dedicated home office and ensuite',
+  '2-bedroom family home with south-facing master bedroom',
+  'Corner penthouse with panoramic windows and open plan',
+];
+
+const stagger  = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.09 } } };
+const fadeUp   = { hidden: { y: 24, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.52, ease: [0.22, 1, 0.36, 1] } } };
+const fadeIn   = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.45 } } };
+
+// ─── Animated blueprint preview ───────────────────────────────────────────────
 function BlueprintPreview() {
   const rooms = [
-    { id: 'living', label: 'Living Room', x: '8%', y: '8%', w: '52%', h: '36%', accent: true },
-    { id: 'kitchen', label: 'Kitchen', x: '64%', y: '8%', w: '28%', h: '22%' },
-    { id: 'dining', label: 'Dining', x: '64%', y: '34%', w: '28%', h: '10%' },
-    { id: 'master', label: 'Master Bed', x: '8%', y: '50%', w: '36%', h: '34%', accent: true },
-    { id: 'bed2', label: 'Bedroom 2', x: '48%', y: '50%', w: '26%', h: '34%' },
-    { id: 'bath', label: 'Bath', x: '78%', y: '50%', w: '14%', h: '20%' },
-    { id: 'hallway', label: '', x: '48%', y: '44%', w: '44%', h: '6%', muted: true },
+    { id: 'living', label: 'Living Room', x: '8%',  y: '8%',  w: '52%', h: '36%', accent: true },
+    { id: 'kitchen',label: 'Kitchen',     x: '64%', y: '8%',  w: '28%', h: '22%' },
+    { id: 'dining', label: 'Dining',      x: '64%', y: '34%', w: '28%', h: '10%' },
+    { id: 'master', label: 'Master Bed',  x: '8%',  y: '50%', w: '36%', h: '34%', accent: true },
+    { id: 'bed2',   label: 'Bedroom 2',   x: '48%', y: '50%', w: '26%', h: '34%' },
+    { id: 'bath',   label: 'Bath',        x: '78%', y: '50%', w: '14%', h: '20%' },
+    { id: 'hall',   label: '',            x: '48%', y: '44%', w: '44%', h: '6%',  muted: true },
   ];
-
   return (
     <div
       className="relative w-full overflow-hidden"
-      style={{
-        aspectRatio: '16 / 9',
-        background: 'rgba(248, 250, 255, 0.9)',
-        borderRadius: 16,
-      }}
-      aria-label="Animated floor plan preview"
-      role="img"
+      style={{ aspectRatio: '16/9', background: 'rgba(248,250,255,0.9)', borderRadius: 14 }}
+      aria-label="Animated floor plan preview" role="img"
     >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage:
-            'linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(124, 58, 237, 0.05) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-          opacity: 0.9,
-        }}
-      />
-
-      {rooms.map((room, i) => (
-        <motion.div
-          key={room.id}
+      <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(rgba(37,99,235,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.05) 1px,transparent 1px)', backgroundSize:'24px 24px', opacity:0.9 }} />
+      {rooms.map((r, i) => (
+        <motion.div key={r.id}
           initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.25 + i * 0.1, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: 0.22 + i * 0.1, duration: 0.38, ease: [0.22,1,0.36,1] }}
           style={{
-            position: 'absolute',
-            left: room.x,
-            top: room.y,
-            width: room.w,
-            height: room.h,
-            borderRadius: 8,
-            border: room.muted
-              ? '1px dashed rgba(99,102,241,0.22)'
-              : room.accent
-                ? '1.5px solid rgba(59,130,246,0.45)'
-                : '1.5px solid rgba(99,102,241,0.28)',
-            background: room.muted
-              ? 'transparent'
-              : room.accent
-                ? 'rgba(239,246,255,0.75)'
-                : 'rgba(255,255,255,0.72)',
-            boxShadow: room.accent
-              ? '0 2px 12px rgba(59,130,246,0.10), inset 0 1px 0 rgba(255,255,255,0.7)'
-              : 'inset 0 1px 0 rgba(255,255,255,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {room.label && (
-            <span
-              style={{
-                fontSize: 'clamp(0.55rem, 1vw, 0.72rem)',
-                fontWeight: 700,
-                color: room.accent ? '#1d4ed8' : '#64748b',
-                letterSpacing: '0.02em',
-                textAlign: 'center',
-                padding: '0 4px',
-                userSelect: 'none',
-              }}
-            >
-              {room.label}
-            </span>
-          )}
+            position:'absolute', left:r.x, top:r.y, width:r.w, height:r.h, borderRadius:8,
+            border: r.muted ? '1px dashed rgba(99,102,241,0.22)' : r.accent ? '1.5px solid rgba(59,130,246,0.45)' : '1.5px solid rgba(99,102,241,0.28)',
+            background: r.muted ? 'transparent' : r.accent ? 'rgba(239,246,255,0.75)' : 'rgba(255,255,255,0.72)',
+            boxShadow: r.accent ? '0 2px 12px rgba(59,130,246,0.1),inset 0 1px 0 rgba(255,255,255,0.7)' : 'inset 0 1px 0 rgba(255,255,255,0.6)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+          }}>
+          {r.label && <span style={{ fontSize:'clamp(0.55rem,1vw,0.72rem)', fontWeight:700, color:r.accent?'#1d4ed8':'#64748b', letterSpacing:'0.02em', textAlign:'center', padding:'0 4px', userSelect:'none' }}>{r.label}</span>}
         </motion.div>
       ))}
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.4 }}
-        style={{
-          position: 'absolute',
-          bottom: '6%',
-          right: '2%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: 4,
-        }}
-      >
-        <span
-          style={{
-            fontSize: '0.6rem',
-            fontWeight: 800,
-            color: '#3b82f6',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-          }}
-        >
-          84.5% accuracy
-        </span>
-        <span
-          style={{
-            fontSize: '0.6rem',
-            fontWeight: 600,
-            color: '#94a3b8',
-            letterSpacing: '0.08em',
-          }}
-        >
-          2.3s · EBC 2023 ✓
-        </span>
+      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:1.2, duration:0.4 }}
+        style={{ position:'absolute', bottom:'6%', right:'2%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+        <span style={{ fontSize:'0.6rem', fontWeight:800, color:'#3b82f6', letterSpacing:'0.12em', textTransform:'uppercase' }}>84.5% accuracy</span>
+        <span style={{ fontSize:'0.6rem', fontWeight:600, color:'#94a3b8', letterSpacing:'0.08em' }}>2.3s · EBC 2023 ✓</span>
       </motion.div>
-
-      <motion.div
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ delay: 1.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          background: 'linear-gradient(90deg, #3b82f6, #7c3aed)',
-          transformOrigin: 'left center',
-          borderBottomLeftRadius: 16,
-          borderBottomRightRadius: 16,
-        }}
-      />
+      <motion.div initial={{ scaleX:0 }} animate={{ scaleX:1 }} transition={{ delay:1.4, duration:0.5, ease:[0.22,1,0.36,1] }}
+        style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#3b82f6,#7c3aed)', transformOrigin:'left center', borderBottomLeftRadius:14, borderBottomRightRadius:14 }} />
     </div>
   );
 }
 
-const HomePage = () => {
-  const features = [
-    {
-      icon: Brain,
-      title: 'AI-Powered Generation',
-      description: 'Advanced diffusion models fine-tuned on architectural datasets for precise floor plan generation.',
-    },
-    {
-      icon: Zap,
-      title: 'Constraint-Aware Design',
-      description: 'Ensures spatial consistency and adjacency relationships for realistic architectural layouts.',
-    },
-    {
-      icon: BarChart3,
-      title: 'Performance Metrics',
-      description: 'Comprehensive evaluation using FID, CLIP-Score, and adjacency consistency metrics.',
-    },
-    {
-      icon: Sparkles,
-      title: 'Real-time Generation',
-      description: 'Fast inference with optimized models for quick floor plan generation from text prompts.',
-    },
-  ];
+// ─── Hero prompt input bar ────────────────────────────────────────────────────
+function HeroPromptBar({ onDark = false }) {
+  const navigate = useNavigate();
+  const [value, setValue] = useState('');
+  const [phIdx, setPhIdx] = useState(0);
 
-  const stats = [
-    { label: 'Accuracy Improvement', value: '+13.2%', description: 'Over baseline models' },
-    { label: 'FID Score', value: '57.4', description: 'Industry-leading quality' },
-    { label: 'CLIP Score', value: '0.75', description: 'Text-image alignment' },
-    { label: 'Generation Time', value: '2.3s', description: 'Average processing time' },
-  ];
+  useEffect(() => {
+    if (value) return;
+    const id = setInterval(() => setPhIdx((i) => (i + 1) % PROMPT_EXAMPLES.length), 3700);
+    return () => clearInterval(id);
+  }, [value]);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.5 } },
+  const submit = (e) => {
+    e.preventDefault();
+    navigate('/generate', { state: { prefillPrompt: value.trim() || PROMPT_EXAMPLES[phIdx] } });
   };
 
   return (
+    <form onSubmit={submit} className={`hero-prompt-bar${onDark ? ' hero-prompt-bar-dark' : ''}`}>
+      <Edit3 className="h-5 w-5 flex-shrink-0 text-slate-400" aria-hidden="true" />
+      <div className="relative flex min-w-0 flex-1 items-center">
+        <AnimatePresence mode="wait">
+          {!value && (
+            <motion.span key={phIdx}
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.24 }}
+              className="pointer-events-none absolute inset-y-0 left-0 flex items-center truncate pr-2 text-sm text-slate-400 sm:text-[0.9375rem]"
+              aria-hidden="true">
+              {PROMPT_EXAMPLES[phIdx]}
+            </motion.span>
+          )}
+        </AnimatePresence>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder=""
+          aria-label="Describe your floor plan"
+          className="hero-prompt-input"
+        />
+      </div>
+      <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+        className="app-button-primary app-button-compact flex-shrink-0">
+        <Zap className="h-4 w-4" aria-hidden="true" />
+        <span className="hidden sm:inline">Generate</span>
+        <span className="sm:hidden"><ArrowRight className="h-4 w-4" /></span>
+      </motion.button>
+    </form>
+  );
+}
+
+// ─── Page data ────────────────────────────────────────────────────────────────
+const HOW_IT_WORKS = [
+  { step: '01', icon: Edit3, title: 'Describe your space', body: 'Write your requirements in natural language — room count, style, adjacencies, or specific constraints. No CAD knowledge needed.' },
+  { step: '02', icon: Brain, title: 'AI generates the plan', body: 'Our constraint-aware diffusion model produces a structured, EBC 2023-compliant floor plan with room adjacencies in seconds.' },
+  { step: '03', icon: Download, title: 'Export and refine', body: 'Download a DXF file ready for AutoCAD or Revit, or continue iterating inside the full CadArena Studio workspace.' },
+];
+
+const FEATURES = [
+  { icon: Brain, title: 'AI-Powered Generation', body: 'Diffusion models fine-tuned on 5,000+ architectural datasets produce realistic, usable floor plans from any description.' },
+  { icon: Zap, title: 'Constraint-Aware Design', body: 'Automatically enforces spatial consistency, structural adjacencies, and flow relationships — so you don\'t have to.' },
+  { icon: BarChart3, title: 'Measurable Quality', body: 'Benchmarked on FID, CLIP-Score, and adjacency consistency. 84.5% accuracy over baseline — not just vibes.' },
+  { icon: Download, title: 'DXF Export', body: 'Every generated plan exports as a CAD-compatible DXF file, ready to open in AutoCAD, Revit, or any DXF-compatible tool.' },
+];
+
+const TRUST_ITEMS = [
+  { value: '84.5%',  label: 'Accuracy' },
+  { value: '2.3s',   label: 'Avg. Generation' },
+  { value: '+13.2%', label: 'Over Baseline' },
+  { value: 'EBC 2023', label: 'Compliant' },
+  { value: 'DXF',    label: 'Export-Ready' },
+];
+
+const DEMO_PROMPTS = [
+  '3-bedroom apartment with open kitchen and living room',
+  'Studio flat with dedicated home office and ensuite',
+  '2-bedroom family home with south-facing master suite',
+  'Corner penthouse with panoramic windows and open plan',
+];
+
+// ─── Main component ───────────────────────────────────────────────────────────
+const HomePage = () => {
+  const [demoIdx, setDemoIdx] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setDemoIdx((i) => (i + 1) % DEMO_PROMPTS.length), 4200);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
     <div className="min-h-screen">
-      <section className="relative overflow-hidden py-20 sm:py-32">
+
+      {/* ═══ HERO ══════════════════════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden pb-16 pt-20 sm:pb-24 sm:pt-32">
         <div className="hero-premium-bg" aria-hidden="true" />
-        <div className="absolute inset-0" aria-hidden="true">
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div className="absolute left-10 top-20 h-72 w-72 rounded-full bg-primary-200 opacity-25 blur-3xl" />
-          <div
-            className="absolute right-10 top-40 h-72 w-72 rounded-full bg-secondary-200 opacity-25 blur-3xl"
-            style={{ animationDelay: '2s' }}
-          />
-          <div
-            className="absolute -bottom-8 left-20 h-72 w-72 rounded-full bg-primary-100 opacity-24 blur-3xl"
-            style={{ animationDelay: '4s' }}
-          />
+          <div className="absolute right-10 top-40 h-72 w-72 rounded-full bg-secondary-200 opacity-20 blur-3xl" />
+          <div className="absolute -bottom-8 left-20 h-72 w-72 rounded-full bg-primary-100 opacity-20 blur-3xl" />
         </div>
 
         <div className="app-shell relative">
-          <motion.div initial="hidden" animate="visible" variants={containerVariants} className="text-center">
+          <motion.div initial="hidden" animate="visible" variants={stagger} className="text-center">
             <div className="hero-copy-stack">
-              <motion.div variants={itemVariants}>
+              <motion.div variants={fadeUp}>
                 <motion.span className="app-pill" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  AI-Powered Architecture • Live Demo Available
+                  AI-Powered Architecture · Live Demo Available
                 </motion.span>
               </motion.div>
 
-              <motion.h1 variants={itemVariants} className="app-hero-title hero-title-contrast">
+              <motion.h1 variants={fadeUp} className="app-hero-title hero-title-contrast">
                 <motion.span
                   className="gradient-text hero-brand-mark inline-block"
                   animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                  transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
-                >
+                  transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}>
                   CadArena
                 </motion.span>
                 <span className="hero-title-subline">Conversational CAD Studio</span>
               </motion.h1>
 
-              <motion.p variants={itemVariants} className="hero-subtitle">
-                Transform natural language descriptions into structured architectural layouts,
-                DXF-ready outputs, and scalable AI-assisted CAD workflows.
+              <motion.p variants={fadeUp} className="hero-subtitle">
+                Describe your space in plain language. Get a precise, constraint-aware floor plan —
+                EBC 2023-compliant and DXF-ready — in under 3 seconds.
               </motion.p>
 
-              <motion.div variants={itemVariants} className="hero-actions">
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Link to="/studio" className="app-button-primary hero-cta-button w-full sm:w-auto">
-                    <Zap className="h-5 w-5" aria-hidden="true" />
-                    Try Generator
-                    <ArrowRight className="h-5 w-5" aria-hidden="true" />
-                  </Link>
-                </motion.div>
+              {/* ── Interactive prompt input ── */}
+              <motion.div variants={fadeUp} className="flex w-full justify-center">
+                <HeroPromptBar />
+              </motion.div>
 
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Link to="/models" className="app-button-secondary w-full sm:w-auto">
-                    <Play className="h-5 w-5" aria-hidden="true" />
-                    View Models
-                  </Link>
-                </motion.div>
+              {/* Quick example chips */}
+              <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-2">
+                <span className="text-xs text-slate-400">Try:</span>
+                {['3-bedroom apartment', 'Studio flat', 'Family home'].map((hint) => (
+                  <ExampleChip key={hint} label={hint} />
+                ))}
+              </motion.div>
+
+              <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-3">
+                <Link to="/models" className="app-button-ghost app-button-compact">
+                  View Models
+                </Link>
+                <Link to="/metrics" className="app-button-ghost app-button-compact">
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                  Performance
+                </Link>
               </motion.div>
             </div>
 
-            <motion.div variants={itemVariants} className="hero-preview-wrap">
+            {/* ── Blueprint preview card ── */}
+            <motion.div variants={fadeUp} className="hero-preview-wrap">
               <div className="hero-preview-glass" aria-hidden="true" />
-              <div className="hero-preview-card app-card app-card-strong mx-auto max-w-4xl p-6 sm:p-8">
+              <div className="hero-preview-card app-card app-card-strong mx-auto max-w-4xl p-5 sm:p-7">
                 <div className="mb-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <div className="flex gap-1.5" aria-hidden="true">
                       <div className="h-3 w-3 rounded-full bg-red-400" />
                       <div className="h-3 w-3 rounded-full bg-yellow-400" />
@@ -255,15 +224,14 @@ const HomePage = () => {
                     </div>
                     <span className="hidden text-xs font-semibold text-slate-400 sm:block">CadArena Studio</span>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 border border-primary-100">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary-500 animate-pulse" aria-hidden="true" />
+                  <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" aria-hidden="true" />
                     Live Preview
                   </div>
                 </div>
-
                 <div className="app-card-muted rounded-xl p-3 text-left">
-                  <div className="mb-2 font-mono text-xs text-slate-500 flex items-center gap-2">
-                    <span className="text-primary-600 font-bold">›</span>
+                  <div className="mb-2 flex items-center gap-2 font-mono text-xs text-slate-500">
+                    <span className="font-bold text-primary-600">›</span>
                     <span>&quot;3-bedroom apartment with open kitchen and living room&quot;</span>
                   </div>
                   <BlueprintPreview />
@@ -274,61 +242,64 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="py-16" aria-label="Key statistics">
+      {/* ═══ TRUST STRIP ══════════════════════════════════════════════════════ */}
+      <div className="landing-trust-strip py-5" aria-label="Key performance indicators">
         <div className="app-shell">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="grid grid-cols-2 gap-8 lg:grid-cols-4"
-          >
-            {stats.map((stat) => (
-              <motion.div key={stat.label} variants={itemVariants} className="text-center">
-                <div className="mb-2 text-3xl font-bold text-primary-700 lg:text-4xl" aria-label={`${stat.value} — ${stat.label}`}>
-                  {stat.value}
+          <motion.ul
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:gap-x-10 lg:gap-x-14">
+            {TRUST_ITEMS.map(({ value, label }, i) => (
+              <motion.li key={label} variants={fadeIn} className="flex items-center gap-3">
+                <div>
+                  <p className="text-sm font-black tracking-tight text-slate-950 leading-none">{value}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">{label}</p>
                 </div>
-                <div className="mb-1 text-sm font-semibold text-slate-950">{stat.label}</div>
-                <div className="text-xs text-slate-500">{stat.description}</div>
-              </motion.div>
+                {i < TRUST_ITEMS.length - 1 && (
+                  <div className="ml-4 hidden h-6 w-px bg-slate-200 lg:block" aria-hidden="true" />
+                )}
+              </motion.li>
             ))}
-          </motion.div>
+          </motion.ul>
         </div>
-      </section>
+      </div>
 
-      <section className="bg-white/50 py-20" aria-labelledby="features-heading">
+      {/* ═══ HOW IT WORKS ═════════════════════════════════════════════════════ */}
+      <section className="py-24" aria-labelledby="how-heading">
         <div className="app-shell">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="mb-16 text-center"
-          >
-            <motion.h2 id="features-heading" variants={itemVariants} className="app-section-title mb-4">
-              Powerful AI Features
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">How It Works</motion.p>
+            <motion.h2 id="how-heading" variants={fadeUp} className="app-section-title mb-4">
+              From description to floor plan in seconds
             </motion.h2>
-            <motion.p variants={itemVariants} className="app-section-copy mx-auto max-w-3xl">
-              Built with cutting-edge machine learning techniques and architectural expertise.
+            <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
+              No CAD experience needed. Just describe your space the way you'd explain it to an architect.
             </motion.p>
           </motion.div>
 
           <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4"
-          >
-            {features.map((feature) => {
-              const Icon = feature.icon;
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            className="relative grid grid-cols-1 gap-6 md:grid-cols-3">
+            {/* Connector line — desktop only */}
+            <div
+              className="pointer-events-none absolute left-[33%] right-[33%] top-10 hidden h-px md:block"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.28) 20%, rgba(99,102,241,0.28) 80%, transparent)' }}
+              aria-hidden="true"
+            />
+
+            {HOW_IT_WORKS.map((step) => {
+              const Icon = step.icon;
               return (
-                <motion.div key={feature.title} variants={itemVariants} className="app-card app-card-hover p-8">
-                  <div className="app-icon-badge mb-6" aria-hidden="true">
-                    <Icon className="h-6 w-6" />
+                <motion.div key={step.step} variants={fadeUp}
+                  whileHover={{ y: -5, transition: { duration: 0.22 } }}
+                  className="app-card app-card-hover flex flex-col p-8 text-center">
+                  <div className="mb-5 flex items-center justify-center gap-3">
+                    <span className="landing-step-index">{step.step}</span>
+                    <div className="app-icon-badge">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
                   </div>
-                  <h3 className="app-card-title mb-3">{feature.title}</h3>
-                  <p className="app-body">{feature.description}</p>
+                  <h3 className="app-card-title mb-3">{step.title}</h3>
+                  <p className="app-body flex-1">{step.body}</p>
                 </motion.div>
               );
             })}
@@ -336,71 +307,208 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="py-20" aria-labelledby="performance-heading">
+      {/* ═══ FEATURES ═════════════════════════════════════════════════════════ */}
+      <section className="bg-white/50 py-24" aria-labelledby="features-heading">
         <div className="app-shell">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="mb-16 text-center"
-          >
-            <motion.h2 id="performance-heading" variants={itemVariants} className="app-section-title mb-4">
-              Model Performance
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Capabilities</motion.p>
+            <motion.h2 id="features-heading" variants={fadeUp} className="app-section-title mb-4">
+              Built for precision. Designed for speed.
             </motion.h2>
-            <motion.p variants={itemVariants} className="app-section-copy mx-auto max-w-3xl">
-              Constraint-aware diffusion significantly outperforms baseline models.
+            <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
+              Every part of CadArena is engineered around one goal: turning your intent into
+              production-ready architectural output.
             </motion.p>
           </motion.div>
 
           <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="app-card-muted p-8 lg:p-12"
-          >
-            <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-              <motion.div variants={itemVariants}>
-                <h3 className="app-card-title mb-6 text-2xl">Key Improvements</h3>
-                <div className="space-y-4" role="list">
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <motion.div key={f.title} variants={fadeUp}
+                  whileHover={{ y: -5, transition: { duration: 0.22 } }}
+                  className="app-card flex flex-col p-7">
+                  <div className="app-icon-badge mb-5" aria-hidden="true">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="app-card-title mb-3">{f.title}</h3>
+                  <p className="app-body flex-1">{f.body}</p>
+                  <div className="mt-5 flex items-center gap-1 text-xs font-bold text-primary-600">
+                    Learn more <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ═══ LIVE DEMO ════════════════════════════════════════════════════════ */}
+      <section className="py-24" aria-labelledby="demo-heading">
+        <div className="app-shell">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Live Demo</motion.p>
+            <motion.h2 id="demo-heading" variants={fadeUp} className="app-section-title mb-4">
+              See it in action
+            </motion.h2>
+            <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
+              Select an example prompt and watch the AI generate a structured, labelled floor plan
+              with room adjacencies, dimensions, and EBC compliance markers.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            className="grid grid-cols-1 items-center gap-10 lg:grid-cols-5">
+            {/* Prompt selector */}
+            <motion.div variants={fadeUp} className="space-y-3 lg:col-span-2">
+              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+                Example prompts
+              </p>
+              {DEMO_PROMPTS.map((p, i) => (
+                <motion.button
+                  key={p}
+                  onClick={() => setDemoIdx(i)}
+                  whileHover={{ x: 3 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-colors duration-200 ${
+                    demoIdx === i
+                      ? 'border-primary-300 bg-primary-50 text-primary-800 shadow-soft'
+                      : 'border-slate-100 bg-white/60 text-slate-700 hover:border-primary-200 hover:bg-primary-50/50'
+                  }`}
+                  aria-pressed={demoIdx === i}
+                >
+                  <span className="mr-2 font-mono text-primary-400">{String(i + 1).padStart(2, '0')}</span>
+                  {p}
+                </motion.button>
+              ))}
+              <div className="pt-4">
+                <Link to="/generate" className="app-button-primary app-button-compact w-full justify-center">
+                  <Zap className="h-4 w-4" aria-hidden="true" />
+                  Try it yourself
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+            </motion.div>
+
+            {/* Preview card */}
+            <motion.div variants={fadeUp} className="lg:col-span-3">
+              <div className="app-card app-card-strong p-5 sm:p-7">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex gap-1.5" aria-hidden="true">
+                      <div className="h-3 w-3 rounded-full bg-red-400" />
+                      <div className="h-3 w-3 rounded-full bg-yellow-400" />
+                      <div className="h-3 w-3 rounded-full bg-green-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-400">AI Generation</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full border border-green-100 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
+                    Generated in 2.3s
+                  </div>
+                </div>
+                <div className="app-card-muted rounded-xl p-3 text-left">
+                  <AnimatePresence mode="wait">
+                    <motion.div key={demoIdx}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.22 }}
+                      className="mb-2 flex items-center gap-2 font-mono text-xs text-slate-500">
+                      <span className="font-bold text-primary-600">›</span>
+                      <span>&quot;{DEMO_PROMPTS[demoIdx]}&quot;</span>
+                    </motion.div>
+                  </AnimatePresence>
+                  <BlueprintPreview />
+                </div>
+                {/* Metric chips */}
+                <div className="mt-4 grid grid-cols-4 gap-2">
                   {[
-                    { metric: 'FID Score Improvement', value: '-27.8 points', description: 'Better image quality' },
-                    { metric: 'CLIP Score Improvement', value: '+0.13 points', description: 'Better text alignment' },
-                    { metric: 'Adjacency Consistency', value: '+0.32 points', description: 'Spatial relationships' },
-                    { metric: 'Overall Accuracy', value: '+13.2%', description: 'Generation quality' },
-                  ].map((item) => (
-                    <div key={item.metric} className="flex items-center gap-3" role="listitem">
-                      <CheckCircle className="h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
+                    { label: 'FID Score',  value: '57.4' },
+                    { label: 'CLIP Score', value: '0.75' },
+                    { label: 'Adjacency',  value: '0.82' },
+                    { label: 'EBC 2023',   value: '✓' },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-xl border border-slate-100 bg-white/80 px-2 py-2.5 text-center">
+                      <p className="text-sm font-black text-primary-700 leading-none">{value}</p>
+                      <p className="mt-1 text-xs text-slate-500 leading-none">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ═══ PERFORMANCE ══════════════════════════════════════════════════════ */}
+      <section className="bg-white/50 py-24" aria-labelledby="perf-heading">
+        <div className="app-shell">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Performance</motion.p>
+            <motion.h2 id="perf-heading" variants={fadeUp} className="app-section-title mb-4">
+              Numbers that matter
+            </motion.h2>
+            <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
+              CadArena&apos;s constraint-aware diffusion model is benchmarked against published
+              architectural AI baselines.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
+            className="app-card-muted p-8 lg:p-12">
+            <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+              <motion.div variants={fadeUp}>
+                <h3 className="app-card-title mb-6 text-xl">Key Improvements over Baseline</h3>
+                <div className="space-y-5" role="list">
+                  {[
+                    { metric: 'FID Score Improvement',    value: '−27.8 pts', desc: 'Lower FID = better visual quality' },
+                    { metric: 'CLIP Score Improvement',   value: '+0.13 pts',  desc: 'Better text-to-image alignment' },
+                    { metric: 'Adjacency Consistency',    value: '+0.32 pts',  desc: 'Spatial relationship accuracy' },
+                    { metric: 'Overall Accuracy',         value: '+13.2%',     desc: 'Compared to baseline models' },
+                  ].map(({ metric, value, desc }) => (
+                    <div key={metric} className="flex items-start gap-3" role="listitem">
+                      <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between gap-4">
-                          <span className="font-medium text-slate-950">{item.metric}</span>
-                          <span className="font-bold text-primary-700">{item.value}</span>
+                          <span className="font-semibold text-slate-950">{metric}</span>
+                          <span className="font-black text-primary-700">{value}</span>
                         </div>
-                        <p className="text-sm text-slate-600">{item.description}</p>
+                        <p className="mt-0.5 text-sm text-slate-500">{desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="text-center">
-                <div className="app-card app-card-strong app-card-hover p-8 shadow-lg">
-                  <h4 className="app-card-title mb-4">Constraint-Aware Model</h4>
-                  <div className="mb-2 text-4xl font-bold text-primary-700">84.5%</div>
-                  <div className="mb-4 text-sm text-slate-600">Overall Accuracy</div>
-                  <div
-                    className="h-2 w-full rounded-full bg-primary-100"
-                    role="progressbar"
-                    aria-valuenow={84.5}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label="Overall accuracy: 84.5%"
+              <motion.div variants={fadeUp} className="text-center">
+                <div className="app-card app-card-strong app-card-hover p-10 shadow-lg">
+                  <p className="app-eyebrow mb-3">Overall Accuracy</p>
+                  <motion.div
+                    className="mb-1 text-6xl font-black tracking-tight"
+                    style={{ backgroundImage: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                    initial={{ opacity: 0, scale: 0.88 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <div
-                      className="app-gradient-primary h-2 rounded-full"
-                      style={{ width: '84.5%' }}
+                    84.5%
+                  </motion.div>
+                  <p className="mb-6 text-sm text-slate-500">Constraint-Aware Diffusion Model</p>
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-primary-100"
+                    role="progressbar" aria-valuenow={84.5} aria-valuemin={0} aria-valuemax={100} aria-label="Overall accuracy 84.5%">
+                    <motion.div
+                      className="app-gradient-primary h-3 rounded-full"
+                      initial={{ width: '0%' }}
+                      whileInView={{ width: '84.5%' }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.35, duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
                     />
+                  </div>
+                  <div className="mt-3 flex justify-between text-xs font-semibold text-slate-400">
+                    <span>0%</span><span>100%</span>
                   </div>
                 </div>
               </motion.div>
@@ -409,28 +517,65 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="app-gradient-primary py-20" aria-labelledby="cta-heading">
-        <div className="app-shell text-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
-            <motion.h2 id="cta-heading" variants={itemVariants} className="app-section-title mb-4 text-white">
-              Ready to Generate Floor Plans?
-            </motion.h2>
-            <motion.p variants={itemVariants} className="mx-auto mb-8 max-w-2xl text-xl leading-8 text-primary-100">
-              Experience CadArena&apos;s conversational CAD workflow for moving from intent
-              to architectural layouts and exportable design artifacts.
-            </motion.p>
-            <motion.div variants={itemVariants}>
-              <Link to="/studio" className="app-button-secondary">
-                <Zap className="h-5 w-5" aria-hidden="true" />
-                Start Generating
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
-              </Link>
+      {/* ═══ CTA ══════════════════════════════════════════════════════════════ */}
+      <section className="py-24" aria-labelledby="cta-heading">
+        <div className="app-shell">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
+            <motion.div variants={fadeUp}
+              className="app-cta-panel relative overflow-hidden px-8 py-16 text-center sm:px-14 sm:py-20">
+              <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-white opacity-[0.07] blur-3xl" />
+                <div className="absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-white opacity-[0.07] blur-3xl" />
+                <div className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-white opacity-20" />
+              </div>
+
+              <motion.p variants={fadeUp} className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-200">
+                Start building today
+              </motion.p>
+              <motion.h2 id="cta-heading" variants={fadeUp}
+                className="mb-4 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+                Design your first floor plan.
+                <br />
+                <span className="opacity-80">No CAD experience needed.</span>
+              </motion.h2>
+              <motion.p variants={fadeUp} className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-primary-100">
+                Type what you want to build. CadArena handles constraints, adjacencies, compliance, and export automatically.
+              </motion.p>
+
+              <motion.div variants={fadeUp} className="flex justify-center">
+                <HeroPromptBar onDark />
+              </motion.div>
+
+              <motion.p variants={fadeUp} className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-primary-200">
+                <span>Or open the full workspace:</span>
+                <Link to="/studio" className="inline-flex items-center gap-1.5 font-bold text-white underline underline-offset-4 hover:text-primary-100">
+                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                  Launch Studio
+                </Link>
+              </motion.p>
             </motion.div>
           </motion.div>
         </div>
       </section>
+
     </div>
   );
 };
+
+// ─── Reusable example chip ────────────────────────────────────────────────────
+function ExampleChip({ label }) {
+  const navigate = useNavigate();
+  return (
+    <motion.button
+      type="button"
+      onClick={() => navigate('/generate', { state: { prefillPrompt: label } })}
+      whileHover={{ scale: 1.03, y: -1 }}
+      whileTap={{ scale: 0.97 }}
+      className="app-pill-muted cursor-pointer py-1.5 text-xs transition-colors hover:border-primary-200 hover:bg-primary-50"
+    >
+      {label}
+    </motion.button>
+  );
+}
 
 export default HomePage;

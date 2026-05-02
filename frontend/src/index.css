@@ -1505,6 +1505,104 @@ textarea {
     position: relative;
     z-index: 1;
   }
+
+  /* ── Landing page: hero prompt bar ───────────────────────────────────────── */
+
+  .hero-prompt-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 48rem;
+    padding: 6px 6px 6px 20px;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 18px 48px rgba(79, 70, 229, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+  }
+
+  .hero-prompt-bar:focus-within {
+    border-color: rgba(99, 102, 241, 0.44);
+    box-shadow:
+      0 0 0 5px rgba(99, 102, 241, 0.12),
+      0 28px 64px rgba(79, 70, 229, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.86);
+    transform: translateY(-2px);
+  }
+
+  .hero-prompt-bar-dark {
+    box-shadow:
+      0 22px 56px rgba(15, 23, 42, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  }
+
+  .hero-prompt-bar-dark:focus-within {
+    box-shadow:
+      0 0 0 5px rgba(255, 255, 255, 0.16),
+      0 28px 72px rgba(15, 23, 42, 0.32),
+      0 0 0 1px rgba(255, 255, 255, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  }
+
+  .hero-prompt-input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: clamp(0.9rem, 1.5vw, 1.0625rem);
+    font-weight: 500;
+    color: var(--text-strong);
+    outline: none;
+    box-shadow: none;
+    min-height: 40px;
+    padding: 0;
+    caret-color: #3b82f6;
+  }
+
+  .hero-prompt-input:focus {
+    outline: none;
+    border: none;
+    box-shadow: none;
+    transform: none;
+  }
+
+  /* ── Landing page: trust strip ───────────────────────────────────────────── */
+
+  .landing-trust-strip {
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
+    background: rgba(255, 255, 255, 0.76);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+  }
+
+  /* ── Landing page: how-it-works step number badge ────────────────────────── */
+
+  .landing-step-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid rgba(99, 102, 241, 0.22);
+    background: rgba(239, 246, 255, 0.92);
+    color: #3730a3;
+    font-size: 0.875rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    box-shadow:
+      0 8px 20px rgba(79, 70, 229, 0.09),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
 }
 
 /* Responsive utilities */

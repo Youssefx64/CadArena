@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Zap, Settings, Download, Sparkles, AlertCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -30,6 +31,7 @@ function BlueprintPlaceholder() {
 }
 
 const GeneratorPage = () => {
+  const location = useLocation();
   const promptRef = useRef(null);
   const [prompt, setPrompt] = useState('');
   const [modelType, setModelType] = useState('baseline');
@@ -47,6 +49,14 @@ const GeneratorPage = () => {
     field.style.height = '0px';
     field.style.height = `${Math.min(field.scrollHeight, 360)}px`;
   };
+
+  useEffect(() => {
+    const prefill = location.state?.prefillPrompt;
+    if (prefill) {
+      setPrompt(prefill);
+      setTimeout(() => resizePromptField(), 16);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkStatus = useCallback(async () => {
     setApiStatus('checking');
