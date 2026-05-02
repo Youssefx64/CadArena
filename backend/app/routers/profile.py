@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.core.auth import AuthenticatedUser, get_current_user
 from app.core.file_utils import BACKEND_DIR, ensure_output_dir, resolve_output_path
@@ -30,7 +30,13 @@ from app.services.auth_storage import (
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
-_DEFAULT_AVATAR_PATH = BACKEND_DIR / "frontend" / "assets" / "cadarena-mark.svg"
+_DEFAULT_AVATAR_PATH = BACKEND_DIR.parent / "frontend" / "public" / "assets" / "cadarena-mark.svg"
+
+_DEFAULT_AVATAR_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <circle cx="64" cy="64" r="64" fill="#e8f0fe"/>
+  <circle cx="64" cy="50" r="22" fill="#94a3b8"/>
+  <ellipse cx="64" cy="110" rx="36" ry="24" fill="#94a3b8"/>
+</svg>"""
 _PROFILE_IMAGE_DIR_NAME = "profile_images"
 _ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 _CONTENT_TYPE_TO_EXTENSION = {
@@ -153,7 +159,9 @@ def profile_me_avatar(current_user: AuthenticatedUser = Depends(get_current_user
             media_type, _ = mimetypes.guess_type(str(resolved))
             return FileResponse(resolved, media_type=media_type or "application/octet-stream")
 
-    return FileResponse(_DEFAULT_AVATAR_PATH, media_type="image/svg+xml")
+    if _DEFAULT_AVATAR_PATH.exists():
+        return FileResponse(_DEFAULT_AVATAR_PATH, media_type="image/svg+xml")
+    return Response(content=_DEFAULT_AVATAR_SVG, media_type="image/svg+xml")
 
 
 @router.post("/me/avatar", response_model=ProfileResponse)

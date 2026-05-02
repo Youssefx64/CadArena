@@ -8,6 +8,7 @@ import ProtectedRoute from '../components/auth/ProtectedRoute';
 function ProfileContent() {
   const { user, profile, refreshProfile, avatarTs } = useAuth();
   const [isLoading, setIsLoading] = useState(!profile);
+  const [avatarImgError, setAvatarImgError] = useState(false);
 
   useEffect(() => {
     if (!profile) {
@@ -61,12 +62,19 @@ function ProfileContent() {
         <motion.div initial="hidden" animate="visible" variants={containerVariants}>
           <motion.div variants={itemVariants} className="app-card app-card-strong mb-6 p-8 text-center">
             <div className="relative mx-auto mb-5 h-28 w-28 sm:h-32 sm:w-32">
-              <img
-                key={avatarTs}
-                src={`/api/v1/profile/me/avatar?t=${avatarTs}`}
-                alt={displayName}
-                className="h-full w-full rounded-full border-4 border-primary-100 object-cover shadow-medium"
-              />
+              {avatarImgError ? (
+                <div className="h-full w-full rounded-full border-4 border-primary-100 shadow-medium bg-primary-50 dark:bg-primary-950/30 flex items-center justify-center">
+                  <User className="h-12 w-12 text-primary-300 dark:text-primary-700" aria-hidden="true" />
+                </div>
+              ) : (
+                <img
+                  key={avatarTs}
+                  src={`/api/v1/profile/me/avatar?t=${avatarTs}`}
+                  alt={displayName}
+                  className="h-full w-full rounded-full border-4 border-primary-100 object-cover shadow-medium"
+                  onError={() => setAvatarImgError(true)}
+                />
+              )}
               <Link
                 to="/profile/edit"
                 className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-primary-600 text-white shadow-soft transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"

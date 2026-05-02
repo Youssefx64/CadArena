@@ -25,6 +25,7 @@ function EditProfileContent() {
   const [isUploadingAvatar, setUploading] = useState(false);
   const [isDeletingAvatar, setDeleting]   = useState(false);
   const [avatarPreview, setPreview]     = useState(null);
+  const [avatarImgError, setAvatarImgError] = useState(false);
   const [apiError, setApiError]         = useState('');
 
   useEffect(() => {
@@ -123,12 +124,19 @@ function EditProfileContent() {
             <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Profile Picture</h2>
             <div className="flex flex-col items-center gap-5 sm:flex-row">
               <div className="relative h-24 w-24 flex-shrink-0">
-                <img
-                  key={avatarPreview || avatarTs}
-                  src={currentAvatarSrc}
-                  alt="Current avatar"
-                  className="h-24 w-24 rounded-full border-4 border-primary-100 object-cover shadow-medium"
-                />
+                {avatarImgError ? (
+                  <div className="h-24 w-24 rounded-full border-4 border-primary-100 shadow-medium bg-primary-50 dark:bg-primary-950/30 flex items-center justify-center">
+                    <User className="h-10 w-10 text-primary-300 dark:text-primary-700" aria-hidden="true" />
+                  </div>
+                ) : (
+                  <img
+                    key={avatarPreview || avatarTs}
+                    src={currentAvatarSrc}
+                    alt=""
+                    className="h-24 w-24 rounded-full border-4 border-primary-100 object-cover shadow-medium"
+                    onError={() => setAvatarImgError(true)}
+                  />
+                )}
                 <AnimatePresence>
                   {(isUploadingAvatar || isDeletingAvatar) && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
