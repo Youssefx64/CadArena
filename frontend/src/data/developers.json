@@ -89,9 +89,9 @@
   ],
   "statistics": {
     "lines_of_code": "15000+",
-    "training_hours": "120+",
     "dataset_size": "5000+ floor plans",
     "model_parameters": "860M",
-    "accuracy": "84.5%"
+    "output_format": "DXF",
+    "compliance": "EBC 2023"
   }
 }

@@ -220,10 +220,6 @@ class CadArenaAPI {
           parameters: response.data.parameters,
           timestamp: response.data.timestamp,
           generation_time: this.calculateGenerationTime(response.data.timestamp),
-          // Mock metrics for now - can be enhanced later
-          clip_score: 0.75 + Math.random() * 0.15,
-          adjacency_score: 0.65 + Math.random() * 0.20,
-          accuracy: 70 + Math.random() * 20
         }
       };
 
