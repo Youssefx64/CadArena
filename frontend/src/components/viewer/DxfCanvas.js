@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import PropTypes from 'prop-types';
 import { Loader2, AlertCircle, Upload, FileText } from 'lucide-react';
 
 const DxfCanvas = forwardRef(function DxfCanvas(
@@ -205,5 +206,21 @@ const DxfCanvas = forwardRef(function DxfCanvas(
     </div>
   );
 });
+
+DxfCanvas.propTypes = {
+  previewUrl:   PropTypes.string,
+  zoom:         PropTypes.number.isRequired,
+  pan:          PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }).isRequired,
+  onWheel:      PropTypes.func.isRequired,
+  onPan:        PropTypes.func.isRequired,
+  onImgLoad:    PropTypes.func.isRequired,
+  onImgError:   PropTypes.func.isRequired,
+  imgLoading:   PropTypes.bool.isRequired,
+  previewError: PropTypes.bool.isRequired,
+  showUpload:   PropTypes.bool.isRequired,
+  uploading:    PropTypes.bool.isRequired,
+  onFileSelect: PropTypes.func.isRequired,
+};
+DxfCanvas.defaultProps = { previewUrl: null };
 
 export default DxfCanvas;

@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -23,7 +24,9 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     // Log error details
+    // eslint-disable-next-line no-console
     console.error('Error caught by boundary:', error);
+    // eslint-disable-next-line no-console
     console.error('Error info:', errorInfo);
 
     // Update state with error details
@@ -116,5 +119,6 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+ErrorBoundary.propTypes = { children: PropTypes.node.isRequired };
 
 export default ErrorBoundary;

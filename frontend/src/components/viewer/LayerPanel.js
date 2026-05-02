@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Layers, Eye, EyeOff, Info } from 'lucide-react';
 
 const LAYER_COLORS = {
@@ -102,5 +103,13 @@ function LayerPanel({ layers, onToggle, loading, collapsed, onCollapse }) {
     </div>
   );
 }
+
+LayerPanel.propTypes = {
+  layers:     PropTypes.arrayOf(PropTypes.shape({ name: PropTypes.string, visible: PropTypes.bool })).isRequired,
+  onToggle:   PropTypes.func.isRequired,
+  loading:    PropTypes.bool.isRequired,
+  collapsed:  PropTypes.bool.isRequired,
+  onCollapse: PropTypes.func.isRequired,
+};
 
 export default LayerPanel;

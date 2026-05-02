@@ -1,8 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import authApi from '../services/authApi';
 
 const AuthContext = createContext(null);
 
+AuthProvider.propTypes = { children: PropTypes.node.isRequired };
 export function AuthProvider({ children }) {
   const [user, setUser]           = useState(null);
   const [profile, setProfile]     = useState(null);

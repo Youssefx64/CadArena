@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -20,7 +21,7 @@ const SECTIONS = [
   { id: 'faq',         label: 'FAQ',          icon: HelpCircle },
 ];
 
-function CodeBlock({ children, lang = 'bash' }) {
+function CodeBlock({ children, lang }) {
   return (
     <div className="my-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 text-sm">
       <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-2.5">
@@ -37,6 +38,11 @@ function CodeBlock({ children, lang = 'bash' }) {
     </div>
   );
 }
+CodeBlock.propTypes = {
+  children: PropTypes.node.isRequired,
+  lang: PropTypes.string,
+};
+CodeBlock.defaultProps = { lang: 'bash' };
 
 function SectionHeading({ id, icon: Icon, children }) {
   return (
@@ -48,10 +54,11 @@ function SectionHeading({ id, icon: Icon, children }) {
     </h2>
   );
 }
-
-function Pill({ children }) {
-  return <span className="app-pill-muted inline-flex py-0.5 text-xs">{children}</span>;
-}
+SectionHeading.propTypes = {
+  id: PropTypes.string.isRequired,
+  icon: PropTypes.elementType.isRequired,
+  children: PropTypes.node.isRequired,
+};
 
 function EndpointRow({ method, path, desc }) {
   const color = method === 'GET' ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/30 dark:border-green-900/40' : method === 'POST' ? 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950/30 dark:border-blue-900/40' : 'text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-950/30 dark:border-orange-900/40';
@@ -63,6 +70,11 @@ function EndpointRow({ method, path, desc }) {
     </div>
   );
 }
+EndpointRow.propTypes = {
+  method: PropTypes.string.isRequired,
+  path: PropTypes.string.isRequired,
+  desc: PropTypes.string.isRequired,
+};
 
 const DocsPage = () => {
   const [activeSection, setActiveSection] = useState('overview');

@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -140,5 +141,17 @@ function ViewerToolbar({
     </div>
   );
 }
+
+ViewerToolbar.propTypes = {
+  fileName:   PropTypes.string,
+  zoom:       PropTypes.number.isRequired,
+  onZoomIn:   PropTypes.func.isRequired,
+  onZoomOut:  PropTypes.func.isRequired,
+  onFit:      PropTypes.func.isRequired,
+  onReset:    PropTypes.func.isRequired,
+  token:      PropTypes.string,
+  onOpenFile: PropTypes.func.isRequired,
+};
+ViewerToolbar.defaultProps = { fileName: null, token: null };
 
 export default ViewerToolbar;

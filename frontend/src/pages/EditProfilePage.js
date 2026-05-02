@@ -126,7 +126,7 @@ function EditProfileContent() {
                 <img
                   key={avatarPreview || avatarTs}
                   src={currentAvatarSrc}
-                  alt="Current profile picture"
+                  alt="Current avatar"
                   className="h-24 w-24 rounded-full border-4 border-primary-100 object-cover shadow-medium"
                 />
                 <AnimatePresence>

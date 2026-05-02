@@ -64,7 +64,7 @@ function ProfileContent() {
               <img
                 key={avatarTs}
                 src={`/api/v1/profile/me/avatar?t=${avatarTs}`}
-                alt={`${displayName}'s profile picture`}
+                alt={displayName}
                 className="h-full w-full rounded-full border-4 border-primary-100 object-cover shadow-medium"
               />
               <Link

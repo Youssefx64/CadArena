@@ -90,8 +90,6 @@ const sidebarProjectsPanel = document.getElementById("sidebar-projects-panel");
 const sidebarFocusChatButton = document.getElementById("sidebar-focus-chat-btn");
 const sidebarManageProjectsButton = document.getElementById("sidebar-manage-projects-btn");
 const sidebarQuickHideButton = document.getElementById("sidebar-quick-hide-btn");
-const dxfRenderUploadButton = document.getElementById("dxf-render-upload-btn");
-const dxfRenderFileInput = document.getElementById("dxf-render-file-input");
 const authTabFromQuery = new URLSearchParams(window.location.search).get("auth");
 const explicitAuthTab = authTabFromQuery === "register" || authTabFromQuery === "login" ? authTabFromQuery : null;
 
@@ -1404,23 +1402,7 @@ function resetDxfRenderPreview({
   dxfRenderImage.removeAttribute("src");
   dxfRenderImage.style.transform = "translate(0px, 0px) scale(1)";
   dxfRenderEmpty.style.display = "grid";
-  if (emptyMessage === DXF_RENDER_EMPTY_MESSAGE) {
-    dxfRenderEmpty.innerHTML =
-      '<span class="dxf-empty-icon" aria-hidden="true">' +
-      '<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">' +
-      '<rect x="6" y="10" width="36" height="30" rx="3" stroke="currentColor" stroke-width="2"/>' +
-      '<path d="M6 16h36" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/>' +
-      '<path d="M16 10v30" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/>' +
-      '<circle cx="35" cy="30" r="7" fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.8"/>' +
-      '<path d="M35 27v6m0 0-2-2m2 2 2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '</svg></span>' +
-      '<strong class="dxf-empty-title">Open a DXF file</strong>' +
-      '<span class="dxf-empty-sub">Drag &amp; drop or click <em>Open DXF</em> above</span>';
-    dxfRenderEmpty.className = "preview-empty dxf-upload-hint";
-  } else {
-    dxfRenderEmpty.textContent = emptyMessage;
-    dxfRenderEmpty.className = "preview-empty";
-  }
+  dxfRenderEmpty.textContent = emptyMessage;
   state.dxfRenderScale = 1;
   state.dxfRenderPanX = 0;
   state.dxfRenderPanY = 0;
@@ -1559,70 +1541,6 @@ function updateStandaloneDxfRender({
   };
 
   dxfRenderImage.src = previewUrl;
-}
-
-async function uploadDxfAndRender(file) {
-  if (!file) return;
-
-  if (!file.name.toLowerCase().endsWith(".dxf")) {
-    if (dxfRenderEmpty) {
-      dxfRenderEmpty.textContent = "Only .dxf files are supported.";
-      dxfRenderEmpty.style.display = "grid";
-    }
-    return;
-  }
-
-  if (file.size > 20 * 1024 * 1024) {
-    if (dxfRenderEmpty) {
-      dxfRenderEmpty.textContent = "File too large — maximum 20 MB.";
-      dxfRenderEmpty.style.display = "grid";
-    }
-    return;
-  }
-
-  if (dxfRenderCanvas) dxfRenderCanvas.classList.add("loading");
-  if (dxfRenderEmpty) {
-    dxfRenderEmpty.innerHTML = "<span>Uploading DXF\u2026</span>";
-    dxfRenderEmpty.style.display = "grid";
-  }
-  if (dxfRenderImage) {
-    dxfRenderImage.style.display = "none";
-    dxfRenderImage.classList.remove("is-visible");
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  try {
-    const res = await fetch("/api/v1/dxf/upload", {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Upload failed (${res.status})`);
-    }
-
-    const data = await res.json();
-    const fileToken = data.file_token;
-    const fileName = data.original_filename || file.name;
-
-    revealDxfRenderPanel({ scrollIntoView: true });
-    updateStandaloneDxfRender({
-      fileName,
-      fileToken,
-      projectId: state.activeProjectId,
-      source: "upload",
-    });
-  } catch (err) {
-    if (dxfRenderCanvas) dxfRenderCanvas.classList.remove("loading");
-    if (dxfRenderEmpty) {
-      dxfRenderEmpty.textContent = `Upload failed: ${err.message}`;
-      dxfRenderEmpty.style.display = "grid";
-    }
-  }
 }
 
 function createDownloadIcon() {
@@ -3510,39 +3428,6 @@ if (dxfRenderZoomOutButton) {
 if (dxfRenderZoomResetButton) {
   dxfRenderZoomResetButton.addEventListener("click", () => {
     setDxfRenderScale(1);
-  });
-}
-
-if (dxfRenderUploadButton) {
-  dxfRenderUploadButton.addEventListener("click", () => {
-    dxfRenderFileInput?.click();
-  });
-}
-
-if (dxfRenderFileInput) {
-  dxfRenderFileInput.addEventListener("change", (e) => {
-    const file = e.target.files?.[0];
-    if (file) uploadDxfAndRender(file);
-    e.target.value = "";
-  });
-}
-
-if (dxfRenderCanvas) {
-  dxfRenderCanvas.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dxfRenderCanvas.classList.add("drag-over");
-  });
-  dxfRenderCanvas.addEventListener("dragleave", (e) => {
-    e.preventDefault();
-    dxfRenderCanvas.classList.remove("drag-over");
-  });
-  dxfRenderCanvas.addEventListener("drop", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dxfRenderCanvas.classList.remove("drag-over");
-    const file = e.dataTransfer?.files?.[0];
-    if (file) uploadDxfAndRender(file);
   });
 }
 

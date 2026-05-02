@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import PropTypes from 'prop-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -16,6 +17,7 @@ function RequireAuth({ children }) {
   }
   return children;
 }
+RequireAuth.propTypes = { children: PropTypes.node.isRequired };
 
 const HomePage       = lazy(() => import('./pages/HomePage'));
 const GeneratorPage  = lazy(() => import('./pages/GeneratorPage'));
