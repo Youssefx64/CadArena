@@ -201,7 +201,7 @@ const HomePage = () => {
             </motion.div>
 
             <motion.div variants={fadeUp} className="mb-10 flex flex-wrap items-center justify-center gap-2">
-              <span className="text-xs font-medium text-slate-400 dark:text-slate-600">Try:</span>
+              <span className="text-xs font-medium text-slate-400 dark:text-slate-400">Try:</span>
               {['3-bedroom apartment', 'Studio flat', 'Family home'].map((hint) => (
                 <ExampleChip key={hint} label={hint} />
               ))}
@@ -251,7 +251,7 @@ const HomePage = () => {
               <motion.li key={label} variants={fadeIn} className="flex items-center gap-3">
                 <div>
                   <p className="text-sm font-black tracking-tight text-slate-950 dark:text-slate-50 leading-none">{value}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-500">{label}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
                 </div>
                 {i < TRUST_ITEMS.length - 1 && (
                   <div className="ml-4 hidden h-6 w-px bg-slate-200 dark:bg-white/8 lg:block" aria-hidden="true" />
@@ -360,7 +360,7 @@ const HomePage = () => {
             initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
             className="grid grid-cols-1 items-center gap-10 lg:grid-cols-5">
             <motion.div variants={fadeUp} className="space-y-3 lg:col-span-2">
-              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">
+              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Example prompts
               </p>
               {DEMO_PROMPTS.map((p, i) => (
@@ -371,12 +371,12 @@ const HomePage = () => {
                   whileTap={{ scale: 0.98 }}
                   className={`w-full rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-colors duration-200 ${
                     demoIdx === i
-                      ? 'border-primary-300 bg-primary-50 text-primary-800 shadow-soft dark:border-violet-800/50 dark:bg-violet-950/30 dark:text-violet-200'
-                      : 'border-slate-100 bg-white/60 text-slate-700 hover:border-primary-200 hover:bg-primary-50/50 dark:border-white/7 dark:bg-white/3 dark:text-slate-400 dark:hover:border-violet-800/40 dark:hover:bg-violet-950/20'
+                      ? 'border-primary-300 bg-primary-50 text-primary-800 shadow-soft dark:border-violet-700/60 dark:bg-violet-950/40 dark:text-violet-200'
+                      : 'border-slate-200 bg-white/60 text-slate-700 hover:border-primary-200 hover:bg-primary-50/50 dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-slate-300 dark:hover:border-violet-700/50 dark:hover:bg-violet-950/30'
                   }`}
                   aria-pressed={demoIdx === i}
                 >
-                  <span className="mr-2 font-mono text-primary-400 dark:text-violet-500">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="mr-2 font-mono text-primary-400 dark:text-violet-400">{String(i + 1).padStart(2, '0')}</span>
                   {p}
                 </motion.button>
               ))}
@@ -424,9 +424,9 @@ const HomePage = () => {
                     { label: 'Dimensions', value: '✓' },
                     { label: 'EBC 2023',   value: '✓' },
                   ].map(({ label, value }) => (
-                    <div key={label} className="rounded-xl border border-slate-100 bg-white/80 px-2 py-2.5 text-center dark:border-white/7 dark:bg-white/4">
+                    <div key={label} className="rounded-xl border border-slate-100 bg-white/80 px-2 py-2.5 text-center dark:border-slate-700/50 dark:bg-slate-800/60">
                       <p className="text-sm font-black text-primary-700 dark:text-violet-300 leading-none">{value}</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500 leading-none">{label}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-none">{label}</p>
                     </div>
                   ))}
                 </div>
@@ -470,7 +470,7 @@ const HomePage = () => {
                           <span className="font-semibold text-slate-950 dark:text-slate-100">{metric}</span>
                           <span className="font-black text-primary-700 dark:text-violet-300">{value}</span>
                         </div>
-                        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-500">{desc}</p>
+                        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{desc}</p>
                       </div>
                     </div>
                   ))}

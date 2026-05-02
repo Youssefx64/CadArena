@@ -43,7 +43,7 @@ export default function CommunityPage() {
   };
 
   return (
-    <div className="app-page bg-gradient-to-b from-slate-50 to-white">
+    <div className="app-page bg-gradient-to-b from-slate-50 to-white dark:from-[#060912] dark:to-[#060912]">
       <div className="app-shell">
         <motion.div
           initial="hidden"
@@ -73,7 +73,7 @@ export default function CommunityPage() {
 
             <motion.h1
               variants={itemVariants}
-              className="mt-6 mb-4 text-center text-5xl font-black text-slate-950 md:text-6xl"
+              className="mt-6 mb-4 text-center text-5xl font-black text-slate-950 dark:text-slate-50 md:text-6xl"
               style={{ letterSpacing: '-0.045em' }}
             >
               Coming Soon
@@ -81,7 +81,7 @@ export default function CommunityPage() {
 
             <motion.p
               variants={itemVariants}
-              className="mb-10 text-center text-lg leading-relaxed text-slate-600"
+              className="mb-10 text-center text-lg leading-relaxed text-slate-600 dark:text-slate-400"
             >
               We&apos;re building a world-class engineering community platform for architects
               and designers. Be the first to know when we launch.
@@ -120,7 +120,7 @@ export default function CommunityPage() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -4 }}
                   transition={{ duration: 0.2 }}
-                  className="mb-10 flex items-center justify-center gap-2 rounded-full border border-green-200 bg-green-50 px-6 py-3 text-green-700"
+                  className="mb-10 flex items-center justify-center gap-2 rounded-full border border-green-200 bg-green-50 px-6 py-3 text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-400"
                   role="status"
                   aria-live="polite"
                 >
@@ -148,8 +148,8 @@ export default function CommunityPage() {
                     <div className="app-icon-badge mx-auto mb-4" aria-hidden="true">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <h3 className="mb-2 text-base font-bold text-slate-950">{feature.title}</h3>
-                    <p className="text-sm leading-relaxed text-slate-600">{feature.description}</p>
+                    <h3 className="mb-2 text-base font-bold text-slate-950 dark:text-slate-100">{feature.title}</h3>
+                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{feature.description}</p>
                   </motion.div>
                 );
               })}

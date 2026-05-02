@@ -114,8 +114,8 @@ function EditProfileContent() {
               Back
             </Link>
             <div>
-              <h1 className="text-xl font-black tracking-tight text-slate-950">Edit Profile</h1>
-              <p className="text-sm text-slate-500">Update your information and avatar</p>
+              <h1 className="text-xl font-black tracking-tight text-slate-950 dark:text-slate-50">Edit Profile</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Update your information and avatar</p>
             </div>
           </div>
 
@@ -141,7 +141,7 @@ function EditProfileContent() {
               </div>
 
               <div className="flex flex-col gap-3 text-center sm:text-left">
-                <p className="text-sm leading-relaxed text-slate-500">
+                <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                   Square image, minimum 128 × 128 px · Max 5 MB
                   <br />
                   PNG, JPG, WEBP, or GIF
@@ -157,7 +157,7 @@ function EditProfileContent() {
                   </button>
                   <button type="button" onClick={onDeleteAvatar}
                     disabled={isUploadingAvatar || isDeletingAvatar}
-                    className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50">
+                    className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50">
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     Remove
                   </button>
@@ -174,7 +174,7 @@ function EditProfileContent() {
                 {apiError && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="mb-5 flex items-start gap-3 overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-4"
+                    className="mb-5 flex items-start gap-3 overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30"
                     role="alert" aria-live="polite">
                     <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" aria-hidden="true" />
                     <p className="text-sm font-semibold text-red-700">{apiError}</p>
@@ -185,7 +185,7 @@ function EditProfileContent() {
               <div className="space-y-5">
                 {FORM_FIELDS.map(({ name, label, type, icon: Icon, placeholder, hint }) => (
                   <div key={name}>
-                    <label htmlFor={`ep-${name}`} className="mb-1.5 block text-sm font-semibold text-slate-950">
+                    <label htmlFor={`ep-${name}`} className="mb-1.5 block text-sm font-semibold text-slate-950 dark:text-slate-100">
                       {label}
                     </label>
                     <div className="relative">
@@ -193,12 +193,12 @@ function EditProfileContent() {
                       <input id={`ep-${name}`} type={type} name={name} value={fields[name]} onChange={onFieldChange}
                         placeholder={placeholder} autoComplete="off" className="app-input pl-11" disabled={isSaving} />
                     </div>
-                    {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+                    {hint && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
                   </div>
                 ))}
               </div>
 
-              <div className="mt-7 flex flex-col justify-end gap-3 border-t border-slate-100 pt-5 sm:flex-row">
+              <div className="mt-7 flex flex-col justify-end gap-3 border-t border-slate-100 pt-5 sm:flex-row dark:border-slate-700/50">
                 <Link to="/profile" className="app-button-ghost app-button-compact w-full justify-center sm:w-auto">
                   Cancel
                 </Link>

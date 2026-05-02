@@ -54,12 +54,12 @@ function Pill({ children }) {
 }
 
 function EndpointRow({ method, path, desc }) {
-  const color = method === 'GET' ? 'text-green-700 bg-green-50 border-green-200' : method === 'POST' ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-700 bg-orange-50 border-orange-200';
+  const color = method === 'GET' ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/30 dark:border-green-900/40' : method === 'POST' ? 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950/30 dark:border-blue-900/40' : 'text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-950/30 dark:border-orange-900/40';
   return (
-    <div className="flex flex-col gap-2 border-b border-slate-100 py-4 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-2 border-b border-slate-100 py-4 sm:flex-row sm:items-center dark:border-slate-700/50">
       <span className={`rounded-lg border px-2.5 py-1 text-xs font-black tracking-wide flex-shrink-0 w-fit ${color}`}>{method}</span>
-      <code className="flex-1 font-mono text-sm text-slate-800">{path}</code>
-      <span className="text-sm text-slate-500">{desc}</span>
+      <code className="flex-1 font-mono text-sm text-slate-800 dark:text-slate-300">{path}</code>
+      <span className="text-sm text-slate-500 dark:text-slate-400">{desc}</span>
     </div>
   );
 }
@@ -108,8 +108,8 @@ const DocsPage = () => {
                         onClick={() => scrollTo(id)}
                         className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
                           activeSection === id
-                            ? 'bg-primary-50 text-primary-700 border border-primary-100'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                            ? 'bg-primary-50 text-primary-700 border border-primary-100 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800/50'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'
                         }`}
                       >
                         <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
@@ -141,8 +141,8 @@ const DocsPage = () => {
                 ].map(({ icon: Icon, title, body }) => (
                   <div key={title} className="app-card p-5">
                     <div className="app-icon-badge mb-3" aria-hidden="true"><Icon className="h-5 w-5" /></div>
-                    <p className="mb-1 font-bold text-slate-950">{title}</p>
-                    <p className="text-sm text-slate-600">{body}</p>
+                    <p className="mb-1 font-bold text-slate-950 dark:text-slate-100">{title}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">{body}</p>
                   </div>
                 ))}
               </div>
@@ -153,17 +153,17 @@ const DocsPage = () => {
               <SectionHeading id="quickstart" icon={Zap}>Quick Start</SectionHeading>
               <p className="app-body mb-5">Get CadArena running locally in three steps.</p>
 
-              <h3 className="mb-2 font-bold text-slate-950">1. Clone the repository</h3>
+              <h3 className="mb-2 font-bold text-slate-950 dark:text-slate-100">1. Clone the repository</h3>
               <CodeBlock lang="bash">{`git clone https://github.com/Youssefx64/CadArena.git
 cd CadArena`}</CodeBlock>
 
-              <h3 className="mb-2 font-bold text-slate-950">2. Start the backend</h3>
+              <h3 className="mb-2 font-bold text-slate-950 dark:text-slate-100">2. Start the backend</h3>
               <CodeBlock lang="bash">{`cd backend
 pip install -r requirements.txt
 cp .env.example .env        # fill in CADARENA_JWT_SECRET
 python -m uvicorn app.main:app --host localhost --port 8000`}</CodeBlock>
 
-              <h3 className="mb-2 font-bold text-slate-950">3. Start the frontend</h3>
+              <h3 className="mb-2 font-bold text-slate-950 dark:text-slate-100">3. Start the frontend</h3>
               <CodeBlock lang="bash">{`cd frontend
 npm install
 npm start                   # runs on http://localhost:5000`}</CodeBlock>
@@ -171,12 +171,12 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               <div className="app-card-muted mt-6 flex items-start gap-3 rounded-2xl p-5">
                 <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
                 <div>
-                  <p className="font-semibold text-slate-950">Environment variables</p>
+                  <p className="font-semibold text-slate-950 dark:text-slate-100">Environment variables</p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Copy <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">backend/.env.example</code> to{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">backend/.env</code> and set at minimum:{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">CADARENA_JWT_SECRET</code> and optionally{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">HF_TOKEN</code> for higher Hugging Face rate limits.
+                    Copy <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">backend/.env.example</code> to{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">backend/.env</code> and set at minimum:{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">CADARENA_JWT_SECRET</code> and optionally{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">HF_TOKEN</code> for higher Hugging Face rate limits.
                   </p>
                 </div>
               </div>
@@ -186,7 +186,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
             <section>
               <SectionHeading id="studio" icon={Layers}>The Studio</SectionHeading>
               <p className="app-body mb-5">
-                The Studio (<code className="rounded bg-slate-100 px-1 font-mono text-xs">/studio</code>) is CadArena&apos;s full-featured CAD workspace.
+                The Studio (<code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">/studio</code>) is CadArena&apos;s full-featured CAD workspace.
                 It provides a conversational interface to describe your floor plan, review the generated output, and refine it iteratively.
               </p>
               <div className="space-y-4">
@@ -199,8 +199,8 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   <div key={step} className="flex items-start gap-4">
                     <span className="landing-step-index flex-shrink-0">{step}</span>
                     <div>
-                      <p className="font-semibold text-slate-950">{title}</p>
-                      <p className="mt-1 text-sm text-slate-600">{body}</p>
+                      <p className="font-semibold text-slate-950 dark:text-slate-100">{title}</p>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{body}</p>
                     </div>
                   </div>
                 ))}
@@ -216,13 +216,13 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
             <section>
               <SectionHeading id="api" icon={Server}>API Reference</SectionHeading>
               <p className="app-body mb-4">
-                The backend exposes a RESTful API at <code className="rounded bg-slate-100 px-1 font-mono text-xs">http://localhost:8000/api/v1/</code>.
+                The backend exposes a RESTful API at <code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">http://localhost:8000/api/v1/</code>.
                 All endpoints return JSON. Authentication uses HTTP-only JWT cookies.
               </p>
 
               <div className="mb-6">
-                <h3 className="mb-3 font-semibold text-slate-950 flex items-center gap-2">
-                  <Terminal className="h-4 w-4 text-primary-600" /> Health &amp; System
+                <h3 className="mb-3 font-semibold text-slate-950 dark:text-slate-100 flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-primary-600 dark:text-violet-400" /> Health &amp; System
                 </h3>
                 <div className="app-card p-4">
                   <EndpointRow method="GET" path="/health" desc="Backend health check" />
@@ -232,8 +232,8 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               </div>
 
               <div className="mb-6">
-                <h3 className="mb-3 font-semibold text-slate-950 flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-primary-600" /> Generation
+                <h3 className="mb-3 font-semibold text-slate-950 dark:text-slate-100 flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary-600 dark:text-violet-400" /> Generation
                 </h3>
                 <div className="app-card p-4">
                   <EndpointRow method="POST" path="/api/v1/generate" desc="Generate a floor plan from a text prompt" />
@@ -242,8 +242,8 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               </div>
 
               <div className="mb-6">
-                <h3 className="mb-3 font-semibold text-slate-950 flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-primary-600" /> Auth &amp; Profile
+                <h3 className="mb-3 font-semibold text-slate-950 dark:text-slate-100 flex items-center gap-2">
+                  <Code2 className="h-4 w-4 text-primary-600 dark:text-violet-400" /> Auth &amp; Profile
                 </h3>
                 <div className="app-card p-4">
                   <EndpointRow method="POST" path="/api/v1/auth/register" desc="Register a new user account" />
@@ -256,7 +256,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                 </div>
               </div>
 
-              <h3 className="mb-3 font-semibold text-slate-950">Example: Generate a floor plan</h3>
+              <h3 className="mb-3 font-semibold text-slate-950 dark:text-slate-100">Example: Generate a floor plan</h3>
               <CodeBlock lang="curl">{`curl -X POST http://localhost:8000/api/v1/generate \\
   -H "Content-Type: application/json" \\
   -b "cadarena_auth=<your_token>" \\
@@ -274,7 +274,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                 CadArena&apos;s core generation is driven by a large language model pipeline built with
                 LangChain and Ollama. The LLM receives your natural language prompt, applies EBC 2023
                 spatial constraints, and outputs a structured JSON layout that is converted to DXF by
-                the <code className="rounded bg-slate-100 px-1 font-mono text-xs">ezdxf</code> export pipeline.
+                the <code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">ezdxf</code> export pipeline.
               </p>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -301,12 +301,12 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                       <h3 className="app-card-title">{m.name}</h3>
                       <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${m.badgeColor}`}>{m.badge}</span>
                     </div>
-                    <p className="mb-4 text-sm text-slate-600">{m.desc}</p>
+                    <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">{m.desc}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {m.caps.map(([label, value]) => (
                         <div key={label} className="app-card-muted rounded-xl p-3 text-center">
-                          <p className="text-sm font-black text-slate-950">{value}</p>
-                          <p className="text-xs text-slate-500">{label}</p>
+                          <p className="text-sm font-black text-slate-950 dark:text-slate-100">{value}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
                         </div>
                       ))}
                     </div>
@@ -317,10 +317,10 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               <div className="app-card-muted mt-6 flex items-start gap-3 rounded-2xl p-5">
                 <Cpu className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
                 <div>
-                  <p className="font-semibold text-slate-950">Inference stack</p>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-950 dark:text-slate-100">Inference stack</p>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     The Studio uses LangChain for chain orchestration and Ollama for local LLM inference.
-                    DXF output is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs">ezdxf</code> library with a custom per-room-type layer system.
+                    DXF output is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">ezdxf</code> library with a custom per-room-type layer system.
                   </p>
                 </div>
               </div>
@@ -331,7 +331,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               <SectionHeading id="export" icon={Download}>DXF Export</SectionHeading>
               <p className="app-body mb-5">
                 CadArena generates DXF (Drawing Exchange Format) files compatible with AutoCAD 2013+ and Revit.
-                The export pipeline is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs">ezdxf</code> library.
+                The export pipeline is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">ezdxf</code> library.
               </p>
               <div className="space-y-4">
                 {[
@@ -343,8 +343,8 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   <div key={title} className="flex items-start gap-3">
                     <CheckCircle className="mt-1 h-4 w-4 flex-shrink-0 text-primary-600" aria-hidden="true" />
                     <div>
-                      <p className="font-semibold text-slate-950">{title}</p>
-                      <p className="text-sm text-slate-600">{body}</p>
+                      <p className="font-semibold text-slate-950 dark:text-slate-100">{title}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">{body}</p>
                     </div>
                   </div>
                 ))}
@@ -382,11 +382,11 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   },
                 ].map(({ q, a }) => (
                   <details key={q} className="app-card group rounded-2xl p-0 open:shadow-lg">
-                    <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-5 font-semibold text-slate-950 select-none">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-5 font-semibold text-slate-950 dark:text-slate-100 select-none">
                       {q}
                       <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-400 transition-transform group-open:rotate-90" aria-hidden="true" />
                     </summary>
-                    <p className="border-t border-slate-100 px-6 py-5 text-sm leading-relaxed text-slate-600">
+                    <p className="border-t border-slate-100 px-6 py-5 text-sm leading-relaxed text-slate-600 dark:border-slate-700/50 dark:text-slate-400">
                       {a}
                     </p>
                   </details>

@@ -44,7 +44,7 @@ const DevelopersPage = () => (
           <motion.div key={key} variants={fadeUp}
             className="app-card app-card-hover p-5 text-center">
             <p className="mb-1 text-2xl font-black text-primary-700 sm:text-3xl">{value}</p>
-            <p className="text-xs font-semibold capitalize text-slate-500">{key.replace(/_/g, ' ')}</p>
+            <p className="text-xs font-semibold capitalize text-slate-500 dark:text-slate-400">{key.replace(/_/g, ' ')}</p>
           </motion.div>
         ))}
       </motion.div>
@@ -63,21 +63,21 @@ const DevelopersPage = () => (
                 className="h-24 w-24 flex-shrink-0 rounded-full border-4 border-primary-100 object-cover shadow-lg"
               />
               <div className="text-center sm:text-left">
-                <h3 className="mb-1 text-xl font-black text-slate-950">{dev.name}</h3>
-                <p className="mb-3 font-semibold text-primary-700">{dev.role}</p>
-                <p className="text-sm leading-relaxed text-slate-600">{dev.bio}</p>
+                <h3 className="mb-1 text-xl font-black text-slate-950 dark:text-slate-50">{dev.name}</h3>
+                <p className="mb-3 font-semibold text-primary-700 dark:text-violet-400">{dev.role}</p>
+                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{dev.bio}</p>
               </div>
             </div>
 
             {/* Contributions */}
             <div className="mb-8">
-              <h4 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-400">
+              <h4 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 <Award className="h-4 w-4" aria-hidden="true" />
                 Key Contributions
               </h4>
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {dev.contributions.map((c) => (
-                  <li key={c} className="flex items-start gap-2.5 text-sm text-slate-700">
+                  <li key={c} className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300">
                     <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary-500" aria-hidden="true" />
                     {c}
                   </li>
@@ -86,7 +86,7 @@ const DevelopersPage = () => (
             </div>
 
             {/* Social links */}
-            <div className="flex flex-wrap justify-center gap-3 border-t border-slate-100 pt-6">
+            <div className="flex flex-wrap justify-center gap-3 border-t border-slate-100 pt-6 dark:border-slate-700/50">
               {dev.links.github && (
                 <a href={dev.links.github} target="_blank" rel="noopener noreferrer"
                   className="app-button-secondary app-button-compact">
@@ -128,7 +128,7 @@ const DevelopersPage = () => (
               <h3 className="app-card-title mb-4">{tech.category}</h3>
               <ul className="space-y-2">
                 {tech.items.map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-sm text-slate-600">
+                  <li key={item} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                     <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary-500" aria-hidden="true" />
                     {item}
                   </li>
@@ -151,11 +151,11 @@ const DevelopersPage = () => (
             <motion.a key={ack.name} variants={fadeUp}
               href={ack.link} target="_blank" rel="noopener noreferrer"
               className="app-card app-card-hover group p-6">
-              <h3 className="mb-2 flex items-center justify-between font-semibold text-slate-950 transition-colors group-hover:text-primary-700">
+              <h3 className="mb-2 flex items-center justify-between font-semibold text-slate-950 transition-colors group-hover:text-primary-700 dark:text-slate-100 dark:group-hover:text-violet-400">
                 {ack.name}
                 <ExternalLink className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
               </h3>
-              <p className="text-sm text-slate-600">{ack.contribution}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{ack.contribution}</p>
             </motion.a>
           ))}
         </div>

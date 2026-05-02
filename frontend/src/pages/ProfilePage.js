@@ -76,11 +76,11 @@ function ProfileContent() {
               </Link>
             </div>
 
-            <h1 className="mb-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{displayName}</h1>
+            <h1 className="mb-1 text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">{displayName}</h1>
             {profile?.headline && (
-              <p className="mb-2 text-base font-semibold text-primary-700">{profile.headline}</p>
+              <p className="mb-2 text-base font-semibold text-primary-700 dark:text-violet-400">{profile.headline}</p>
             )}
-            <p className="text-sm text-slate-500">{user?.email}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
 
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {joinDate && (
@@ -110,19 +110,19 @@ function ProfileContent() {
               {detailItems.map(({ icon: Icon, label, value, isLink }) => (
                 <motion.div key={label} variants={itemVariants} className="app-card p-5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50">
-                      <Icon className="h-5 w-5 text-primary-600" aria-hidden="true" />
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 dark:border-violet-900/40 dark:bg-violet-950/30">
+                      <Icon className="h-5 w-5 text-primary-600 dark:text-violet-400" aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
                       {isLink ? (
                         <a href={value.startsWith('http') ? value : `https://${value}`}
                           target="_blank" rel="noopener noreferrer"
-                          className="truncate text-sm font-semibold text-primary-700 hover:underline">
+                          className="truncate text-sm font-semibold text-primary-700 hover:underline dark:text-violet-400">
                           {value}
                         </a>
                       ) : (
-                        <p className="truncate text-sm font-semibold text-slate-950">{value}</p>
+                        <p className="truncate text-sm font-semibold text-slate-950 dark:text-slate-100">{value}</p>
                       )}
                     </div>
                   </div>
@@ -133,8 +133,8 @@ function ProfileContent() {
 
           {!profile?.company && !profile?.website && !profile?.headline && (
             <motion.div variants={itemVariants}
-              className="mt-4 rounded-2xl border border-dashed border-primary-200 bg-primary-50/40 p-6 text-center">
-              <p className="text-sm text-slate-500">
+              className="mt-4 rounded-2xl border border-dashed border-primary-200 bg-primary-50/40 p-6 text-center dark:border-violet-800/30 dark:bg-violet-950/10">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Your profile is looking a little bare. Fill in your headline, company, and website.
               </p>
               <Link to="/profile/edit" className="mt-3 inline-flex app-button-secondary app-button-compact">
