@@ -3,6 +3,7 @@ backend/data/
 .codex
 CLAUDE.md
 .claude/
+attached_assets/
 
 # SQLite runtime databases
 *.db
