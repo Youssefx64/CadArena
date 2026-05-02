@@ -179,7 +179,6 @@ export default function Navbar() {
 
           <div className="hidden flex-1 items-center justify-center gap-0 md:flex" role="list">
             {NAV_LINKS.map((item) => {
-              const Icon = item.icon;
               const active = isActive(item.href);
               return (
                 <Link key={item.name} to={item.href} role="listitem"
