@@ -70,7 +70,7 @@ export default function SignUpPage() {
     ) : null;
 
   return (
-    <div className="flex min-h-[calc(100vh-4.5rem)] items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 py-12">
+    <div className="flex min-h-[calc(100vh-4.5rem)] items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 py-12 dark:from-[#060912] dark:to-[#0d1017]">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -82,8 +82,8 @@ export default function SignUpPage() {
             <div className="app-icon-badge-lg mx-auto mb-5">
               <User className="h-7 w-7 text-white" aria-hidden="true" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-950">Create account</h1>
-            <p className="mt-1 text-sm text-slate-500">Join CadArena to start designing</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50">Create account</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Join CadArena to start designing</p>
           </div>
 
           <AnimatePresence>
@@ -92,18 +92,18 @@ export default function SignUpPage() {
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                 animate={{ opacity: 1, height: 'auto', marginBottom: 20 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                className="flex items-start gap-3 overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-4"
+                className="flex items-start gap-3 overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30"
                 role="alert" aria-live="polite"
               >
                 <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" aria-hidden="true" />
-                <p className="text-sm font-semibold text-red-700">{apiError}</p>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">{apiError}</p>
               </motion.div>
             )}
           </AnimatePresence>
 
           <form onSubmit={onSubmit} noValidate className="space-y-5">
             <div>
-              <label htmlFor="su-name" className="mb-1.5 block text-sm font-semibold text-slate-950">Full name</label>
+              <label htmlFor="su-name" className="mb-1.5 block text-sm font-semibold text-slate-950 dark:text-slate-100">Full name</label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input id="su-name" type="text" name="name" value={fields.name} onChange={onChange} onBlur={onBlur}
@@ -114,7 +114,7 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label htmlFor="su-email" className="mb-1.5 block text-sm font-semibold text-slate-950">Email address</label>
+              <label htmlFor="su-email" className="mb-1.5 block text-sm font-semibold text-slate-950 dark:text-slate-100">Email address</label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input id="su-email" type="email" name="email" value={fields.email} onChange={onChange} onBlur={onBlur}
@@ -125,7 +125,7 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label htmlFor="su-password" className="mb-1.5 block text-sm font-semibold text-slate-950">Password</label>
+              <label htmlFor="su-password" className="mb-1.5 block text-sm font-semibold text-slate-950 dark:text-slate-100">Password</label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input id="su-password" type={showPw ? 'text' : 'password'} name="password" value={fields.password}
@@ -142,7 +142,7 @@ export default function SignUpPage() {
                 <div id="su-pw-strength" className="mt-2" aria-label={`Password strength: ${strength.label}`}>
                   <div className="flex gap-1" aria-hidden="true">
                     {[1, 2, 3, 4].map((l) => (
-                      <div key={l} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${l <= strength.level ? strength.cls : 'bg-slate-200'}`} />
+                      <div key={l} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${l <= strength.level ? strength.cls : 'bg-slate-200 dark:bg-slate-700'}`} />
                     ))}
                   </div>
                   <p className={`mt-1 text-xs font-semibold ${
@@ -156,7 +156,7 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label htmlFor="su-confirm" className="mb-1.5 block text-sm font-semibold text-slate-950">Confirm password</label>
+              <label htmlFor="su-confirm" className="mb-1.5 block text-sm font-semibold text-slate-950 dark:text-slate-100">Confirm password</label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input id="su-confirm" type={showCf ? 'text' : 'password'} name="confirm" value={fields.confirm}
@@ -192,9 +192,9 @@ export default function SignUpPage() {
             </motion.button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-primary-700 underline-offset-2 hover:underline">
+            <Link to="/login" className="font-semibold text-primary-700 underline-offset-2 hover:underline dark:text-violet-400">
               Sign in
             </Link>
           </p>

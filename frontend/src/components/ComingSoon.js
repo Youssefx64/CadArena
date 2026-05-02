@@ -26,7 +26,7 @@ function ComingSoon({
           variants={stagger}
         >
           {/* Status badge */}
-          <motion.div variants={fadeUp} className="mb-8 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
+          <motion.div variants={fadeUp} className="mb-8 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 dark:border-violet-800/40 dark:bg-violet-950/30 dark:text-violet-300">
             <Sparkles className="h-4 w-4" aria-hidden="true" />
             In Development
           </motion.div>
@@ -54,7 +54,7 @@ function ComingSoon({
                 {features.map((f) => (
                   <li key={f} className="flex items-start gap-3">
                     <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-primary-500" aria-hidden="true" />
-                    <span className="text-sm leading-relaxed text-slate-700">{f}</span>
+                    <span className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{f}</span>
                   </li>
                 ))}
               </ul>

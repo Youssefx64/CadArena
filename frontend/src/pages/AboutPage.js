@@ -157,8 +157,8 @@ const AboutPage = () => {
                 >
                   {m.value}
                 </div>
-                <div className="mb-1 font-semibold text-slate-950">{m.label}</div>
-                <div className="text-xs text-slate-500">{m.note}</div>
+                <div className="mb-1 font-semibold text-slate-950 dark:text-slate-100">{m.label}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{m.note}</div>
               </motion.div>
             ))}
           </div>
@@ -181,10 +181,10 @@ const AboutPage = () => {
                 <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-950">{metric}</span>
-                    <span className="font-black text-primary-700">{improvement}</span>
+                    <span className="font-semibold text-slate-950 dark:text-slate-100">{metric}</span>
+                    <span className="font-black text-primary-700 dark:text-violet-400">{improvement}</span>
                   </div>
-                  <p className="mt-0.5 text-sm text-slate-500">{note}</p>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{note}</p>
                 </div>
               </motion.div>
             ))}
@@ -210,8 +210,8 @@ const AboutPage = () => {
                       <div key={item.name} className="flex items-start gap-3">
                         <div className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary-500" aria-hidden="true" />
                         <div>
-                          <p className="text-sm font-semibold text-slate-950">{item.name}</p>
-                          <p className="text-xs text-slate-500">{item.note}</p>
+                          <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">{item.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{item.note}</p>
                         </div>
                       </div>
                     ))}
@@ -232,9 +232,9 @@ const AboutPage = () => {
               <div className="app-icon-badge-lg mx-auto mb-5" aria-hidden="true">
                 <Cpu className="h-8 w-8" />
               </div>
-              <h3 className="mb-1 text-xl font-black text-slate-950">Youssef Taha Badawi</h3>
-              <p className="mb-4 font-semibold text-primary-700">Founder · AI Engineer · Systems Architect</p>
-              <p className="mb-6 text-sm leading-relaxed text-slate-600">
+              <h3 className="mb-1 text-xl font-black text-slate-950 dark:text-slate-50">Youssef Taha Badawi</h3>
+              <p className="mb-4 font-semibold text-primary-700 dark:text-violet-400">Founder · AI Engineer · Systems Architect</p>
+              <p className="mb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                 AI Engineer specialising in GenAI, LLM systems, and agentic architectures. Built CadArena
                 end-to-end — from dataset curation and model training to the frontend product and DXF export pipeline.
               </p>

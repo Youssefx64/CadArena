@@ -45,18 +45,18 @@ function BlueprintPreview() {
             border: r.muted
               ? '1px dashed var(--line-soft)'
               : r.accent
-                ? '1.5px solid rgba(59,130,246,0.45)'
+                ? '1.5px solid var(--blueprint-accent-border)'
                 : '1.5px solid var(--line-strong)',
             background: r.muted
               ? 'transparent'
               : r.accent
-                ? 'rgba(239,246,255,0.55)'
+                ? 'var(--blueprint-accent-bg)'
                 : 'var(--surface-1)',
-            boxShadow: r.accent ? '0 2px 12px rgba(59,130,246,0.1),inset 0 1px 0 rgba(255,255,255,0.5)' : 'inset 0 1px 0 rgba(255,255,255,0.3)',
+            boxShadow: r.accent ? 'var(--blueprint-accent-shadow)' : 'inset 0 1px 0 rgba(255,255,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
           {r.label && (
-            <span style={{ fontSize: 'clamp(0.55rem,1vw,0.72rem)', fontWeight: 700, color: r.accent ? '#1d4ed8' : 'var(--text-muted)', letterSpacing: '0.02em', textAlign: 'center', padding: '0 4px', userSelect: 'none' }}>
+            <span style={{ fontSize: 'clamp(0.55rem,1vw,0.72rem)', fontWeight: 700, color: r.accent ? 'var(--blueprint-accent-color)' : 'var(--text-muted)', letterSpacing: '0.02em', textAlign: 'center', padding: '0 4px', userSelect: 'none' }}>
               {r.label}
             </span>
           )}
@@ -64,7 +64,7 @@ function BlueprintPreview() {
       ))}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2, duration: 0.4 }}
         style={{ position: 'absolute', bottom: '6%', right: '2%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '0.12em', textTransform: 'uppercase' }}>EBC 2023 Compliant</span>
+        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--blueprint-ebc-color)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>EBC 2023 Compliant</span>
         <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>DXF Export Ready ✓</span>
       </motion.div>
       <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 1.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -305,7 +305,7 @@ const HomePage = () => {
       </section>
 
       {/* ═══ FEATURES ═════════════════════════════════════════════════════════ */}
-      <section className="py-28 dark:bg-transparent" style={{ background: 'rgba(255,255,255,0.4)' }} aria-labelledby="features-heading">
+      <section className="section-tinted-bg py-28" aria-labelledby="features-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
             <motion.p variants={fadeUp} className="app-eyebrow mb-4">Capabilities</motion.p>
@@ -437,7 +437,7 @@ const HomePage = () => {
       </section>
 
       {/* ═══ CAPABILITIES ═════════════════════════════════════════════════════ */}
-      <section className="py-28 dark:bg-transparent" style={{ background: 'rgba(255,255,255,0.4)' }} aria-labelledby="perf-heading">
+      <section className="section-tinted-bg py-28" aria-labelledby="perf-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
             <motion.p variants={fadeUp} className="app-eyebrow mb-4">What you get</motion.p>
