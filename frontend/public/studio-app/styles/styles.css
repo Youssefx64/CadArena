@@ -2211,10 +2211,16 @@ body.is-resizing-workspace .workspace.is-layout-animating {
   text-align: center;
   color: var(--composer-note);
   font-size: 0.78rem;
+  line-height: 1.5;
+  transition: color 0.2s;
 }
 
 .chat-model-hint {
-  display: none;
+  display: block;
+  text-align: center;
+  margin-top: 4px;
+  font-size: 0.73rem;
+  color: #64748b;
 }
 
 .preview {
