@@ -27,7 +27,6 @@ const modelPickerTrigger = document.getElementById("model-picker-trigger");
 const modelPickerMenu = document.getElementById("model-picker-menu");
 const modelPickerOptions = document.getElementById("model-picker-options");
 const modelHint = document.getElementById("model-hint");
-const promptGuidance = document.getElementById("prompt-guidance");
 const iterativeModeIndicator = document.getElementById("iterative-mode-indicator");
 const sendButton = document.getElementById("send-btn");
 const activeProjectTitle = document.getElementById("active-project-title");
@@ -2029,26 +2028,7 @@ function updateModelHint() {
     modelHint.textContent = "Model metadata unavailable.";
     return;
   }
-  const isDefault = selectedValue === (fallbackModelCatalog.default_model || "huggingface");
-  modelHint.textContent = `${isDefault ? "Default" : "Selected"}: ${metadata.display_name}`;
-}
-
-/**
- * Score a prompt on 5 CAD-relevant signal categories.
- * Returns a count 0-5; threshold for submission is >= 3.
- *
- * @param {string} prompt
- * @returns {number}
- */
-function scorePromptQuality(prompt) {
-  const text = String(prompt || "").toLowerCase();
-  return [
-    /\b(room|bedroom|kitchen|bathroom|living|hall|corridor|office|studio|garage|balcony|lobby|dining|laundry|pantry|closet|study)\b/.test(text),
-    /\b(\d+\s*(m|meter|metre|sqm|m²|ft|feet|sq\.?\s*ft)|area|dimension|width|length|size|square)\b/.test(text),
-    /\b(door|swing|window|entry|entrance|exit|access|opening|threshold)\b/.test(text),
-    /\b(adjacent|next to|near|beside|connect|circulation|privacy|layout|arrangement|plan)\b/.test(text),
-    /\b(north|south|east|west|orientation|facing|sun|light|street|garden|view)\b/.test(text),
-  ].filter(Boolean).length;
+  modelHint.textContent = `Selected: ${metadata.display_name}`;
 }
 
 function applyModelCatalog(catalog) {
@@ -2069,10 +2049,6 @@ function applyModelCatalog(catalog) {
   modelSelect.value = values.has(defaultModel) ? defaultModel : models[0]?.request_value || "huggingface";
   renderModelPicker(models);
   updateModelHint();
-  if (promptGuidance) {
-    promptGuidance.textContent =
-      "Describe room count, sizes, adjacency, door swings, and orientation for best results.";
-  }
 }
 
 async function loadModelCatalog() {
@@ -3539,27 +3515,6 @@ async function handleChatFormSubmit(event) {
     return;
   }
 
-  // Reject prompts that are too short to be useful.
-  if (prompt.length < 18) {
-    appendMessage(
-      "assistant",
-      "Please give a more detailed brief — mention room types, sizes, adjacency, and door directions so the model can generate an accurate plan.",
-      { isError: true },
-    );
-    if (promptGuidance) {
-      promptGuidance.textContent =
-        "Tip: e.g. \"3-bed house, 120 m², living room adjacent to kitchen, north-facing master bedroom, single entry door south.\"";
-    }
-    return;
-  }
-
-  // Soft-warn on vague prompts (score < 3) but still allow submission.
-  const quality = scorePromptQuality(prompt);
-  if (quality < 3 && promptGuidance) {
-    promptGuidance.textContent =
-      "Stronger prompts include room count + sizes + adjacency + door locations. Adding these improves plan accuracy.";
-  }
-
   appendMessage("user", prompt);
   promptInput.value = "";
   setBusy(true);
@@ -3575,10 +3530,6 @@ async function handleChatFormSubmit(event) {
       startPreviewPolling(); // LAYOUT-FIX: begin chat refresh polling only after the saved layout is available for iterative mode
       await loadProjectConversation(state.activeProjectId); // LAYOUT-FIX: refresh chat after layout persistence so the active project keeps its saved base layout
       setStatus("Ready", "ready");
-      if (promptGuidance) {
-        promptGuidance.textContent =
-          "Plan generated. Use the Edit mode to refine rooms, swap orientations, or add constraints.";
-      }
       return;
     }
 
@@ -3591,10 +3542,6 @@ async function handleChatFormSubmit(event) {
     syncCurrentLayoutFromResponse(response, requestMode);
     appendIterativeResponseMessage(response);
     setStatus("Ready", "ready");
-    if (promptGuidance) {
-      promptGuidance.textContent =
-        "Plan updated. Keep refining or switch to a new project to generate fresh from scratch.";
-    }
   } catch (error) {
     removeTypingIndicator();
     if (state.currentLayout) {
@@ -3607,10 +3554,6 @@ async function handleChatFormSubmit(event) {
       }
     }
     setStatus("Error", "error");
-    if (promptGuidance) {
-      promptGuidance.textContent =
-        "Describe room count, sizes, adjacency, door swings, and orientation for best results.";
-    }
   } finally {
     stopPreviewPolling();
     removeTypingIndicator();
