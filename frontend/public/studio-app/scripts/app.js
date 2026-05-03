@@ -54,6 +54,7 @@ const dxfRenderDownloadPdfButton = document.getElementById("dxf-render-download-
 const dxfRenderZoomInButton = document.getElementById("dxf-render-zoom-in-btn");
 const dxfRenderZoomOutButton = document.getElementById("dxf-render-zoom-out-btn");
 const dxfRenderZoomResetButton = document.getElementById("dxf-render-zoom-reset-btn");
+const dxfFileInput = document.getElementById("dxf-file-input");
 const panelNodes = Array.from(document.querySelectorAll(".panel"));
 const workspaceShell = document.getElementById("workspace-shell");
 const workspaceLeftResizer = document.getElementById("workspace-resizer-left");
@@ -910,12 +911,13 @@ function setWorkspaceMode(mode) {
   if (!workspaceShell) {
     return;
   }
-  state.workspaceMode = "studio";
-  workspaceShell.classList.remove("is-dxf-render-mode");
+  const isRender = mode === "render";
+  state.workspaceMode = isRender ? "render" : "studio";
+  workspaceShell.classList.toggle("is-dxf-render-mode", isRender);
 
   if (togglePreviewButton) {
-    togglePreviewButton.disabled = false;
-    togglePreviewButton.setAttribute("aria-disabled", "false");
+    togglePreviewButton.disabled = isRender;
+    togglePreviewButton.setAttribute("aria-disabled", String(isRender));
   }
 
   setSidebarTab(state.sidebarTab);
@@ -1390,7 +1392,6 @@ function updatePreview({ fileName, fileToken }) {
 }
 
 function resetDxfRenderPreview({
-  emptyMessage = DXF_RENDER_EMPTY_MESSAGE,
   projectId = state.activeProjectId,
 } = {}) {
   if (!dxfRenderCanvas || !dxfRenderImage || !dxfRenderEmpty) {
@@ -1402,7 +1403,7 @@ function resetDxfRenderPreview({
   dxfRenderImage.removeAttribute("src");
   dxfRenderImage.style.transform = "translate(0px, 0px) scale(1)";
   dxfRenderEmpty.style.display = "grid";
-  dxfRenderEmpty.textContent = emptyMessage;
+  dxfRenderEmpty.innerHTML = '<div class="dxf-drop-card"><div class="dxf-drop-icon">DXF</div><p class="dxf-drop-title">Drop a .DXF file here</p><p class="dxf-drop-hint">or use Upload DXF — also renders plans generated from chat</p></div>';
   state.dxfRenderScale = 1;
   state.dxfRenderPanX = 0;
   state.dxfRenderPanY = 0;
@@ -1417,6 +1418,42 @@ function resetDxfRenderPreview({
   updateDxfRenderCanvasInteractionState();
   updateDxfRenderZoomLabel();
   syncFilePreviewActionState();
+}
+
+async function uploadDxfAndView(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith(".dxf")) {
+    if (dxfRenderEmpty) {
+      dxfRenderEmpty.style.display = "grid";
+      dxfRenderEmpty.innerHTML = '<div class="dxf-drop-card"><div class="dxf-drop-icon">ERR</div><p class="dxf-drop-title">Not a DXF file</p><p class="dxf-drop-hint">Only .dxf files are supported</p></div>';
+    }
+    return;
+  }
+  if (dxfRenderEmpty) {
+    dxfRenderEmpty.style.display = "grid";
+    dxfRenderEmpty.innerHTML = '<div class="dxf-drop-card"><div class="dxf-drop-icon">DXF</div><p class="dxf-drop-title">Uploading…</p><p class="dxf-drop-hint">' + file.name + '</p></div>';
+  }
+  if (dxfRenderImage) {
+    dxfRenderImage.style.display = "none";
+    dxfRenderImage.classList.remove("is-visible");
+  }
+  dxfRenderCanvas?.classList.add("loading");
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch("/api/v1/dxf/upload", { method: "POST", body: formData });
+    if (!response.ok) throw new Error("Upload failed (" + response.status + ")");
+    const data = await response.json();
+    const fileToken = data.file_token;
+    if (!fileToken) throw new Error("No file token returned");
+    updateStandaloneDxfRender({ fileName: file.name, fileToken, projectId: state.activeProjectId, source: "upload" });
+  } catch (err) {
+    dxfRenderCanvas?.classList.remove("loading");
+    if (dxfRenderEmpty) {
+      dxfRenderEmpty.style.display = "grid";
+      dxfRenderEmpty.innerHTML = '<div class="dxf-drop-card"><div class="dxf-drop-icon">ERR</div><p class="dxf-drop-title">Upload failed</p><p class="dxf-drop-hint">' + err.message + '</p></div>';
+    }
+  }
 }
 
 function clampDxfRenderPan() {
@@ -3262,6 +3299,7 @@ if (sidebarManageProjectsButton) {
 
 if (sidebarDxfUploadTriggerButton) {
   sidebarDxfUploadTriggerButton.addEventListener("click", () => {
+    setWorkspaceMode("render");
     setSidebarTab("render");
     revealDxfRenderPanel({ scrollIntoView: true });
     keepWorkspaceViewportStable();
@@ -3274,6 +3312,39 @@ if (sidebarDxfUploadTriggerButton) {
       });
       dxfRenderRefreshButton?.focus({ preventScroll: true });
     }
+  });
+}
+
+if (dxfFileInput) {
+  dxfFileInput.addEventListener("change", async () => {
+    const file = dxfFileInput.files?.[0];
+    if (!file) return;
+    setWorkspaceMode("render");
+    setSidebarTab("render");
+    revealDxfRenderPanel({ scrollIntoView: true });
+    await uploadDxfAndView(file);
+    dxfFileInput.value = "";
+  });
+}
+
+if (dxfRenderCanvas) {
+  dxfRenderCanvas.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dxfRenderCanvas.classList.add("dxf-drag-active");
+  });
+  dxfRenderCanvas.addEventListener("dragleave", (e) => {
+    if (!dxfRenderCanvas.contains(e.relatedTarget)) {
+      dxfRenderCanvas.classList.remove("dxf-drag-active");
+    }
+  });
+  dxfRenderCanvas.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dxfRenderCanvas.classList.remove("dxf-drag-active");
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    setWorkspaceMode("render");
+    setSidebarTab("render");
+    await uploadDxfAndView(file);
   });
 }
 
