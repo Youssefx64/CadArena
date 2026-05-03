@@ -130,7 +130,6 @@ classDiagram
     DesignIntent *-- OpeningIntent
     RoomIntent --> Point
 ```
-<!-- VALIDATED: no <<>> inline, no Arabic outside quotes, no reserved keywords as IDs -->
 
 ## ملاحظات معمارية
 - تمت نمذجة `IntentToAgentPipeline` كعنصر تجميعي لأنه يجمع عدداً من الوحدات الوظيفية في `intent_to_agent.py`.

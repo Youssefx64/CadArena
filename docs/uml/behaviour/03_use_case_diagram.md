@@ -6,58 +6,52 @@
 ## المخطط
 ```mermaid
 flowchart TD
-    Guest(["👤 زائر"])
-    User(["👤 مستخدم مسجّل"])
-    LLM(["⚙️ مزود LLM\nOllama / HF"])
-    SMTP(["📧 SMTP"])
-    FS(["🗂️ نظام الملفات"])
+    Guest(["زائر"])
+    User(["مستخدم مسجل"])
+    LLM(["مزود LLM"])
+    SMTP(["SMTP"])
+    FS(["نظام الملفات"])
 
-    subgraph CadArena ["نظام CadArena"]
-        UC_CREATE_LOCAL["إنشاء مشروع محلي"]
+    subgraph CadArena["نظام CadArena"]
+        UC_LOCAL["إنشاء مشروع محلي"]
         UC_AUTH["تسجيل / دخول"]
         UC_MANAGE["إدارة المشاريع"]
         UC_PROFILE["إدارة الملف الشخصي"]
         UC_KEYS["إدارة مفاتيح المزودات"]
         UC_CONTACT["إرسال رسالة تواصل"]
-
-        subgraph GEN ["توليد DXF"]
-            UC_GEN_DXF["إرسال وصف لتوليد DXF"]
-            UC_PARSE["تحليل الوصف"]
-            UC_LAYOUT["توليد مخطط ومساحات"]
-            UC_DXF["توليد DXF"]
-            UC_GEN_DXF -->|include| UC_PARSE
-            UC_PARSE -->|include| UC_LAYOUT
-            UC_LAYOUT -->|include| UC_DXF
-        end
-
-        subgraph EXPORT ["التصدير"]
-            UC_EXPORT["تحميل / تصدير DXF"]
-            UC_UPLOAD["رفع ملف DXF"]
-            UC_READ["قراءة ملفات الإخراج"]
-            UC_EXPORT -->|include| UC_READ
-        end
+        UC_PARSE["تحليل الوصف"]
+        UC_LAYOUT["توليد مخطط ومساحات"]
+        UC_DXF["توليد DXF"]
+        UC_UPLOAD["رفع ملف DXF"]
+        UC_EXPORT["تصدير / تحميل DXF"]
+        UC_READ["قراءة ملفات الإخراج"]
     end
 
-    Guest --> UC_CREATE_LOCAL
-    Guest --> UC_GEN_DXF
-    Guest --> UC_EXPORT
+    Guest --> UC_LOCAL
+    Guest --> UC_PARSE
     Guest --> UC_UPLOAD
+    Guest --> UC_EXPORT
     Guest --> UC_CONTACT
 
     User --> UC_AUTH
     User --> UC_MANAGE
     User --> UC_PROFILE
     User --> UC_KEYS
-    User --> UC_GEN_DXF
+    User --> UC_PARSE
+    User --> UC_UPLOAD
     User --> UC_EXPORT
     User --> UC_CONTACT
 
-    LLM -.->|يُستدعى من| UC_PARSE
-    SMTP -.->|يُستدعى من| UC_CONTACT
-    FS -.->|يُستدعى من| UC_READ
+    UC_PARSE --> UC_LAYOUT
+    UC_LAYOUT --> UC_DXF
+    UC_EXPORT --> UC_READ
+
+    LLM -.-> UC_PARSE
+    SMTP -.-> UC_CONTACT
+    FS -.-> UC_READ
 ```
 
 ## ملاحظات معمارية
-- مسار الزائر يعتمد على `user_id` محلي في المتصفح، بينما مسار المسجّل يعتمد على JWT عبر `/auth/me`.
-- التحليل يستدعي مزودات خارجية (Ollama/HF)، لكن التخطيط والرسم يتمان محلياً داخل `domain/`.
-- تصدير DXF/PNG/PDF يتطلب الوصول إلى `backend/output/` وفق `resolve_output_path`.
+- مسار الزائر يعتمد على `user_id` محلي، بينما المسجل يعتمد على JWT.
+- التحليل يستدعي مزودات خارجية، لكن التخطيط والرسم محليان داخل النظام.
+- رفع DXF والتصدير يعتمدان على ملفات `backend/output/`.

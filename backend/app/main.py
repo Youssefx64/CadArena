@@ -7,8 +7,9 @@ This module initializes the FastAPI application and registers API routes.
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.core.env_loader import load_backend_env
@@ -22,7 +23,7 @@ try:
 except ImportError as exc:
     if exc.name != "ezdxf":
         raise
-    dxf_router = None
+    dxf_router: Optional[APIRouter] = None
     _DXF_ROUTER_IMPORT_ERROR: ImportError | None = exc
 else:
     _DXF_ROUTER_IMPORT_ERROR = None

@@ -16,7 +16,7 @@ timeline
       T3: "PromptCompiler + Provider.generate"
       T4: "OutputParser + ExtractedIntentValidator"
       T5: "DeterministicLayoutPlanner + OpeningPlanner"
-      T6: "IntentValidator + LayoutValidator (metrics)"
+      T6: "IntentValidator + LayoutValidator"
       T7: "DesignIntent.model_validate"
       T8: "generate_dxf_from_intent"
       T9: "DXFRoomRenderer.save"
@@ -26,7 +26,6 @@ timeline
     section Frontend
       T12: "استلام الاستجابة وعرض رابط المعاينة"
 ```
-<!-- VALIDATED: no <<>> inline, no Arabic outside quotes, no reserved keywords as IDs -->
 
 ## ملاحظات معمارية
 - خطوات التحليل والتخطيط تسبق توليد DXF ولا تُنفذ بالتوازي لضمان صحة الهندسة.
