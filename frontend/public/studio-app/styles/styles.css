@@ -2252,13 +2252,92 @@ body.is-resizing-workspace .workspace.is-layout-animating {
   background: linear-gradient(175deg, rgba(255, 255, 255, 0.92), rgba(242, 252, 249, 0.92));
 }
 
-.workspace.is-preview-hidden .dxf-render-panel {
+.workspace.is-preview-hidden:not(.is-dxf-render-mode) .dxf-render-panel {
   display: none;
 }
 
 .dxf-render-canvas {
   min-height: 0;
   height: 100%;
+  position: relative;
+  background:
+    linear-gradient(rgba(80, 100, 120, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(80, 100, 120, 0.22) 1px, transparent 1px),
+    #1a1c1e !important;
+  background-size: 32px 32px !important;
+  border-color: rgba(71, 85, 105, 0.45) !important;
+}
+
+.dxf-render-canvas.dxf-drag-active {
+  outline: 2px dashed #3b82f6;
+  outline-offset: -4px;
+  background:
+    linear-gradient(rgba(59, 130, 246, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.14) 1px, transparent 1px),
+    #101418 !important;
+  background-size: 32px 32px !important;
+}
+
+.dxf-viewer-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: rgba(226, 232, 240, 0.72);
+  pointer-events: none;
+}
+
+.dxf-drop-card {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.dxf-drop-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1.5px solid rgba(148, 163, 184, 0.22);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: rgba(203, 213, 225, 0.92);
+}
+
+.dxf-drop-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.dxf-drop-hint {
+  font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.8);
+  max-width: 260px;
+}
+
+.header-icon-dxf {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #0f172a;
+  border: 1.5px solid rgba(71, 85, 105, 0.5);
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.dxf-upload-label {
+  cursor: pointer;
+  gap: 6px;
 }
 
 .preview-tools {
