@@ -4,6 +4,7 @@ backend/data/
 CLAUDE.md
 .claude/
 attached_assets/
+docs/Digrams_img/
 
 # SQLite runtime databases
 *.db
