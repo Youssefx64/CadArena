@@ -1,59 +1,81 @@
-# 09_component_diagram (المكوّنات الرئيسية والاعتماديات) — CadArena
+# 09 Component Diagram - Main Components and Dependencies - CadArena
 
-## الغرض
-يوضح هذا المخطط المكوّنات الأساسية في CadArena وكيف تتبادل البيانات مع بعضها ومع الأنظمة الخارجية.
+## Purpose
+This component diagram shows the major deployable and logical components in the current CadArena repository and how they depend on each other.
 
-## المخطط
+## Diagram
 
 ```mermaid
 flowchart LR
-    subgraph CLIENT["متصفح المستخدم"]
-        FE["Frontend HTML/CSS/JS\n(frontend/)"]
+    subgraph CLIENT["Client Browser"]
+        SPA["React SPA\nfrontend/src"]
+        STUDIO["Embedded Studio\nfrontend/public/studio-app"]
+        VIEWER["DXF Viewer\nfrontend/src/pages/ViewerPage.js"]
     end
 
-    subgraph API["FastAPI App (backend/app/main.py)"]
-        ROUTERS["Routers (design_parser, workspace, auth, profile, contact, api/v1)"]
-        SERVICES["Services (design_parser_service, auth_storage, workspace_storage, contact_email_service, dxf_exporter)"]
-        PIPELINE["Pipeline (intent_to_agent, draw_pipeline)"]
-        DOMAIN["Domain (planner, constraints, architecture, geometry)"]
-        SCHEMAS["Schemas + Models (Pydantic)"]
-        UTILS["core/ + utils/"]
+    subgraph FASTAPI["FastAPI Backend\nbackend/app/main.py"]
+        ROUTERS["Routers\nauth, profile, workspace, workspace_auth, design_parser, community, contact, dxf"]
+        CORE["Core\nsettings, auth, env loading, logging, file utils"]
+        MODELS["API Models\nPydantic request and response models"]
+        SCHEMAS["Schemas\ndesign intent, geometry, room, opening, export"]
+        SERVICES["Services\nstorage, parser facade, DXF exporter, chat assistant, suggestions, tokens"]
+        PARSER["Design Parser Services\norchestrator, providers, planners, validators, patcher"]
+        PIPELINE["DXF Pipeline\nintent_to_agent, draw_pipeline"]
+        DOMAIN["Domain\nplanner, constraints, architecture, geometry, openings"]
     end
 
-    subgraph STORAGE["Storage"]
-        SQLITE[("workspace.db")]
-        OUTPUT[("backend/output/*")]
+    subgraph STORAGE["Local Storage"]
+        SQLITE_AUTH[("auth/profile/community SQLite")]
+        SQLITE_WORKSPACE[("workspace SQLite")]
+        OUTPUT[("backend/output and backend/output/dxf")]
     end
 
-    subgraph EXTERNAL["External Systems"]
-        OLLAMA["Ollama API"]
-        HF["HuggingFace Transformers"]
-        SMTP["SMTP Server"]
-        MATPLOTLIB["matplotlib"]
+    subgraph EXTERNAL["External or Optional Systems"]
+        OLLAMA_LOCAL["Ollama local API"]
+        OLLAMA_CLOUD["Ollama Cloud or Qwen-compatible API"]
+        HF_LOCAL["HuggingFace transformers"]
+        SMTP["SMTP server"]
+        GOOGLE["Google OAuth"]
         EZDXF["ezdxf"]
+        MATPLOTLIB["matplotlib"]
     end
 
-    FE -->|HTTP| ROUTERS
+    SPA -->|"routes and iframe"| STUDIO
+    SPA -->|"viewer route"| VIEWER
+    STUDIO -->|"HTTP fetch"| ROUTERS
+    VIEWER -->|"HTTP fetch"| ROUTERS
+    SPA -->|"auth/profile/community HTTP"| ROUTERS
+
+    ROUTERS --> CORE
+    ROUTERS --> MODELS
+    ROUTERS --> SCHEMAS
     ROUTERS --> SERVICES
     ROUTERS --> PIPELINE
-    ROUTERS --> SCHEMAS
 
-    SERVICES --> DOMAIN
-    SERVICES --> UTILS
-    SERVICES --> SQLITE
+    SERVICES --> PARSER
+    SERVICES --> SQLITE_AUTH
+    SERVICES --> SQLITE_WORKSPACE
     SERVICES --> OUTPUT
-    SERVICES --> OLLAMA
-    SERVICES --> HF
     SERVICES --> SMTP
+    SERVICES --> GOOGLE
+
+    PARSER --> OLLAMA_LOCAL
+    PARSER --> OLLAMA_CLOUD
+    PARSER --> HF_LOCAL
+    PARSER --> MODELS
 
     PIPELINE --> DOMAIN
     PIPELINE --> SCHEMAS
     PIPELINE --> EZDXF
-    SERVICES --> MATPLOTLIB
-```
-<!-- VALIDATED: no <<>> inline, no Arabic outside quotes, no reserved keywords as IDs -->
+    PIPELINE --> OUTPUT
 
-## ملاحظات معمارية
-- الواجهة الأمامية ثابتة وتُخدم مباشرة عبر FastAPI دون بناء، لذلك تعتمد كل الواجهات على المسارات HTTP نفسها.
-- الاعتماد على `ezdxf` داخل خط الرسم يجعل توليد DXF محلياً ومحدداً بإصدارات المكتبة.
-- التصدير إلى PDF/PNG يمر عبر `matplotlib` مع مسار بديل في حال غياب الاعتماديات.
+    SERVICES --> MATPLOTLIB
+    SERVICES --> EZDXF
+    DOMAIN --> SCHEMAS
+```
+
+## Architectural Notes
+- `backend/app/main.py` mounts frontend assets when available and registers all `/api/v1` routers.
+- The Studio workspace is a legacy static app embedded by the React `/studio` route, but it uses the same backend APIs as the rest of the React application.
+- Parser providers are optional at runtime; missing CAD dependencies disable DXF routes rather than preventing the whole app from importing.
+- SQLite databases and generated files live on the backend host and are initialized or cleaned up through startup tasks.

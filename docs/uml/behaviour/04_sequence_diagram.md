@@ -1,19 +1,21 @@
-# 04_sequence_diagram (تسلسل توليد DXF من محادثة workspace) — CadArena
+# 04 Sequence Diagram - Workspace DXF Generation - CadArena
 
-## الغرض
-يوضح هذا المخطط التسلسلي التفاعل التفصيلي بين الواجهة وخدمات التحليل والتخطيط والرسم عند إنشاء DXF من داخل مساحة العمل.
+## Purpose
+This sequence diagram shows the detailed runtime interaction for generating a DXF from a new prompt inside the Studio workspace.
 
-## المخطط
+## Diagram
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Frontend
+    participant ReactApp as React App
+    participant Studio as Studio iframe
     participant WorkspaceRouter
+    participant IntentRouter
     participant WorkspaceStorage
     participant ParserService
     participant Orchestrator
-    participant Provider
+    participant Provider as LLM Provider
     participant OutputParser
     participant ExtractValidator
     participant LayoutPlanner
@@ -21,46 +23,66 @@ sequenceDiagram
     participant IntentValidator
     participant LayoutValidator
     participant DXFPipeline
-    participant DesignIntentValidator
-    participant PlannerAgent
-    participant WallCutManager
-    participant DXFRoomRenderer
+    participant FileTokenRegistry
+    participant DXFRenderer
     participant FileSystem
 
-    User->>Frontend: "إدخال وصف معماري"
-    Frontend->>WorkspaceRouter: "POST /api/v1/workspace/.../generate-dxf"
-    WorkspaceRouter->>WorkspaceStorage: "add_message(role=user)"
-    WorkspaceRouter->>ParserService: "parse_design_prompt_with_metadata"
-    ParserService->>Orchestrator: "parse"
-    Orchestrator->>Provider: "generate(compiled_prompt)"
-    Provider-->>Orchestrator: "raw_output"
-    Orchestrator->>OutputParser: "parse(raw_output)"
-    Orchestrator->>ExtractValidator: "validate(extracted_payload)"
-    Orchestrator->>LayoutPlanner: "plan_with_metadata"
-    Orchestrator->>OpeningPlanner: "plan"
-    Orchestrator->>IntentValidator: "validate(planned_payload)"
-    Orchestrator->>LayoutValidator: "validate(metrics)"
-    ParserService-->>WorkspaceRouter: "result(data, metrics)"
-    WorkspaceRouter->>DXFPipeline: "generate_dxf_from_intent"
-    DXFPipeline->>DesignIntentValidator: "validate(intent)"
-    DXFPipeline->>PlannerAgent: "place_room / place_room_with_rules"
-    DXFPipeline->>WallCutManager: "add_wall_segments + process_cuts"
-    DXFPipeline->>DXFRoomRenderer: "draw and save"
-    DXFRoomRenderer->>FileSystem: "save -> backend/output/dxf"
-    WorkspaceRouter->>WorkspaceStorage: "add_message(role=assistant, dxf_path)"
-    WorkspaceRouter-->>Frontend: "200 + dxf_path + metrics + messages"
-    Frontend-->>User: "عرض رابط التحميل/المعاينة"
+    User->>ReactApp: Open /studio
+    ReactApp->>Studio: Load /studio-app/index.html
+    User->>Studio: Submit prompt and selected model
+    Studio->>WorkspaceRouter: POST /api/v1/workspace/.../generate-dxf
+    WorkspaceRouter->>WorkspaceStorage: get_project(user_id, project_id)
+    WorkspaceRouter->>WorkspaceStorage: add_message(role=user)
+    WorkspaceRouter->>IntentRouter: classify_intent(prompt)
 
-    alt "فشل التحليل أو القواعد"
-        WorkspaceRouter-->>Frontend: "ParseDesignErrorResponse"
-        WorkspaceRouter->>WorkspaceStorage: "add_message(role=error)"
-    else "فشل توليد DXF"
-        WorkspaceRouter-->>Frontend: "422 GENERATE_DXF_FAILED"
-        WorkspaceRouter->>WorkspaceStorage: "add_message(role=error)"
+    alt Conversational message
+        WorkspaceRouter->>WorkspaceStorage: add_message(role=assistant)
+        WorkspaceRouter-->>Studio: type=chat, message
+    else Design generation
+        WorkspaceRouter->>ParserService: parse_design_prompt_with_metadata(prompt, model, model_id, recovery_mode)
+        ParserService->>Orchestrator: parse(...)
+        Orchestrator->>Provider: generate(compiled_prompt)
+        Provider-->>Orchestrator: raw_output
+        Orchestrator->>OutputParser: parse(raw_output)
+
+        alt Invalid JSON and repair enabled
+            Orchestrator->>Provider: generate(JSON repair prompt)
+            Provider-->>Orchestrator: repaired_output
+            Orchestrator->>OutputParser: parse(repaired_output)
+        end
+
+        Orchestrator->>ExtractValidator: validate(extracted payload)
+        Orchestrator->>Provider: optional self-review and correction
+        Orchestrator->>LayoutPlanner: plan_with_metadata(extracted payload)
+        Orchestrator->>OpeningPlanner: plan(layout payload)
+        Orchestrator->>IntentValidator: validate(planned payload)
+        Orchestrator->>LayoutValidator: validate(metrics)
+        Orchestrator-->>ParserService: ParseOrchestrationResult
+        ParserService-->>WorkspaceRouter: parsed data and metrics
+        WorkspaceRouter->>DXFPipeline: run_in_threadpool(generate_dxf_from_intent)
+        DXFPipeline->>DXFPipeline: DesignIntentValidator.validate
+        DXFPipeline->>DXFPipeline: PlannerAgent places rooms
+        DXFPipeline->>DXFPipeline: WallCutManager cuts openings
+        DXFPipeline->>DXFRenderer: draw layers, walls, doors, windows, labels
+        DXFRenderer->>FileSystem: save backend/output/dxf/*.dxf
+        DXFPipeline-->>WorkspaceRouter: dxf_path
+        WorkspaceRouter->>FileTokenRegistry: issue_workspace_file_token(user_id, dxf_path)
+        FileTokenRegistry-->>WorkspaceRouter: file_token
+        WorkspaceRouter->>WorkspaceStorage: add_message(role=assistant, file_token metadata)
+        WorkspaceRouter-->>Studio: success payload with layout, metrics, suggestions, file_token
+        Studio->>WorkspaceRouter: GET /api/v1/dxf/preview?file_token=...
+        WorkspaceRouter->>FileSystem: resolve token and render preview
+        WorkspaceRouter-->>Studio: PNG preview
+    end
+
+    alt Parser or DXF failure
+        WorkspaceRouter->>WorkspaceStorage: add_message(role=error)
+        WorkspaceRouter-->>Studio: ParseDesignErrorResponse
     end
 ```
 
-## ملاحظات معمارية
-- مسار workspace يضيف رسائل المستخدم والمساعد إلى قاعدة بيانات SQLite لتأمين سجل المحادثة حتى عند الإخفاق.
-- التحليل يمر بعدة طبقات تحقق قبل الوصول إلى توليد DXF لمنع إدخال هندسي غير صالح إلى خط الرسم.
-- توليد DXF يعمل في threadpool لتجنب حجب حلقة الحدث داخل FastAPI.
+## Architectural Notes
+- The workspace router is the transaction coordinator for project lookup, chat persistence, parser invocation, DXF generation, token issuance, and response shaping.
+- The parser returns both a strict `ParsedDesignIntent` and layout quality metrics; the router converts only the boundary, rooms, and openings into the DXF-facing `DesignIntent`.
+- DXF generation runs in a threadpool so CPU-bound CAD rendering does not block the FastAPI event loop.
+- The frontend preview request resolves a token back to a server file and then renders/export it through the DXF routes.

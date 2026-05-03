@@ -1,106 +1,148 @@
-# Object Diagram (لقطة كائنات أثناء توليد DXF) — CadArena
+# 12 Object Diagram - Runtime Snapshot During DXF Generation - CadArena
 
-## الغرض
-يعرض لقطة آنية لكائنات فعلية أثناء معالجة طلب توليد DXF، مع قيم نموذجية مشتقة من مسار التنفيذ الحقيقي.
+## Purpose
+This object diagram shows a representative runtime snapshot after the parser has produced a validated layout and before the backend returns a workspace generation response.
 
-## المخطط
+## Diagram
+
 ```mermaid
 classDiagram
-    class Intent {
-        <<DesignIntent>>
-        boundary_width = 12
-        boundary_height = 8
-        rooms_count = 2
-        openings_count = 1
+    class WorkspaceRequest {
+        <<WorkspaceGenerateDxfRequest>>
+        user_id = guest_or_authenticated_user
+        project_id = project_abc123
+        model = ollama_cloud
+        recovery_mode = repair
     }
 
-    class RoomIntentA {
+    class Project {
+        <<ProjectRecord>>
+        id = project_abc123
+        name = Apartment Concept
+        message_count = 4
+    }
+
+    class ParsedIntent {
+        <<ParsedDesignIntent>>
+        boundary = 12m by 8m
+        rooms_count = 4
+        walls_count = 16
+        openings_count = 5
+    }
+
+    class Metrics {
+        <<LayoutMetrics>>
+        selected_topology = horizontal_public_private
+        total_score = 0.86
+        efficiency = 0.82
+    }
+
+    class LivingRoom {
         <<RoomIntent>>
         name = Living Room
         room_type = living
-        width = 4
-        height = 3
-        origin = null
+        width = 4.8
+        height = 3.2
+        origin = 0_0
     }
 
-    class RoomIntentB {
+    class Kitchen {
+        <<RoomIntent>>
+        name = Kitchen
+        room_type = kitchen
+        width = 2.8
+        height = 3.2
+        origin = 4.8_0
+    }
+
+    class Bedroom {
         <<RoomIntent>>
         name = Bedroom 1
         room_type = bedroom
-        width = 3
-        height = 3
-        origin = null
+        width = 4.0
+        height = 3.0
+        origin = 0_3.2
     }
 
-    class Boundary {
-        <<RectangleGeometry>>
-        width = 12
-        height = 8
-        origin = 0_0
+    class Bathroom {
+        <<RoomIntent>>
+        name = Bathroom
+        room_type = bathroom
+        width = 2.4
+        height = 2.2
+        origin = 4.0_3.2
+    }
+
+    class MainDoor {
+        <<OpeningIntent>>
+        type = door
+        room_name = Living Room
+        wall = bottom
+        hinge = left
+        swing = in
+    }
+
+    class DesignIntentObject {
+        <<DesignIntent>>
+        boundary = BoundaryIntent
+        rooms = 4
+        openings = 5
     }
 
     class Planner {
         <<PlannerAgent>>
+        boundary = 12m by 8m
+        placed_rooms = 4
     }
 
-    class RoomA {
-        <<Room>>
-        name = Living Room
-        width = 4
-        height = 3
-        origin = 0_0
-    }
-
-    class RoomB {
-        <<Room>>
-        name = Bedroom 1
-        width = 3
-        height = 3
-        origin = 4_0
-    }
-
-    class Wall0 {
-        <<WallSegment>>
-        start = 0_0
-        end = 4_0
-    }
-
-    class DoorSpec {
-        <<DoorSpec>>
-        width = 1.0
-        hinge = left
-        swing = in
-        angle = 90
-    }
-
-    class Placement {
-        <<DoorPlacement>>
-        offset = 1.5
-    }
-
-    class DoorGeom {
-        <<DoorGeometry>>
-        swing_radius = 1.0
+    class WallManager {
+        <<WallCutManager>>
+        wall_segments = 16
+        cut_segments = 5
     }
 
     class Renderer {
         <<DXFRoomRenderer>>
+        layers = WALLS, DOORS, WINDOWS, ROOM_LABELS, DIMENSIONS, FURNITURE
     }
 
-    Intent --> RoomIntentA : "rooms[0]"
-    Intent --> RoomIntentB : "rooms[1]"
+    class DxfFile {
+        <<Path>>
+        location = backend/output/dxf/generated_file.dxf
+    }
 
-    Planner --> Boundary : "boundary"
-    Planner --> RoomA : "placed_rooms[0]"
-    Planner --> RoomB : "placed_rooms[1]"
+    class FileToken {
+        <<Workspace file token>>
+        token = opaque_browser_token
+        owner = guest_or_authenticated_user
+    }
 
-    Placement --> Wall0 : "wall"
-    Placement --> DoorSpec : "door"
-    DoorGeom ..> Placement : "from"
-    Renderer ..> DoorGeom : "renders"
+    class AssistantMessage {
+        <<ChatMessageRecord>>
+        role = assistant
+        dxf_name = apartment_concept_timestamp.dxf
+        file_token = opaque_browser_token
+    }
+
+    WorkspaceRequest --> Project : "targets"
+    Project --> AssistantMessage : "stores"
+    ParsedIntent --> Metrics : "quality"
+    ParsedIntent --> LivingRoom : "rooms[0]"
+    ParsedIntent --> Kitchen : "rooms[1]"
+    ParsedIntent --> Bedroom : "rooms[2]"
+    ParsedIntent --> Bathroom : "rooms[3]"
+    ParsedIntent --> MainDoor : "openings[0]"
+    ParsedIntent --> DesignIntentObject : "converted for DXF"
+    DesignIntentObject --> Planner : "validated and placed"
+    Planner --> WallManager : "room and boundary walls"
+    WallManager --> Renderer : "final wall segments"
+    Renderer --> DxfFile : "save"
+    DxfFile --> FileToken : "registered"
+    FileToken --> AssistantMessage : "returned to UI"
 ```
 
-## ملاحظات معمارية
-- `RoomIntent` تمثل المدخلات، بينما `Room` تمثل الكيانات الموضوعة بعد التخطيط داخل `PlannerAgent`.
-- `DoorPlacement` يربط الباب بجدار محدد عبر `WallSegment` قبل حساب `DoorGeometry`.
-- قيم الأصول في المثال تتوافق مع منطق التخطيط الشبكي في `PlannerAgent`.
+## Architectural Notes
+- The parser-facing `ParsedDesignIntent` includes explicit walls and metrics; the renderer-facing `DesignIntent` uses only boundary, rooms, and openings.
+- `PlannerAgent` still validates placement even when the parser has already produced explicit room origins.
+- `WallCutManager` owns the final wall gaps for doors and windows before `DXFRoomRenderer` writes CAD layers.
+- The stored assistant message keeps user-facing file metadata and a token, not the raw absolute path.

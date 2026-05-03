@@ -1,49 +1,69 @@
-# 02_state_machine_diagram (حالات طلب توليد DXF في workspace) — CadArena
+# 02 State Machine Diagram - Workspace Design Request Lifecycle - CadArena
 
-## الغرض
-يصف هذا المخطط حالات معالجة طلب توليد DXF في مسار workspace بما في ذلك إعادة المحاولة في حال فشل التخطيط الحتمي.
+## Purpose
+This state machine describes how a workspace design request moves through conversational routing, full generation, iterative editing, retry handling, DXF rendering, persistence, and failure reporting.
 
-## المخطط
+## Diagram
 
 ```mermaid
 stateDiagram-v2
-    state "خامل" as IDLE_STATE
-    state "حفظ رسالة المستخدم" as PERSIST_USER_MSG
-    state "تحليل الوصف" as PARSING_STATE
-    state "إعادة المحاولة اللينة" as SOFT_RETRY_STATE
-    state "إعادة المحاولة الصارمة" as HARD_RETRY_STATE
-    state "بناء Intent" as BUILD_INTENT_STATE
-    state "توليد DXF" as GENERATING_STATE
-    state "حفظ رسالة المساعد" as PERSIST_ASSIST_MSG
-    state "مكتمل" as COMPLETED_STATE
-    state "فشل" as FAILED_STATE
+    state "Idle" as IDLE_STATE
+    state "Resolve workspace scope" as RESOLVE_SCOPE_STATE
+    state "Load project" as LOAD_PROJECT_STATE
+    state "Persist user message" as PERSIST_USER_STATE
+    state "Classify prompt intent" as CLASSIFY_INTENT_STATE
+    state "Conversation reply" as CONVERSATION_STATE
+    state "Choose design mode" as CHOOSE_MODE_STATE
+    state "Full parse" as FULL_PARSE_STATE
+    state "Soft layout retry" as SOFT_RETRY_STATE
+    state "Hard layout retry" as HARD_RETRY_STATE
+    state "Iterative patch" as ITERATIVE_PATCH_STATE
+    state "Build DXF intent" as BUILD_INTENT_STATE
+    state "Generate DXF" as GENERATE_DXF_STATE
+    state "Issue file token" as ISSUE_TOKEN_STATE
+    state "Persist assistant message" as PERSIST_ASSISTANT_STATE
+    state "Return success" as SUCCESS_STATE
+    state "Persist error message" as PERSIST_ERROR_STATE
+    state "Return failure" as FAILURE_STATE
 
     [*] --> IDLE_STATE
-    IDLE_STATE --> PERSIST_USER_MSG : "POST /workspace/.../generate-dxf"
-    PERSIST_USER_MSG --> PARSING_STATE
+    IDLE_STATE --> RESOLVE_SCOPE_STATE : "POST workspace request"
+    RESOLVE_SCOPE_STATE --> LOAD_PROJECT_STATE : "guest user_id or JWT user"
+    LOAD_PROJECT_STATE --> PERSIST_USER_STATE : "project found"
+    LOAD_PROJECT_STATE --> FAILURE_STATE : "PROJECT_NOT_FOUND"
+    PERSIST_USER_STATE --> CLASSIFY_INTENT_STATE
 
-    PARSING_STATE --> SOFT_RETRY_STATE : "LAYOUT_* قابل لإعادة المحاولة"
-    SOFT_RETRY_STATE --> PARSING_STATE : "إعادة المحاولة (Feasibility override)"
-    SOFT_RETRY_STATE --> HARD_RETRY_STATE : "فشل المحاولة اللينة"
-    HARD_RETRY_STATE --> PARSING_STATE : "إعادة المحاولة (Emergency fallback)"
+    CLASSIFY_INTENT_STATE --> CONVERSATION_STATE : "MessageIntent.CONVERSATION"
+    CONVERSATION_STATE --> PERSIST_ASSISTANT_STATE : "chat_assistant reply"
 
-    PARSING_STATE --> BUILD_INTENT_STATE : "نجاح التحليل"
-    PARSING_STATE --> FAILED_STATE : "خطأ غير قابل لإعادة المحاولة"
+    CLASSIFY_INTENT_STATE --> CHOOSE_MODE_STATE : "design request"
+    CHOOSE_MODE_STATE --> FULL_PARSE_STATE : "no current layout"
+    CHOOSE_MODE_STATE --> ITERATIVE_PATCH_STATE : "current_layout exists"
 
-    BUILD_INTENT_STATE --> GENERATING_STATE : "DesignIntent.model_validate"
-    BUILD_INTENT_STATE --> FAILED_STATE : "DXF_INTENT_INVALID"
+    FULL_PARSE_STATE --> SOFT_RETRY_STATE : "retryable LAYOUT_* or invalid structured output"
+    SOFT_RETRY_STATE --> FULL_PARSE_STATE : "feasibility override prompt"
+    SOFT_RETRY_STATE --> HARD_RETRY_STATE : "soft retry failed"
+    HARD_RETRY_STATE --> FULL_PARSE_STATE : "emergency fallback prompt"
 
-    GENERATING_STATE --> PERSIST_ASSIST_MSG : "generate_dxf_from_intent"
-    GENERATING_STATE --> FAILED_STATE : "GENERATE_DXF_FAILED"
+    FULL_PARSE_STATE --> BUILD_INTENT_STATE : "ParsedDesignIntent returned"
+    ITERATIVE_PATCH_STATE --> BUILD_INTENT_STATE : "updated layout returned"
 
-    PERSIST_ASSIST_MSG --> COMPLETED_STATE
+    BUILD_INTENT_STATE --> GENERATE_DXF_STATE : "DesignIntent.model_validate"
+    BUILD_INTENT_STATE --> PERSIST_ERROR_STATE : "DXF_INTENT_INVALID"
 
-    COMPLETED_STATE --> [*]
-    FAILED_STATE --> [*]
+    GENERATE_DXF_STATE --> ISSUE_TOKEN_STATE : "renderer saved DXF"
+    GENERATE_DXF_STATE --> PERSIST_ERROR_STATE : "GENERATE_DXF_FAILED"
+
+    ISSUE_TOKEN_STATE --> PERSIST_ASSISTANT_STATE : "file_token or preview_token"
+    PERSIST_ASSISTANT_STATE --> SUCCESS_STATE
+    PERSIST_ERROR_STATE --> FAILURE_STATE
+
+    SUCCESS_STATE --> [*]
+    FAILURE_STATE --> [*]
 ```
-<!-- VALIDATED: no <<>> inline, no Arabic outside quotes, no reserved keywords as IDs -->
 
-## ملاحظات معمارية
-- إعادة المحاولة في workspace تُفعّل فقط لأخطاء التخطيط المحددة في `_LAYOUT_RETRY_CODES` داخل `workspace.py`.
-- التحويل إلى `DesignIntent` يتم بعد نجاح التحليل وقبل استدعاء خط DXF لضمان صلاحية النموذج.
-- إضافة الرسائل إلى قاعدة البيانات تتم عند البداية والنهاية لتوثيق الحوار حتى في حالات الفشل.
+## Architectural Notes
+- Guest workspace routes receive a `user_id`; authenticated workspace routes derive the user from the JWT cookie and reuse the shared generation function.
+- Full generation persists user and assistant messages, while iterative routes return an updated layout and may issue a preview token without exposing a raw path.
+- Retry states are limited to layout and structured-output failures that can reasonably be corrected by prompt relaxation or emergency fallback.
+- Every terminal path returns a structured payload that the Studio can render as either chat, layout, preview, or error feedback.

@@ -1,17 +1,33 @@
-# 08_class_diagram (العلاقات بين الكيانات والخدمات الأساسية) — CadArena
+# 08 Class Diagram - Core Backend Types and Services - CadArena
 
-## الغرض
-يوضح هذا المخطط العلاقات بين أهم الأصناف والخدمات المستخدمة في مسارات التحليل الحتمي وتوليد DXF داخل CadArena.
+## Purpose
+This class diagram captures the main types involved in prompt parsing, deterministic layout generation, iterative layout editing, DXF rendering, tokenized file access, and workspace persistence.
 
-## المخطط
+## Diagram
 
 ```mermaid
 classDiagram
+    class WorkspaceRouter {
+        +workspace_generate_dxf(project_id, request, response)
+        +iterate_design(project_id, body, request)
+        +iterate_design_authenticated(project_id, body, request, current_user)
+    }
+
     class DesignParseOrchestrator {
+        -_prompt_compiler
+        -_output_parser
+        -_extracted_intent_validator
+        -_prompt_program_deriver
+        -_layout_planner
+        -_opening_planner
+        -_layout_validator
+        -_intent_validator
+        -_providers
         +startup()
         +shutdown()
         +parse(prompt, model_choice, recovery_mode, request_id)
     }
+
     class PromptCompiler {
         +compile(user_prompt)
     }
@@ -19,13 +35,15 @@ classDiagram
         +parse(raw_output)
     }
     class ExtractedIntentValidator {
-        +validate(payload)
+        +validate(payload, prompt)
     }
     class PromptProgramDeriver {
         +derive(prompt, extracted_payload)
     }
     class DeterministicLayoutPlanner {
+        +plan(extracted_payload, optimize_efficiency)
         +plan_with_metadata(extracted_payload)
+        +normalize_layout(layout)
     }
     class DeterministicOpeningPlanner {
         +plan(extracted_payload, layout_payload)
@@ -34,7 +52,7 @@ classDiagram
         +validate(payload)
     }
     class LayoutValidator {
-        +validate(extracted_payload, planned_payload)
+        +validate(extracted_payload, planned_payload, selected_topology)
     }
 
     class LLMProviderPort {
@@ -45,11 +63,45 @@ classDiagram
     }
     class ProviderClient
     class OllamaProviderClient
+    class QwenCloudProviderClient
     class HuggingFaceProviderClient
 
-    class IntentToAgentPipeline {
-        +generate_dxf_from_intent(intent, planning_context)
+    class LayoutPatcher {
+        +apply(current, diff)
     }
+    class DiffOrchestrator {
+        +run_iterative_design(user_prompt, current_layout, project_id, model_choice, recovery_mode)
+    }
+
+    class DesignIntent {
+        +boundary: BoundaryIntent
+        +rooms: RoomIntent[]
+        +openings: OpeningIntent[]
+    }
+    class ParsedDesignIntent {
+        +boundary
+        +rooms
+        +walls
+        +openings
+    }
+    class LayoutMetrics {
+        +area_balance
+        +zoning
+        +circulation
+        +daylight
+        +structural
+        +furniture
+        +efficiency
+        +total_score
+        +selected_topology
+    }
+    class RoomIntent
+    class OpeningIntent
+    class BoundaryIntent
+    class Point
+    class RectangleGeometry
+    class Room
+
     class DesignIntentValidator {
         +validate(intent)
     }
@@ -60,37 +112,43 @@ classDiagram
     class BoundaryConstraint
     class OverlapConstraint
     class SpacingConstraint
-
-    class WallCutManager {
-        +add_wall_segments(segments)
-        +add_cut_segment(start, end, wall)
-        +process_cuts()
-    }
     class WallSegment {
         +length()
+    }
+    class WallCutManager {
+        +add_wall_segments(segments)
+        +add_cut_segment(cut_start, cut_end, wall, allow_shared)
+        +process_cuts()
     }
     class DoorSpec
     class DoorPlacement
     class DoorGeometry
     class DXFRoomRenderer {
-        +draw_boundary_segments()
-        +draw_wall_segments()
-        +draw_door_geometry()
-        +draw_window_segment()
+        +draw_boundary_segments(lines)
+        +draw_wall_segments(lines)
+        +draw_window_segment(start, end)
+        +draw_door_geometry(geom)
+        +draw_room_label(text, position, room_type)
+        +draw_room_dimensions(text, position)
         +save()
     }
 
-    class DesignIntent {
-        +boundary: BoundaryIntent
-        +rooms: RoomIntent[]
-        +openings: OpeningIntent[]
+    class WorkspaceStorage {
+        +create_project(user_id, name)
+        +list_projects(user_id)
+        +add_message(user_id, project_id, role, text)
     }
-    class BoundaryIntent
-    class RoomIntent
-    class OpeningIntent
-    class RectangleGeometry
-    class Room
-    class Point
+    class FileTokenRegistry {
+        +issue_session_file_token(request, response, absolute_path)
+        +issue_workspace_file_token(user_id, absolute_path)
+        +resolve_request_file_token(request, file_token)
+    }
+
+    WorkspaceRouter ..> WorkspaceStorage
+    WorkspaceRouter ..> DesignParseOrchestrator
+    WorkspaceRouter ..> DiffOrchestrator
+    WorkspaceRouter ..> DesignIntent
+    WorkspaceRouter ..> FileTokenRegistry
 
     DesignParseOrchestrator *-- PromptCompiler
     DesignParseOrchestrator *-- OutputParser
@@ -101,37 +159,41 @@ classDiagram
     DesignParseOrchestrator *-- IntentValidator
     DesignParseOrchestrator *-- LayoutValidator
     DesignParseOrchestrator ..> ProviderClient
+    DesignParseOrchestrator ..> ParsedDesignIntent
+    DesignParseOrchestrator ..> LayoutMetrics
 
     ProviderClient ..|> LLMProviderPort
     OllamaProviderClient --|> ProviderClient
+    QwenCloudProviderClient --|> OllamaProviderClient
     HuggingFaceProviderClient --|> ProviderClient
 
-    IntentToAgentPipeline ..> DesignIntentValidator
-    IntentToAgentPipeline ..> PlannerAgent
-    IntentToAgentPipeline ..> WallCutManager
-    IntentToAgentPipeline ..> DXFRoomRenderer
+    DiffOrchestrator ..> LayoutPatcher
+    DiffOrchestrator ..> DesignParseOrchestrator
 
+    DesignIntent *-- BoundaryIntent
+    DesignIntent *-- RoomIntent
+    DesignIntent *-- OpeningIntent
+    RoomIntent --> Point
+    RectangleGeometry --> Point
+    Room --> Point
+
+    DesignIntentValidator ..> DesignIntent
     PlannerAgent *-- BoundaryConstraint
     PlannerAgent *-- OverlapConstraint
     PlannerAgent *-- SpacingConstraint
     PlannerAgent --> RectangleGeometry
     PlannerAgent --> Room
 
+    WallCutManager *-- WallSegment
     DoorPlacement *-- DoorSpec
     DoorPlacement --> WallSegment
     DoorGeometry ..> DoorPlacement
-    WallCutManager *-- WallSegment
-
     DXFRoomRenderer ..> DoorGeometry
     DXFRoomRenderer ..> Point
-
-    DesignIntent *-- BoundaryIntent
-    DesignIntent *-- RoomIntent
-    DesignIntent *-- OpeningIntent
-    RoomIntent --> Point
 ```
 
-## ملاحظات معمارية
-- تمت نمذجة `IntentToAgentPipeline` كعنصر تجميعي لأنه يجمع عدداً من الوحدات الوظيفية في `intent_to_agent.py`.
-- التوريث بين `ProviderClient` و`LLMProviderPort` يعكس اعتماد منظومة التحليل على منفذ موحّد للمزوّدات.
-- فصل نماذج Pydantic (`DesignIntent` وما تحتها) عن كيانات المجال (`Room`, `RectangleGeometry`) يحافظ على استقلالية المنطق الهندسي.
+## Architectural Notes
+- The parser uses strict contracts (`ExtractedDesignIntent`, `ParsedDesignIntent`, and `LayoutMetrics`) before the DXF-facing `DesignIntent` is built.
+- `QwenCloudProviderClient` extends the Ollama-compatible provider implementation because cloud models use a chat-compatible Ollama endpoint shape.
+- Iterative editing is intentionally separated through `run_iterative_design` and `LayoutPatcher`, while full generation continues through `DesignParseOrchestrator`.
+- Rendering classes stay in the domain and service layers; routers only coordinate requests, persistence, and response payloads.
