@@ -6,6 +6,7 @@ CLAUDE.md
 attached_assets/
 docs/Digrams_img/
 docs/Book/
+Misc/
 
 # SQLite runtime databases
 *.db
