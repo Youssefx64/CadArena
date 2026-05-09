@@ -1,0 +1,9 @@
+name: cad
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r backend/requirements.txt
+      - -r RAG/requirements.txt
