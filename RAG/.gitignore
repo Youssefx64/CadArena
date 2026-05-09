@@ -1,0 +1,64 @@
+# RAG local ignore rules.
+#
+# Keep templates and source files visible, while ignoring local dotfiles,
+# runtime databases, caches, and conda/virtualenv artifacts.
+
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local editor and tool state
+.vscode/
+.idea/
+.cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.coverage
+.coverage.*
+.DS_Store
+.ipynb_checkpoints/
+
+# Python cache and build output
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments and Conda project envs
+.venv/
+venv/
+env/
+ENV/
+.conda/
+conda-meta/
+
+# Runtime vector stores, uploads, and local databases
+data/
+src/assets/files/
+src/assets/database/
+docker/volumes/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Logs and temporary files
+*.log
+*.pid
+*.tmp
+tmp/
+temp/
+
+# Local Alembic config with credentials
+docker/nutrition-rag/alembic.ini
+src/models/db_schemas/nutrition_rag/alembic.ini
+
