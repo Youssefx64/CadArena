@@ -27,6 +27,7 @@ const AboutPage      = lazy(() => import('./pages/AboutPage'));
 const DevelopersPage = lazy(() => import('./pages/DevelopersPage'));
 const StudioPage     = lazy(() => import('./pages/StudioPage'));
 const CommunityPage  = lazy(() => import('./pages/CommunityPage'));
+const RAGChatPage    = lazy(() => import('./pages/RAGChatPage'));
 const LoginPage      = lazy(() => import('./pages/LoginPage'));
 const SignUpPage      = lazy(() => import('./pages/SignUpPage'));
 const ProfilePage    = lazy(() => import('./pages/ProfilePage'));
@@ -79,6 +80,12 @@ function MainLayout() {
 }
 
 function App() {
+  const protectedElement = (element) => (
+    <RequireAuth>
+      {element}
+    </RequireAuth>
+  );
+
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -97,23 +104,26 @@ function App() {
             <Route
               path="/viewer"
               element={
-                <Suspense fallback={<PageLoader />}>
-                  <ViewerPage />
-                </Suspense>
+                <RequireAuth>
+                  <Suspense fallback={<PageLoader />}>
+                    <ViewerPage />
+                  </Suspense>
+                </RequireAuth>
               }
             />
             <Route element={<MainLayout />}>
               <Route path="/"              element={<HomePage />} />
-              <Route path="/community"     element={<CommunityPage />} />
-              <Route path="/generate"      element={<GeneratorPage />} />
-              <Route path="/models"        element={<ModelsPage />} />
-              <Route path="/metrics"       element={<MetricsPage />} />
+              <Route path="/community"     element={protectedElement(<CommunityPage />)} />
+              <Route path="/rag-chat"      element={protectedElement(<RAGChatPage />)} />
+              <Route path="/generate"      element={protectedElement(<GeneratorPage />)} />
+              <Route path="/models"        element={protectedElement(<ModelsPage />)} />
+              <Route path="/metrics"       element={protectedElement(<MetricsPage />)} />
               <Route path="/about"         element={<AboutPage />} />
               <Route path="/developers"    element={<DevelopersPage />} />
               <Route path="/login"         element={<LoginPage />} />
               <Route path="/signup"        element={<SignUpPage />} />
-              <Route path="/profile"       element={<ProfilePage />} />
-              <Route path="/profile/edit"  element={<EditProfilePage />} />
+              <Route path="/profile"       element={protectedElement(<ProfilePage />)} />
+              <Route path="/profile/edit"  element={protectedElement(<EditProfilePage />)} />
               <Route path="/docs"          element={<DocsPage />} />
             </Route>
           </Routes>

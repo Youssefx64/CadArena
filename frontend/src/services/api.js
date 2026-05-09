@@ -7,6 +7,7 @@ import axios from 'axios';
 
 // API Configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const RAG_API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'http://localhost:8001';
 
 // Create axios instance with enhanced config
 const api = axios.create({
@@ -15,6 +16,12 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+const ragApi = axios.create({
+  baseURL: RAG_API_BASE_URL,
+  timeout: 180000,
+  headers: {},
 });
 
 // Request interceptor for logging and auth
@@ -68,6 +75,53 @@ api.interceptors.response.use(
     } else {
       throw new Error(error.message || 'Network error. Please check your connection.');
     }
+  }
+);
+
+ragApi.interceptors.request.use(
+  (config) => {
+    config.metadata = { startTime: new Date() };
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (typeof config.headers?.delete === 'function') {
+        config.headers.delete('Content-Type');
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    } else {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+ragApi.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    const detail = error.response?.data?.detail;
+    const detailMessage = Array.isArray(detail)
+      ? detail.map((item) => item?.msg || item?.message || String(item)).join(', ')
+      : detail;
+
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('RAG request timeout. The retrieval service is taking too long.');
+    } else if (error.response?.status === 400) {
+      throw new Error(error.response?.data?.error || detailMessage || 'Bad RAG request.');
+    } else if (error.response?.status === 422) {
+      throw new Error(detailMessage || 'RAG request validation failed.');
+    } else if (error.response?.status >= 500) {
+      throw new Error(error.response?.data?.error || detailMessage || 'RAG service error.');
+    } else if (detailMessage) {
+      throw new Error(detailMessage);
+    } else if (error.message.includes('Network Error')) {
+      throw new Error(`Cannot connect to RAG service at ${RAG_API_BASE_URL}.`);
+    }
+    throw new Error(error.message || 'RAG network error.');
   }
 );
 
@@ -447,6 +501,49 @@ class CadArenaAPI {
     return response.data;
   }
 
+  async checkRagHealth() {
+    const response = await ragApi.get('/rag/health');
+    return response.data;
+  }
+
+  async queryRag({ question, topK = 5, filters = {}, collection = 'default' }) {
+    const response = await ragApi.post('/rag/query', {
+      question,
+      top_k: topK,
+      filters,
+      collection,
+    });
+    return response.data;
+  }
+
+  async ingestRagDocuments({ documents, metadata = [], collection = 'default' }) {
+    const response = await ragApi.post('/rag/ingest', {
+      documents,
+      metadata,
+      collection,
+    });
+    return response.data;
+  }
+
+  async ingestRagFiles({ files, collection = 'default', source = '' }) {
+    const formData = new FormData();
+    Array.from(files || []).forEach((file) => {
+      formData.append('files', file);
+    });
+    formData.append('collection', collection);
+    if (source.trim()) {
+      formData.append('source', source.trim());
+    }
+
+    const response = await ragApi.post('/rag/ingest/files', formData);
+    return response.data;
+  }
+
+  async clearRagCollection(collectionName) {
+    const response = await ragApi.delete(`/rag/collection/${encodeURIComponent(collectionName)}`);
+    return response.data;
+  }
+
   /**
    * Calculate generation time from timestamp
    * @private
@@ -517,5 +614,10 @@ export const {
   createCommunityQuestion,
   createCommunityAnswer,
   voteCommunityQuestion,
-  voteCommunityAnswer
+  voteCommunityAnswer,
+  checkRagHealth,
+  queryRag,
+  ingestRagDocuments,
+  ingestRagFiles,
+  clearRagCollection
 } = cadArenaAPI;

@@ -134,7 +134,7 @@ function HeroPromptBar({ onDark = false }) {
 const HOW_IT_WORKS = [
   { step: '01', icon: Edit3, title: 'Describe your space', body: 'Write your requirements in natural language — room count, style, adjacencies, or specific constraints. No CAD knowledge needed.' },
   { step: '02', icon: Brain, title: 'AI generates the plan', body: 'An LLM-based generation pipeline interprets your description and produces a structured, EBC 2023-compliant floor plan with labelled rooms and spatial relationships.' },
-  { step: '03', icon: Download, title: 'Export and refine', body: 'Download a DXF file ready for AutoCAD or Revit, or continue iterating inside the full CadArena Studio workspace.' },
+  { step: '03', icon: Download, title: 'Export and refine', body: 'Download a DXF file ready for AutoCAD or Revit, or continue iterating inside the full CAD Studio workspace.' },
 ];
 
 const FEATURES = [
@@ -208,7 +208,7 @@ const HomePage = () => {
 
             <motion.p variants={fadeUp} className="app-page-copy mx-auto mb-10">
               Describe your space and get a precise, constraint-aware floor plan —
-              EBC 2023-compliant and DXF-ready — straight from the Studio.
+              EBC 2023-compliant and DXF-ready — straight from the CAD Studio.
             </motion.p>
 
             <motion.div variants={fadeUp} className="mb-7 flex w-full justify-center">
@@ -235,7 +235,7 @@ const HomePage = () => {
                       <div className="h-3 w-3 rounded-full bg-yellow-400" />
                       <div className="h-3 w-3 rounded-full bg-green-400" />
                     </div>
-                    <span className="hidden text-xs font-semibold text-slate-400 dark:text-slate-500 sm:block">CadArena Studio</span>
+                    <span className="hidden text-xs font-semibold text-slate-400 dark:text-slate-500 sm:block">CAD Studio</span>
                   </div>
                   <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-300">
                     <span className="glow-dot h-1.5 w-1.5 rounded-full bg-primary-500 dark:bg-violet-400" aria-hidden="true" />
@@ -464,7 +464,7 @@ const HomePage = () => {
               From a single prompt to a complete CAD file
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
-              The Studio&apos;s LLM pipeline handles spatial reasoning, constraint enforcement, and
+              The CAD Studio&apos;s LLM pipeline handles spatial reasoning, constraint enforcement, and
               DXF formatting — so you can focus on the design intent.
             </motion.p>
           </motion.div>
@@ -474,7 +474,7 @@ const HomePage = () => {
             className="app-card-muted p-8 lg:p-12">
             <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
               <motion.div variants={fadeUp}>
-                <h3 className="app-card-title mb-6 text-xl">What the Studio produces</h3>
+                <h3 className="app-card-title mb-6 text-xl">What the CAD Studio produces</h3>
                 <div className="space-y-5" role="list">
                   {[
                     { metric: 'Labelled room polygons', value: 'Per room',   desc: 'Living, bedroom, kitchen, bath — each correctly placed and sized' },
@@ -559,7 +559,7 @@ const HomePage = () => {
                 <span>Or open the full workspace:</span>
                 <Link to="/studio" className="inline-flex items-center gap-1.5 font-bold text-white underline underline-offset-4 hover:text-primary-100">
                   <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                  Launch Studio
+                  Launch CAD Studio
                 </Link>
               </motion.p>
             </motion.div>

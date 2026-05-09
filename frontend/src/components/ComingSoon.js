@@ -12,7 +12,7 @@ function ComingSoon({
   title,
   subtitle,
   features = [],
-  ctaLabel  = 'Open Studio',
+  ctaLabel  = 'Open CAD Studio',
   ctaTo     = '/studio',
   secondaryLabel,
   secondaryTo,

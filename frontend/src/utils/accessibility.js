@@ -20,7 +20,7 @@ export const META_TAGS = {
     description: 'Generate professional floor plans from natural language descriptions. AI-powered architecture design made simple.',
   },
   studio: {
-    title: 'CadArena Studio - Floor Plan Generator',
+    title: 'CAD Studio - Floor Plan Generator',
     description: 'Create, edit, and export architectural floor plans with AI assistance.',
     robots: 'noindex, nofollow', // Studio is dynamic content
   },
@@ -130,7 +130,7 @@ export function getStructuredData(type, data = {}) {
     softwareApplication: {
       '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
-      name: 'CadArena Studio',
+      name: 'CAD Studio',
       description: 'AI-powered floor plan generation tool',
       url: `${baseUrl}/studio`,
       applicationCategory: 'DesignApplication',

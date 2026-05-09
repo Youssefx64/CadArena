@@ -13,6 +13,7 @@ import { useDarkMode } from '../../hooks/useDarkMode';
 const NAV_LINKS = [
   { name: 'Home',       href: '/',           icon: Home },
   { name: 'Generate',   href: '/generate',   icon: Zap },
+  { name: 'RAG Chat',   href: '/rag-chat',   icon: MessageSquare },
   { name: 'Community',  href: '/community',  icon: MessageCircle },
   { name: 'Models',     href: '/models',     icon: Brain },
   { name: 'Metrics',    href: '/metrics',    icon: BarChart3 },
@@ -226,9 +227,9 @@ export default function Navbar() {
               isAuthenticated ? (
                 <>
                   <Link to="/studio" className="app-button-primary app-button-compact"
-                    aria-label="Launch CadArena Studio">
+                    aria-label="Launch CAD Studio">
                     <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                    Studio
+                    CAD Studio
                   </Link>
                   <UserMenu user={user} profile={profile} avatarTs={avatarTs} onLogout={handleLogout} />
                 </>
@@ -328,9 +329,9 @@ export default function Navbar() {
 
               <motion.div custom={NAV_LINKS.length} variants={itemVariants} initial="hidden" animate="visible" className="pt-2 space-y-2">
                 <Link to="/studio" className="app-button-primary w-full justify-center"
-                  aria-label="Launch CadArena Studio">
+                  aria-label="Launch CAD Studio">
                   <MessageSquare className="h-5 w-5" aria-hidden="true" />
-                  Launch Studio
+                  Launch CAD Studio
                 </Link>
 
                 {isAuthenticated ? (

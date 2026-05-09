@@ -14,7 +14,7 @@ const fadeUp  = { hidden: { y: 18, opacity: 0 }, visible: { y: 0, opacity: 1, tr
 const SECTIONS = [
   { id: 'overview',    label: 'Overview',     icon: BookOpen },
   { id: 'quickstart',  label: 'Quick Start',  icon: Zap },
-  { id: 'studio',      label: 'The Studio',   icon: Layers },
+  { id: 'studio',      label: 'The CAD Studio',   icon: Layers },
   { id: 'api',         label: 'API Reference',icon: Server },
   { id: 'models',      label: 'Generation',   icon: Brain },
   { id: 'export',      label: 'DXF Export',   icon: Download },
@@ -194,14 +194,14 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
 
             {/* STUDIO */}
             <section>
-              <SectionHeading id="studio" icon={Layers}>The Studio</SectionHeading>
+              <SectionHeading id="studio" icon={Layers}>The CAD Studio</SectionHeading>
               <p className="app-body mb-5">
-                The Studio (<code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">/studio</code>) is CadArena&apos;s full-featured CAD workspace.
+                The CAD Studio (<code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">/studio</code>) is CadArena&apos;s full-featured CAD workspace.
                 It provides a conversational interface to describe your floor plan, review the generated output, and refine it iteratively.
               </p>
               <div className="space-y-4">
                 {[
-                  { step: '01', title: 'Open the Studio', body: 'Navigate to /studio from the top navigation bar or click "Launch Studio" on the homepage.' },
+                  { step: '01', title: 'Open the CAD Studio', body: 'Navigate to /studio from the top navigation bar or click "Launch CAD Studio" on the homepage.' },
                   { step: '02', title: 'Describe your layout', body: 'Type your requirements in plain language in the prompt panel. Be as specific or as brief as you like.' },
                   { step: '03', title: 'Review the output', body: 'The AI generates a structured floor plan with labelled rooms, adjacency relationships, and spatial dimensions.' },
                   { step: '04', title: 'Export as DXF', body: 'Download the generated plan as a DXF file compatible with AutoCAD, Revit, or any DXF-capable tool.' },
@@ -217,7 +217,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
               </div>
               <div className="mt-6">
                 <Link to="/studio" className="app-button-primary app-button-compact">
-                  Open Studio <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  Open CAD Studio <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
             </section>
@@ -291,7 +291,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                 {[
                   {
                     id: 'studio',
-                    name: 'Studio (LLM)',
+                    name: 'CAD Studio (LLM)',
                     badge: 'Active',
                     badgeColor: 'border-secondary-200 bg-secondary-50 text-secondary-700',
                     desc: 'The primary generation path. Accepts an Arabic or English prompt and returns a multi-layer DXF floor plan with labelled rooms, dimensions, and EBC 2023 compliance.',
@@ -329,7 +329,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                 <div>
                   <p className="font-semibold text-slate-950 dark:text-slate-100">Inference stack</p>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    The Studio uses LangChain for chain orchestration and Ollama for local LLM inference.
+                    The CAD Studio uses LangChain for chain orchestration and Ollama for local LLM inference.
                     DXF output is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">ezdxf</code> library with a custom per-room-type layer system.
                   </p>
                 </div>
@@ -376,15 +376,15 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   },
                   {
                     q: 'How long does generation take?',
-                    a: 'Generation time depends on the LLM backend and hardware. With Ollama running locally, expect a few seconds to a minute. The Studio streams the output progressively.',
+                    a: 'Generation time depends on the LLM backend and hardware. With Ollama running locally, expect a few seconds to a minute. The CAD Studio streams the output progressively.',
                   },
                   {
                     q: 'Can I use the generated floor plans commercially?',
                     a: 'Generated plans are yours to use, but the model weights and codebase are proprietary. Contact the team for licensing questions.',
                   },
                   {
-                    q: 'What is the difference between the Studio and the Generator?',
-                    a: 'The Studio (/studio) is a full CAD workspace with a conversational interface and iterative design tools. The Generator page (/generate) is a simpler, single-shot text-to-floor-plan form — both use the same LLM generation pipeline.',
+                    q: 'What is the difference between the CAD Studio and the Generator?',
+                    a: 'The CAD Studio (/studio) is a full CAD workspace with a conversational interface and iterative design tools. The Generator page (/generate) is a simpler, single-shot text-to-floor-plan form — both use the same LLM generation pipeline.',
                   },
                   {
                     q: 'What is EBC 2023 compliance?',
@@ -407,13 +407,13 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
             {/* Bottom CTA */}
             <section className="app-cta-panel p-10 text-center">
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-200">Ready to build?</p>
-              <h2 className="mb-4 text-2xl font-black text-white">Open the Studio and start designing</h2>
+              <h2 className="mb-4 text-2xl font-black text-white">Open the CAD Studio and start designing</h2>
               <p className="mx-auto mb-8 max-w-md text-primary-100">
                 The full CadArena workspace is ready. Describe a floor plan and get a DXF-ready output in seconds.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <Link to="/studio" className="app-button-secondary">
-                  Launch Studio <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                  Launch CAD Studio <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <Link to="/about" className="app-button-ghost">
                   About the Project

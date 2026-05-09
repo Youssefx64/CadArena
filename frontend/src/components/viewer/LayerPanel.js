@@ -96,7 +96,7 @@ function LayerPanel({ layers, onToggle, loading, collapsed, onCollapse }) {
         <div className="mt-4 rounded-xl border border-primary-100 bg-primary-50 p-3">
           <p className="flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-primary-600">
             <Info className="mt-0.5 h-3 w-3 flex-shrink-0" />
-            Layer legend reflects DXF structure. Regenerate in Studio to adjust layer visibility.
+            Layer legend reflects DXF structure. Regenerate in CAD Studio to adjust layer visibility.
           </p>
         </div>
       )}

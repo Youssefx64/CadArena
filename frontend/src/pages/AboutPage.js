@@ -29,7 +29,7 @@ const AboutPage = () => {
     {
       icon: Zap,
       title: 'Conversational Workflow',
-      body: 'The Studio provides a natural-language interface. Describe what you need in plain English or Arabic, and the AI handles spatial reasoning, constraint satisfaction, and CAD formatting automatically.',
+      body: 'The CAD Studio provides a natural-language interface. Describe what you need in plain English or Arabic, and the AI handles spatial reasoning, constraint satisfaction, and CAD formatting automatically.',
     },
   ];
 
@@ -168,14 +168,14 @@ const AboutPage = () => {
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
           className="app-card-muted mb-16 p-8 lg:p-12">
           <motion.h2 variants={fadeUp} className="app-section-title mb-8 text-center">
-            What the Studio delivers
+            What the CAD Studio delivers
           </motion.h2>
           <div className="mx-auto max-w-2xl space-y-4">
             {[
               { metric: 'Natural Language Input', improvement: 'AR + EN', note: 'Describe your space in plain Arabic or English — no CAD knowledge needed' },
               { metric: 'Structured DXF Output', improvement: '12+ layers', note: 'Per-room-type layers with labels and linear dimension entities' },
               { metric: 'EBC 2023 Compliance', improvement: 'Built-in', note: 'Egyptian Building Code constraints enforced during generation' },
-              { metric: 'Conversational Workflow', improvement: 'Iterative', note: 'Refine your floor plan across multiple turns in the Studio workspace' },
+              { metric: 'Conversational Workflow', improvement: 'Iterative', note: 'Refine your floor plan across multiple turns in the CAD Studio workspace' },
             ].map(({ metric, improvement, note }) => (
               <motion.div key={metric} variants={fadeUp} className="flex items-start gap-3">
                 <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
@@ -252,11 +252,11 @@ const AboutPage = () => {
           className="mb-8 flex flex-col items-center gap-4 text-center">
           <h2 className="app-section-title">Ready to try it?</h2>
           <p className="app-section-copy max-w-xl">
-            Open the Studio and describe your first floor plan in plain language.
+            Open the CAD Studio and describe your first floor plan in plain language.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link to="/studio" className="app-button-primary">
-              Launch Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              Launch CAD Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link to="/docs" className="app-button-secondary">
               Read the Docs

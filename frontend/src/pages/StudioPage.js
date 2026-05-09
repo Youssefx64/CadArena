@@ -25,7 +25,7 @@ export default function StudioPage() {
       >
         <iframe
           src="/studio-app/index.html"
-          title="CadArena Studio"
+          title="CAD Studio"
           style={{
             width: '100%',
             height: '100%',

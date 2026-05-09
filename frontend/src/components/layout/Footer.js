@@ -16,7 +16,7 @@ const Footer = () => {
     {
       title: 'Product',
       links: [
-        { name: 'Studio', href: '/studio', internal: true },
+        { name: 'CAD Studio', href: '/studio', internal: true },
         { name: 'Community', href: '/community', internal: true },
         { name: 'Generate', href: '/generate', internal: true },
         { name: 'Models', href: '/models', internal: true },
@@ -63,7 +63,7 @@ const Footer = () => {
               </div>
             </div>
             <p className="app-footer-copy">
-              Conversational CAD studio built by Youssef Taha Badawi for turning natural-language intent
+              CAD Studio built by Youssef Taha Badawi for turning natural-language intent
               into architectural layouts, DXF exports, and AI-assisted design workflows.
             </p>
             <div className="app-footer-socials">
