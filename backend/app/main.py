@@ -140,6 +140,7 @@ def root():
 @app.get("/studio", include_in_schema=False)
 @app.get("/community", include_in_schema=False)
 @app.get("/generate", include_in_schema=False)
+@app.get("/rag-chat", include_in_schema=False)
 @app.get("/models", include_in_schema=False)
 @app.get("/metrics", include_in_schema=False)
 @app.get("/about", include_in_schema=False)
