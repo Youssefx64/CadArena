@@ -3,6 +3,8 @@ backend/data/
 .codex
 CLAUDE.md
 .claude/
+.agents/
+.replit
 attached_assets/
 docs/Digrams_img/
 docs/Book/
