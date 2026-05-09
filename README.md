@@ -140,11 +140,35 @@ sequenceDiagram
 ### Prerequisites
 
 - **Python** 3.12+
+- **Conda** for the unified `cad` environment
 - **Node.js** 18+
 - **npm** or **yarn**
 - **Docker** (optional)
 
 ### Option 1: Local Development
+
+#### Unified Python Environment
+
+Backend and RAG run from one conda environment named `cad`:
+
+```bash
+conda env create -f environment.yml
+# or update an existing env
+conda env update -n cad -f environment.yml --prune
+```
+
+Run the backend API and RAG API together with one command:
+
+```bash
+./scripts/run-backend-rag.sh
+```
+
+This starts:
+
+- Backend: `http://127.0.0.1:8000`
+- RAG: `http://127.0.0.1:8001/rag`
+
+If one of the services is already running on its configured port, the script reuses it and starts only the missing service.
 
 #### Backend Setup
 
@@ -154,15 +178,8 @@ cd backend
 # Setup environment
 cp .env.example .env
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Run backend + RAG from the unified cad environment
+../scripts/run-backend-rag.sh
 ```
 
 #### Frontend Setup
