@@ -26,9 +26,8 @@ Standalone Retrieval-Augmented Generation service for CadArena's civil and archi
 
 ```bash
 # from the repository root
-conda env create -f environment.yml
-# or update the existing shared env
-conda env update -n cad -f environment.yml --prune
+conda create -n rag-app python=3.12 -y
+conda run -n rag-app pip install -r RAG/requirements.txt
 cp RAG/.env.example RAG/.env
 ```
 
@@ -46,7 +45,7 @@ RAG_OPENAI_API_KEY=...
 ./scripts/run-backend-rag.sh
 ```
 
-The script starts the backend on `http://127.0.0.1:8000` and RAG on `http://127.0.0.1:8001/rag`. If either service is already running on its configured port, it reuses it and starts only the missing service.
+The script starts the backend on `http://127.0.0.1:8000` (env: `cad`) and RAG on `http://127.0.0.1:8001/rag` (env: `rag-app`). If either service is already running on its configured port, it reuses it and starts only the missing service.
 
 ## Local Vector Database
 
