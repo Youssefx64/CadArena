@@ -1,5 +1,5 @@
 /**
- * RAG Chat page.
+ * ArchChat page.
  *
  * This page talks directly to the standalone RAG API service configured by
  * REACT_APP_RAG_API_URL.
@@ -7,6 +7,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { AnimatePresence, motion } from 'framer-motion';
+import Navbar from '../components/layout/Navbar';
+import { useDarkMode } from '../hooks/useDarkMode';
 import {
   Activity,
   AlertCircle,
@@ -654,19 +656,39 @@ export default function RAGChatPage() {
     handleFiles(event.dataTransfer.files);
   };
 
+  const { isDark } = useDarkMode();
   const documentWordCount = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
   const healthLoading = healthState === 'checking' && !health;
   const canAsk = Boolean(question.trim()) && !isQuerying;
 
   return (
-    <div className="rag-workspace app-page">
-      <div className="app-shell rag-shell">
-        <motion.header
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={panelTransition}
-          className="rag-consolebar"
-        >
+    <div
+      style={{
+        minHeight: '100vh',
+        background: isDark ? '#09090b' : '#f8faff',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Navbar />
+      <div
+        style={{
+          flex: '1 1 auto',
+          minHeight: '0',
+          height: 'calc(100dvh - 72px)',
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="rag-workspace app-page">
+          <div className="app-shell rag-shell">
+            <motion.header
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={panelTransition}
+              className="rag-consolebar"
+            >
           <div className="rag-console-title">
             <span className="rag-product-mark" aria-hidden="true">
               <Database className="h-5 w-5" />
@@ -947,6 +969,8 @@ export default function RAGChatPage() {
               )}
             </AnimatePresence>
           </motion.aside>
+        </div>
+          </div>
         </div>
       </div>
     </div>

@@ -102,6 +102,16 @@ function App() {
               }
             />
             <Route
+              path="/rag-chat"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<PageLoader />}>
+                    <RAGChatPage />
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
               path="/viewer"
               element={
                 <RequireAuth>
@@ -114,7 +124,6 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/"              element={<HomePage />} />
               <Route path="/community"     element={protectedElement(<CommunityPage />)} />
-              <Route path="/rag-chat"      element={protectedElement(<RAGChatPage />)} />
               <Route path="/generate"      element={protectedElement(<GeneratorPage />)} />
               <Route path="/models"        element={protectedElement(<ModelsPage />)} />
               <Route path="/metrics"       element={protectedElement(<MetricsPage />)} />
