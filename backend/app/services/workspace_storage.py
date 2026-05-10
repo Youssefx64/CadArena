@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 def _resolve_workspace_db_path() -> Path:
     configured_path = os.getenv("CADARENA_WORKSPACE_DB_PATH", "").strip()
     if configured_path:
-        return Path(configured_path).expanduser()
+        candidate = Path(configured_path).expanduser()
+        if not candidate.is_absolute():
+            candidate = BACKEND_DIR / candidate
+        return candidate
     return BACKEND_DIR / "data" / "workspace.db"
 
 

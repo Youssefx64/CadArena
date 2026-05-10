@@ -8,14 +8,47 @@ import hashlib
 import hmac
 import json
 import os
+from pathlib import Path
 import secrets
 
 import bcrypt
 
 _JWT_ALGORITHM = "HS256"
-_RUNTIME_SECRET = secrets.token_urlsafe(48)
-_JWT_SECRET = os.getenv("CADARENA_JWT_SECRET", "").strip() or _RUNTIME_SECRET
 _AUTH_COOKIE_NAME = os.getenv("CADARENA_AUTH_COOKIE_NAME", "cadarena_auth").strip() or "cadarena_auth"
+
+
+def _runtime_secret_file() -> Path:
+    backend_dir = Path(__file__).resolve().parents[2]
+    return backend_dir / "data" / ".auth_jwt_secret"
+
+
+def _load_or_create_runtime_secret() -> str:
+    """
+    Persist a local dev JWT secret so auth cookies survive reloads.
+
+    Production should always provide CADARENA_JWT_SECRET explicitly.
+    """
+    secret_path = _runtime_secret_file()
+    try:
+        if secret_path.exists():
+            saved = secret_path.read_text(encoding="utf-8").strip()
+            if saved:
+                return saved
+
+        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        generated = secrets.token_urlsafe(48)
+        secret_path.write_text(generated, encoding="utf-8")
+        try:
+            os.chmod(secret_path, 0o600)
+        except OSError:
+            pass
+        return generated
+    except OSError:
+        # Last-resort fallback keeps the app running even on read-only filesystems.
+        return secrets.token_urlsafe(48)
+
+
+_JWT_SECRET = os.getenv("CADARENA_JWT_SECRET", "").strip() or _load_or_create_runtime_secret()
 
 
 def _bool_from_env(name: str, default: bool) -> bool:

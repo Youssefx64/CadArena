@@ -6,7 +6,7 @@ All paths are prefixed with /rag to avoid collisions with Project A routes.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 
 from .document_loader import UnsupportedDocumentError, extract_uploaded_document_text
 from .models import (
@@ -81,18 +81,21 @@ async def rag_ingest(body: IngestRequest) -> IngestResponse:
 
 @router.post("/ingest/files", response_model=IngestResponse)
 async def rag_ingest_files(
-    files: list[UploadFile] | None = File(default=None),
-    file: UploadFile | None = File(default=None),
-    documents: list[UploadFile] | None = File(default=None),
-    collection: str = Form("default"),
-    source: str | None = Form(None),
+    request: Request,
 ) -> IngestResponse:
     """Extract and ingest uploaded engineering reference documents."""
     from .rag_engine import get_rag_engine
 
-    uploaded_files = [*(files or []), *(documents or [])]
-    if file is not None:
-        uploaded_files.append(file)
+    form = await request.form()
+    collection = str(form.get("collection") or "default")
+    source_value = form.get("source")
+    source = str(source_value).strip() if source_value is not None else ""
+
+    uploaded_files: list[UploadFile] = []
+    for field_name in ("files", "documents", "file"):
+        for value in form.getlist(field_name):
+            if hasattr(value, "filename") and hasattr(value, "read"):
+                uploaded_files.append(value)  # type: ignore[arg-type]
 
     if not uploaded_files:
         raise HTTPException(
@@ -136,7 +139,7 @@ async def rag_ingest_files(
         documents.append(text)
         metadata.append(
             {
-                "source": source.strip() if source and source.strip() else filename,
+                "source": source if source else filename,
                 "filename": filename,
                 "content_type": uploaded_file.content_type or "",
                 "domain": "civil-architecture",

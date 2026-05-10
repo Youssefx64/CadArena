@@ -114,6 +114,20 @@ def test_rag_ingest_files_accepts_single_file_alias() -> None:
     assert resp.json()["failed"] == 1
 
 
+def test_rag_ingest_files_ignores_text_documents_field_in_multipart() -> None:
+    resp = _call(
+        "POST",
+        "/rag/ingest/files",
+        data={
+            "collection": "default",
+            "documents": "this is plain text and should not be treated as uploaded file",
+        },
+        files={"files": ("empty.txt", b"   ", "text/plain")},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["failed"] == 1
+
+
 def test_config_no_main_backend_conflicts() -> None:
     """Verify RAG config uses the RAG_ prefix and avoids Project A's port."""
     from app.config import get_rag_settings

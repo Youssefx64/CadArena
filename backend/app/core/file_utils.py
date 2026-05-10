@@ -84,8 +84,12 @@ def resolve_output_path(path_value: str | Path) -> Path:
         root_candidate = OUTPUT_DIR / raw_path
         candidate = dxf_candidate if dxf_candidate.exists() else root_candidate
     else:
-        # Relative path - resolve from backend root
-        candidate = BACKEND_DIR / raw_path
+        # Relative paths are stored against backend/output.
+        # Accept both "dxf/file.dxf" and legacy "output/dxf/file.dxf".
+        relative_parts = raw_path.parts
+        if relative_parts and relative_parts[0] == "output":
+            relative_parts = relative_parts[1:]
+        candidate = OUTPUT_DIR.joinpath(*relative_parts)
 
     resolved = candidate.resolve(strict=False)
     output_root = OUTPUT_DIR.resolve(strict=False)
