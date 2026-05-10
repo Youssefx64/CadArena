@@ -13,7 +13,7 @@ import { useDarkMode } from '../../hooks/useDarkMode';
 const NAV_LINKS = [
   { name: 'Home',       href: '/',           icon: Home },
   { name: 'Generate',   href: '/generate',   icon: Zap },
-  { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare },
+  { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare, badge: 'RAG' },
   { name: 'Community',  href: '/community',  icon: MessageCircle },
   { name: 'Models',     href: '/models',     icon: Brain },
   { name: 'Metrics',    href: '/metrics',    icon: BarChart3 },
@@ -193,7 +193,14 @@ export default function Navbar() {
                 <Link key={item.name} to={item.href} role="listitem"
                   aria-current={active ? 'page' : undefined}
                   className={`app-nav-link ${active ? 'app-nav-link-active' : ''}`}>
-                  <span>{item.name}</span>
+                  <span className="inline-flex items-center gap-2">
+                    <span>{item.name}</span>
+                    {item.badge ? (
+                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-700 dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </span>
                 </Link>
               );
             })}
@@ -321,7 +328,14 @@ export default function Navbar() {
                     <Link to={item.href} aria-current={active ? 'page' : undefined}
                       className={`app-nav-link app-nav-link-mobile ${active ? 'app-nav-link-active' : ''}`}>
                       <Icon className="w-5 h-5" aria-hidden="true" />
-                      <span>{item.name}</span>
+                      <span className="inline-flex items-center gap-2">
+                        <span>{item.name}</span>
+                        {item.badge ? (
+                          <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-700 dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
+                            {item.badge}
+                          </span>
+                        ) : null}
+                      </span>
                     </Link>
                   </motion.div>
                 );

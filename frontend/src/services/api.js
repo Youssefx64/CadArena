@@ -60,6 +60,10 @@ api.interceptors.response.use(
       throw new Error('Backend server is not running. Please start the backend server on port 8000.');
     } else if (error.code === 'ECONNABORTED') {
       throw new Error('Request timeout. The operation is taking too long.');
+    } else if (error.response?.status === 401) {
+      throw new Error('Your session expired. Please sign in again.');
+    } else if (error.response?.status === 403) {
+      throw new Error('You do not have permission to perform this action.');
     } else if (error.response?.status === 400) {
       throw new Error(error.response?.data?.error || detailMessage || 'Bad request. Please check your input.');
     } else if (error.response?.status === 500) {
@@ -110,6 +114,10 @@ ragApi.interceptors.response.use(
 
     if (error.code === 'ECONNABORTED') {
       throw new Error('RAG request timeout. The retrieval service is taking too long.');
+    } else if (error.response?.status === 401) {
+      throw new Error('Your session expired. Please sign in again to continue using ArchChat.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Access to the RAG service is denied for this account.');
     } else if (error.response?.status === 400) {
       throw new Error(error.response?.data?.error || detailMessage || 'Bad RAG request.');
     } else if (error.response?.status === 422) {

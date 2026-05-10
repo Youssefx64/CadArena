@@ -50,6 +50,10 @@ function EditProfileContent() {
     return () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); };
   }, [avatarPreview]);
 
+  useEffect(() => {
+    setAvatarImgError(false);
+  }, [avatarPreview, profile?.avatar_url, avatarTs]);
+
   const onFieldChange = (e) => {
     setFields((f) => ({ ...f, [e.target.name]: e.target.value }));
     setApiError('');

@@ -52,6 +52,9 @@ InfoRow.propTypes = {
 
 function AvatarCircle({ avatarUrl, avatarTs, displayName }) {
   const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl, avatarTs]);
 
   const hasAvatar = !!avatarUrl && !imgError;
 

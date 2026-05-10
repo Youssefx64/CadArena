@@ -17,6 +17,7 @@ const Footer = () => {
       title: 'Product',
       links: [
         { name: 'CAD Studio', href: '/studio', internal: true },
+        { name: 'ArchChat (RAG)', href: '/rag-chat', internal: true },
         { name: 'Community', href: '/community', internal: true },
         { name: 'Generate', href: '/generate', internal: true },
         { name: 'Models', href: '/models', internal: true },
