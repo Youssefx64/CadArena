@@ -8,6 +8,7 @@ class LLMEnums(Enum):
 
     OPENAI = "OPENAI"
     COHERE = "COHERE"
+    OLLAMA = "OLLAMA"
 
 
 class OpenAIEnums(Enum):
@@ -31,6 +32,16 @@ class CoHereEnums(Enum):
 
     DOCUMENT = "search_document"
     QUERY = "search_query"
+
+
+class OllamaEnums(Enum):
+    """
+    This enum represents the roles in the Ollama Chat API.
+    """
+
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
 
 
 class DocumentTypeEnum(Enum):

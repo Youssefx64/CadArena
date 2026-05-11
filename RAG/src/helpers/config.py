@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = None
     OPENAI_API_URL: str = None
     COHERE_API_KEY: str = None
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_TIMEOUT_SECONDS: int = 120
 
     # Model settings
     GENERATION_MODEL_ID_LITERAL: List[str] = None
