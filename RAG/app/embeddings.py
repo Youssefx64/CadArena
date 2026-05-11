@@ -78,12 +78,12 @@ class EmbeddingClient:
 
 
 class GenerationClient:
-    """Thin provider wrapper for Cohere and OpenAI answer generation."""
+    """Thin provider wrapper for Cohere, OpenAI, and Ollama answer generation."""
 
-    def __init__(self, settings: RAGSettings) -> None:
+    def __init__(self, settings: RAGSettings, override_provider: str | None = None, override_model: str | None = None) -> None:
         self.settings = settings
-        self.provider = settings.RAG_LLM_PROVIDER
-        self.model = settings.RAG_LLM_MODEL
+        self.provider = (override_provider or settings.RAG_LLM_PROVIDER).upper()
+        self.model = override_model or settings.RAG_LLM_MODEL
 
     def generate(self, question: str, context: str) -> str:
         """Generate a grounded answer using the configured provider."""
@@ -92,6 +92,8 @@ class GenerationClient:
             return self._generate_with_cohere(prompt)
         if self.provider == "OPENAI":
             return self._generate_with_openai(prompt)
+        if self.provider == "OLLAMA":
+            return self._generate_with_ollama(prompt)
         raise ValueError(f"Unsupported RAG LLM provider: {self.provider}")
 
     def _generate_with_cohere(self, prompt: str) -> str:
@@ -133,6 +135,24 @@ class GenerationClient:
         answer = response.choices[0].message.content
         if not answer:
             raise RuntimeError("OpenAI returned no answer")
+        return answer.strip()
+
+    def _generate_with_ollama(self, prompt: str) -> str:
+        """Generate using a local Ollama model via its OpenAI-compatible API."""
+        ollama_url = self.settings.RAG_OPENAI_API_URL.strip() or "http://localhost:11434/v1"
+        # Ollama's OpenAI-compat endpoint accepts any non-empty string as the key.
+        from openai import OpenAI
+
+        client = OpenAI(api_key="ollama", base_url=ollama_url)
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=self.settings.RAG_GENERATION_MAX_TOKENS,
+            temperature=self.settings.RAG_GENERATION_TEMPERATURE,
+        )
+        answer = response.choices[0].message.content
+        if not answer:
+            raise RuntimeError("Ollama returned no answer")
         return answer.strip()
 
     @staticmethod

@@ -1,33 +1,33 @@
-"""
-Logging utility module.
-
-Provides a centralized logging configuration for the application.
-"""
-
 import logging
+import time
+from contextvars import ContextVar
+from typing import Optional
 
+# Context variable to store the request ID for the current task/thread
+request_id_ctx: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+
+class RequestIdFormatter(logging.Formatter):
+    """Formatter that includes the request_id from the context context."""
+    def format(self, record):
+        record.request_id = request_id_ctx.get() or "N/A"
+        return super().format(record)
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Get or create a logger with standard configuration.
-    
-    Creates a logger with INFO level and a stream handler if one doesn't exist.
-    Subsequent calls with the same name return the existing logger instance.
-    
-    Args:
-        name: Logger name, typically the module name (e.g., __name__).
-    
-    Returns:
-        Configured logger instance with stream handler and formatter.
+    Get or create a logger with enterprise-grade configuration.
     """
     logger = logging.getLogger(name)
+    logger.propagate = False
 
-    # Only configure if logger doesn't have handlers (avoid duplicate handlers)
     if not logger.handlers:
         logger.setLevel(logging.INFO)
-
         handler = logging.StreamHandler()
-        formatter = logging.Formatter("[%(levelname)s] %(name)s - %(message)s")
+        
+        # Structured format: [TIMESTAMP] [LEVEL] [REQUEST_ID] [LOGGER] - MESSAGE
+        formatter = RequestIdFormatter(
+            fmt="[%(asctime)s] [%(levelname)s] [%(request_id)s] %(name)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 

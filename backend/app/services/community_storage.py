@@ -1,16 +1,15 @@
-"""SQLite-backed storage for engineering community questions and answers."""
+"""Postgres-backed storage for engineering community questions and answers."""
 
 from __future__ import annotations
 
 import json
 import logging
 import re
-import sqlite3
 from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.models.community import CommunitySort
-from app.services.workspace_storage import workspace_db_path
+from app.services.postgres_compat import connect_postgres
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +21,8 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
-def _connect() -> sqlite3.Connection:
-    db_path = workspace_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+def _connect():
+    return connect_postgres()
 
 
 def init_community_db() -> None:
@@ -153,7 +147,7 @@ def _normalize_tags(tags: list[str]) -> list[str]:
     return normalized
 
 
-def _serialize_question(row: sqlite3.Row | dict) -> dict:
+def _serialize_question(row) -> dict:
     payload = dict(row)
     raw_tags = payload.pop("tags_json", "[]")
     try:
@@ -166,7 +160,7 @@ def _serialize_question(row: sqlite3.Row | dict) -> dict:
     return payload
 
 
-def _serialize_answer(row: sqlite3.Row | dict) -> dict:
+def _serialize_answer(row) -> dict:
     payload = dict(row)
     payload["accepted"] = bool(payload.get("accepted"))
     payload["score"] = int(payload.get("score") or 0)

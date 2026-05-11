@@ -5,11 +5,13 @@ This module initializes the FastAPI application and registers API routes.
 """
 
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.core.env_loader import load_backend_env
@@ -34,9 +36,11 @@ from app.routers.community import router as community_router
 from app.routers.contact import router as contact_router
 from app.routers.auth import router as auth_router
 from app.routers.profile import router as profile_router
+from app.routers.archchat import router as archchat_router
 from app.routers.workspace import router as workspace_router
 from app.routers.workspace_auth import router as workspace_auth_router
 from app.services.auth_storage import init_auth_db
+from app.services.archchat_storage import init_archchat_store
 from app.services.community_storage import init_community_db
 from app.services.design_parser_service import (
     shutdown_design_parser_service,
@@ -60,10 +64,21 @@ PUBLIC_FAVICON_PATH = FRONTEND_PUBLIC_DIR / "assets" / "cadarena-mark.svg"
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    init_workspace_db()
-    init_auth_db()
-    init_community_db()
+async def lifespan(app_instance: FastAPI):
+    app_instance.state.start_time = time.time()
+    
+    # Startup Readiness Checks
+    try:
+        init_workspace_db()
+        init_auth_db()
+        init_community_db()
+    except Exception as exc:
+        logger.critical(f"Database initialization failed: {exc}")
+        if os.getenv("CADARENA_SKIP_STARTUP_CHECKS") != "true":
+            raise RuntimeError("Mandatory database services unavailable. Blocking startup.") from exc
+        logger.warning("Continuing startup despite DB failure (CADARENA_SKIP_STARTUP_CHECKS=true)")
+
+    await init_archchat_store()
     await startup_design_parser_service()
     cleanup_task = asyncio.create_task(
         run_cleanup_loop(interval_hours=6)
@@ -88,6 +103,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Explicit origin required when allow_credentials=True
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Register API v1 routes with prefix.
 if dxf_router is not None:
     app.include_router(dxf_router, prefix="/api/v1")
@@ -103,6 +127,145 @@ app.include_router(profile_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")
 app.include_router(community_router, prefix="/api/v1")
 app.include_router(workspace_auth_router, prefix="/api/v1")
+app.include_router(archchat_router, prefix="/api/v1")
+
+# --- Enterprise Observability ---
+
+from app.core.logging import get_logger, request_id_ctx
+from uuid import uuid4
+import time
+
+logger = get_logger(__name__)
+
+@app.middleware("http")
+async def tracing_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", uuid4().hex)
+    token = request_id_ctx.set(request_id)
+    start_time = time.perf_counter()
+    
+    try:
+        response = await call_next(request)
+        process_time = (time.perf_counter() - start_time) * 1000
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Process-Time"] = str(process_time)
+        
+        logger.info(
+            f"request_id={request_id} method={request.method} path={request.url.path} "
+            f"status={response.status_code} latency={process_time:.2f}ms"
+        )
+        return response
+    finally:
+        request_id_ctx.reset(token)
+
+@app.middleware("http")
+async def profiling_middleware(request: Request, call_next):
+    # Enable profiling via header for authorized users/debug mode
+    if request.headers.get("X-Profile") == "true":
+        import cProfile
+        import pstats
+        import io
+        
+        pr = cProfile.Profile()
+        pr.enable()
+        response = await call_next(request)
+        pr.disable()
+        
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+        ps.print_stats(20) # Top 20 functions
+        
+        logger.info(f"Performance Profile for {request.url.path}:\n{s.getvalue()}")
+        return response
+    
+    return await call_next(request)
+
+import psutil
+import os
+
+# Metrics storage
+_active_requests = 0
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    global _active_requests
+    _active_requests += 1
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        _active_requests -= 1
+
+@app.get("/metrics", tags=["Enterprise"])
+async def get_metrics():
+    """System metrics for monitoring."""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    
+    return {
+        "status": "success",
+        "active_requests": _active_requests,
+        "memory": {
+            "rss_mb": mem_info.rss / (1024 * 1024),
+            "vms_mb": mem_info.vms / (1024 * 1024),
+        },
+        "pid": os.getpid(),
+        "uptime_seconds": time.time() - getattr(app.state, "start_time", time.time())
+    }
+
+@app.get("/health", tags=["Enterprise"])
+async def health_check():
+    """Enterprise health diagnostics."""
+    import os
+    import httpx
+    
+    health = {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "services": {
+            "database": "unknown",
+            "rag": "unknown",
+            "ollama": "unknown"
+        }
+    }
+    
+    # 1. Check Database
+    try:
+        from app.services.postgres_compat import connect_postgres
+        with connect_postgres() as conn:
+            conn.execute("SELECT 1")
+        health["services"]["database"] = "up"
+    except Exception as e:
+        health["services"]["database"] = f"down: {str(e)}"
+        health["status"] = "degraded"
+
+    # 2. Check RAG Service
+    rag_url = (os.getenv("CADARENA_RAG_API_URL", "") or "http://localhost:8001").rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=1.0) as client:
+            resp = await client.get(f"{rag_url}/rag/ping")
+            if resp.status_code == 200:
+                health["services"]["rag"] = "up"
+            else:
+                health["services"]["rag"] = f"down: {resp.status_code}"
+                health["status"] = "degraded"
+    except Exception as e:
+        health["services"]["rag"] = f"down: {str(e)}"
+        health["status"] = "degraded"
+
+    # 3. Check Ollama
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    try:
+        async with httpx.AsyncClient(timeout=1.0) as client:
+            resp = await client.get(f"{ollama_url}/api/tags")
+            if resp.status_code == 200:
+                health["services"]["ollama"] = "up"
+            else:
+                health["services"]["ollama"] = f"down: {resp.status_code}"
+    except Exception:
+        health["services"]["ollama"] = "down"
+
+    return health
+
 
 if FRONTEND_BUILD_DIR.exists():
     build_static_dir = FRONTEND_BUILD_DIR / "static"

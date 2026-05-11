@@ -1,35 +1,20 @@
-"""SQLite-backed storage for user projects and chat messages."""
+"""Postgres-backed storage for user projects and chat messages."""
 
 from __future__ import annotations
 
 import logging
-import os
 import re
-import sqlite3
 from datetime import datetime, UTC
-from pathlib import Path
 from uuid import uuid4
 
 from app.core.env_loader import load_backend_env
-from app.core.file_utils import BACKEND_DIR
 from app.services.file_token_registry import issue_workspace_file_token
+from app.services.postgres_compat import connect_postgres
 
 load_backend_env()
 
 logger = logging.getLogger(__name__)
 
-
-def _resolve_workspace_db_path() -> Path:
-    configured_path = os.getenv("CADARENA_WORKSPACE_DB_PATH", "").strip()
-    if configured_path:
-        candidate = Path(configured_path).expanduser()
-        if not candidate.is_absolute():
-            candidate = BACKEND_DIR / candidate
-        return candidate
-    return BACKEND_DIR / "data" / "workspace.db"
-
-
-DB_PATH = _resolve_workspace_db_path()
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -55,16 +40,8 @@ def _normalize_project_name(name: str) -> str:
     return cleaned
 
 
-def _connect() -> sqlite3.Connection:
-    _prepare_workspace_db_path()
-    connection = sqlite3.connect(DB_PATH)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
-
-
-def _prepare_workspace_db_path() -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+def _connect():
+    return connect_postgres()
 
 
 def init_workspace_db() -> None:
@@ -150,7 +127,7 @@ def create_project(*, user_id: str, name: str) -> dict:
 
 
 def _fetch_project_for_user(
-    connection: sqlite3.Connection,
+    connection,
     *,
     user_id: str,
     project_id: str,
@@ -249,7 +226,7 @@ def list_project_messages(*, user_id: str, project_id: str) -> tuple[dict | None
     return project, [_serialize_message_row(row, user_id=normalized_user_id) for row in rows]
 
 
-def _serialize_message_row(row: sqlite3.Row, *, user_id: str) -> dict:
+def _serialize_message_row(row, *, user_id: str) -> dict:
     payload = dict(row)
     dxf_path = payload.pop("dxf_path", None)
     if dxf_path:
@@ -285,7 +262,6 @@ def add_message(
     now = _utc_now()
 
     with _connect() as connection:
-        connection.execute("BEGIN IMMEDIATE")
         try:
             project = _fetch_project_for_user(
                 connection,
@@ -334,5 +310,6 @@ def add_message(
     return message_id
 
 
-def workspace_db_path() -> Path:
-    return DB_PATH
+def workspace_db_path():
+    # Deprecated after Postgres unification; kept for compatibility with callers.
+    raise RuntimeError("workspace_db_path is deprecated after Postgres unification.")

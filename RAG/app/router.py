@@ -10,14 +10,45 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 
 from .document_loader import UnsupportedDocumentError, extract_uploaded_document_text
 from .models import (
+    AvailableModelsResponse,
     HealthResponse,
     IngestRequest,
     IngestResponse,
+    OllamaModel,
     QueryRequest,
     QueryResponse,
 )
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
+
+
+@router.get("/models", response_model=AvailableModelsResponse)
+async def rag_list_models() -> AvailableModelsResponse:
+    """Return all queryable LLM options (Ollama local + cloud providers)."""
+    import httpx
+    from .rag_engine import get_rag_engine
+
+    settings = get_rag_engine().settings
+    ollama_models: list[OllamaModel] = []
+    ollama_url = (settings.RAG_OPENAI_API_URL.strip() or "http://localhost:11434").rstrip("/v1").rstrip("/")
+
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(f"{ollama_url}/api/tags")
+            resp.raise_for_status()
+            for m in (resp.json() or {}).get("models", []):
+                size_gb = round(m.get("size", 0) / 1e9, 1) if m.get("size") else None
+                ollama_models.append(OllamaModel(name=m["name"], size_gb=size_gb))
+    except Exception:
+        pass  # Ollama not running — return empty list, cloud providers still available.
+
+    cohere_available = bool(settings.RAG_COHERE_API_KEY.strip())
+    return AvailableModelsResponse(
+        ollama=ollama_models,
+        cohere_available=cohere_available,
+        default_provider=settings.RAG_LLM_PROVIDER,
+        default_model=settings.RAG_LLM_MODEL,
+    )
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -42,7 +73,7 @@ async def rag_health() -> HealthResponse:
 
 @router.post("/query", response_model=QueryResponse)
 async def rag_query(body: QueryRequest) -> QueryResponse:
-    """Query the RAG knowledge base."""
+    """Query the RAG knowledge base with an optional LLM override."""
     from .rag_engine import get_rag_engine
 
     try:
@@ -51,6 +82,8 @@ async def rag_query(body: QueryRequest) -> QueryResponse:
             top_k=body.top_k,
             filters=body.filters,
             collection=body.collection,
+            llm_provider=body.llm_provider,
+            llm_model=body.llm_model,
         )
         return QueryResponse(**result)
     except Exception as exc:

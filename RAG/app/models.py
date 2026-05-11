@@ -18,6 +18,8 @@ class QueryRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=50)
     filters: dict[str, Any] = Field(default_factory=dict)
     collection: str | None = None
+    llm_provider: str | None = Field(default=None, description="LLM provider: COHERE, OPENAI, or OLLAMA")
+    llm_model: str | None = Field(default=None, description="Model name, e.g. llama3.1:8b or command-a-03-2025")
 
 
 class QueryResponse(BaseModel):
@@ -26,6 +28,23 @@ class QueryResponse(BaseModel):
     answer: str
     sources: list[dict[str, Any]] = Field(default_factory=list)
     confidence: float | None = None
+    llm_provider: str | None = None
+    llm_model: str | None = None
+
+
+class OllamaModel(BaseModel):
+    """A locally available Ollama model."""
+    name: str
+    size_gb: float | None = None
+    provider: str = "OLLAMA"
+
+
+class AvailableModelsResponse(BaseModel):
+    """All queryable LLM options."""
+    ollama: list[OllamaModel] = Field(default_factory=list)
+    cohere_available: bool = False
+    default_provider: str = "COHERE"
+    default_model: str = ""
 
 
 class IngestRequest(BaseModel):

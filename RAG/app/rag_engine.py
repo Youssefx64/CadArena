@@ -92,6 +92,8 @@ class RAGEngine:
         top_k: int = 5,
         filters: dict[str, Any] | None = None,
         collection: str | None = None,
+        llm_provider: str | None = None,
+        llm_model: str | None = None,
     ) -> dict[str, Any]:
         """Retrieve relevant sources and generate a grounded answer."""
         collection_name = collection or self.settings.RAG_COLLECTION_NAME
@@ -107,11 +109,28 @@ class RAGEngine:
             f"[Source {index + 1}]\n{source.text}"
             for index, source in enumerate(sources)
         )
-        answer = self.generator.generate(question=question, context=context)
+
+        # Use a per-request generator when an override is requested.
+        if llm_provider or llm_model:
+            from .embeddings import GenerationClient
+            generator = GenerationClient(
+                self.settings,
+                override_provider=llm_provider,
+                override_model=llm_model,
+            )
+        else:
+            generator = self.generator
+
+        active_provider = (llm_provider or self.settings.RAG_LLM_PROVIDER).upper()
+        active_model = llm_model or self.settings.RAG_LLM_MODEL
+
+        answer = generator.generate(question=question, context=context)
         return {
             "answer": answer,
             "sources": source_payload,
             "confidence": None,
+            "llm_provider": active_provider,
+            "llm_model": active_model,
         }
 
     def clear_collection(self, collection_name: str) -> None:

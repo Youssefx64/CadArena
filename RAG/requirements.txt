@@ -25,3 +25,5 @@ starlette-exporter>=0.3.0,<1
 fastapi-health>=0.4.0,<1
 pytest>=9.0.2,<10
 httpx>=0.27.0,<1
+psycopg2-binary==2.9.12
+

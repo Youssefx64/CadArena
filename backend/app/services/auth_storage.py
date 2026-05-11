@@ -1,12 +1,10 @@
-"""SQLite-backed storage for user authentication."""
+"""Postgres-backed storage for user authentication."""
 
 from __future__ import annotations
 
 import os
 import re
-import sqlite3
 from functools import lru_cache
-from pathlib import Path
 from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -20,7 +18,7 @@ from app.services.storage_common import (
     utc_now,
 )
 from app.services.storage_logger import StorageLogger
-from app.services.workspace_storage import workspace_db_path
+from app.services.postgres_compat import connect_postgres
 
 load_backend_env()
 
@@ -37,13 +35,8 @@ _SUPPORTED_API_KEY_PROVIDERS = (
 logger = StorageLogger()
 
 
-def _connect() -> sqlite3.Connection:
-    db_path = workspace_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(str(db_path))
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+def _connect():
+    return connect_postgres()
 
 
 def _normalize_provider(provider: str) -> str:
@@ -125,14 +118,9 @@ def _decrypt_provider_api_key(value: str) -> str:
     return decrypted.decode("utf-8")
 
 
-def _ensure_profile_columns(connection: sqlite3.Connection) -> None:
-    rows = connection.execute("PRAGMA table_info(user_profiles)").fetchall()
-    existing_columns = {row["name"] for row in rows}
-
-    if "profile_image_path" not in existing_columns:
-        connection.execute("ALTER TABLE user_profiles ADD COLUMN profile_image_path TEXT")
-    if "profile_image_updated_at" not in existing_columns:
-        connection.execute("ALTER TABLE user_profiles ADD COLUMN profile_image_updated_at TEXT")
+def _ensure_profile_columns(connection) -> None:
+    # Postgres schema is created with full column set from the start.
+    return
 
 
 def init_auth_db() -> None:
@@ -206,7 +194,7 @@ def create_user(*, name: str, email: str, password_hash: str) -> dict:
             )
             connection.commit()
             logger.log_mutation("CREATE", "users", user_id, user_id=user_id)
-        except sqlite3.IntegrityError as exc:
+        except Exception as exc:
             logger.log_constraint_violation("users", "email_unique", user_id=user_id)
             raise ValueError("email already registered") from exc
 

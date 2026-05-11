@@ -147,6 +147,8 @@ class RAGSettings(BaseSettings):
             "RAG_LLM_MODEL": "GENERATION_MODEL_ID",
             "RAG_EMBEDDING_MODEL": "EMBEDDING_MODEL_ID",
             "RAG_EMBEDDING_SIZE": "EMBEDDING_MODEL_SIZE",
+            "RAG_LLM_PROVIDER": "GENERATION_BACKEND",
+            "RAG_EMBEDDING_PROVIDER": "EMBEDDING_BACKEND",
         }
         for rag_key, legacy_key in fallback_map.items():
             current = getattr(self, rag_key)
