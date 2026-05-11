@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Zap, Brain, BarChart3, Sparkles, CheckCircle,
-  Download, Edit3, ChevronRight, MessageSquare,
+  Download, Edit3, ChevronRight, MessageSquare, Users, BookOpen,
 } from 'lucide-react';
 
 const PROMPT_EXAMPLES = [
@@ -142,6 +142,9 @@ const FEATURES = [
   { icon: Zap, title: 'Constraint-Aware Design', body: 'Automatically enforces spatial consistency, structural adjacencies, and flow relationships — so you don\'t have to.' },
   { icon: BarChart3, title: 'Structured Output', body: 'Every generated plan includes labelled rooms, spatial adjacency relationships, and EBC 2023 compliance — structured for real architectural use.' },
   { icon: Download, title: 'DXF Export', body: 'Every generated plan exports as a CAD-compatible DXF file, ready to open in AutoCAD, Revit, or any DXF-compatible tool.' },
+  { icon: MessageSquare, title: 'ArchChat Threads', body: 'ChatGPT-style persistent engineering chat with per-user history and contextual retrieval answers.' },
+  { icon: Users, title: 'Engineering Community', body: 'Post design questions, discuss technical issues, and get feedback from civil and architectural peers.' },
+  { icon: BookOpen, title: 'Living Docs', body: 'Updated docs aligned with the latest backend architecture, RAG setup, and production deployment guidance.' },
 ];
 
 const TRUST_ITEMS = [

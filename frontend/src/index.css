@@ -2550,16 +2550,23 @@ html {
 }
 
 .rag-workspace.app-page {
-  padding-block: 14px 22px;
+  padding: 0 !important;
+  min-height: unset !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .rag-shell {
   width: 100%;
   max-width: none;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 0 clamp(10px, 1.4vw, 24px);
+  gap: 8px;
+  padding: 10px clamp(10px, 1.4vw, 24px) 10px;
+  overflow: hidden;
 }
 
 .rag-consolebar,
@@ -2575,11 +2582,12 @@ html {
 
 .rag-consolebar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
-  padding: 12px 14px;
+  min-height: 50px;
+  padding: 6px 12px;
 }
 
 .rag-console-title,
@@ -2724,16 +2732,17 @@ html {
 
 .rag-metrics-grid {
   display: grid;
+  flex-shrink: 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .rag-metric-card {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 12px;
-  padding: 11px 12px;
+  gap: 10px;
+  padding: 8px 12px;
 }
 
 .rag-metric-icon,
@@ -2751,8 +2760,8 @@ html {
 .rag-toolbar-icon,
 .rag-source-icon,
 .rag-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 
 .rag-metric-value {
@@ -2804,8 +2813,11 @@ html {
 .rag-layout {
   display: grid;
   grid-template-columns: minmax(230px, 0.72fr) minmax(640px, 2.9fr) minmax(300px, 0.95fr);
-  align-items: start;
-  gap: 12px;
+  align-items: stretch;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .rag-rail,
@@ -2814,12 +2826,10 @@ html {
 }
 
 .rag-rail {
-  position: sticky;
-  top: 82px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: calc(100vh - 104px);
+  height: 100%;
   overflow: auto;
 }
 
@@ -2931,8 +2941,8 @@ html {
 .rag-chat-panel {
   display: flex;
   min-width: 0;
-  height: clamp(690px, calc(100vh - 190px), 860px);
-  min-height: 690px;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   flex-direction: column;
 }
@@ -3045,6 +3055,136 @@ html {
   border-top: 1px solid var(--rag-border);
   background: var(--rag-surface);
   padding: 12px 14px 14px;
+}
+
+/* ── LLM Model Selector ─────────────────────────────── */
+.rag-model-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  background: rgba(239, 246, 255, 0.9);
+  color: #1e40af;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.rag-model-selector-btn:hover {
+  background: rgba(219, 234, 254, 0.98);
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+.rag-model-selector-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rag-model-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  min-width: 240px;
+  border-radius: 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(37, 99, 235, 0.08);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  backdrop-filter: blur(12px);
+}
+
+.rag-model-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rag-model-group + .rag-model-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.rag-model-group-label {
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.rag-model-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: #1e293b;
+  font-size: 0.82rem;
+  transition: background 0.13s, border-color 0.13s;
+  width: 100%;
+}
+
+.rag-model-option:hover {
+  background: rgba(239, 246, 255, 0.9);
+  border-color: rgba(37, 99, 235, 0.14);
+}
+
+.rag-model-option-active {
+  background: rgba(219, 234, 254, 0.7);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.rag-model-empty {
+  padding: 10px 8px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .rag-model-selector-btn {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+[data-theme="dark"] .rag-model-selector-btn:hover {
+  background: rgba(49, 46, 129, 0.7);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+[data-theme="dark"] .rag-model-menu {
+  background: rgba(15, 23, 42, 0.97);
+  border-color: rgba(99, 102, 241, 0.24);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+[data-theme="dark"] .rag-model-group + .rag-model-group {
+  border-color: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .rag-model-option {
+  color: #e2e8f0;
+}
+[data-theme="dark"] .rag-model-option:hover {
+  background: rgba(49, 46, 129, 0.5);
+  border-color: rgba(99, 102, 241, 0.22);
+}
+[data-theme="dark"] .rag-model-option-active {
+  background: rgba(49, 46, 129, 0.7);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .rag-input-shell {
@@ -3180,9 +3320,7 @@ html {
 }
 
 .rag-inspector {
-  position: sticky;
-  top: 82px;
-  max-height: calc(100vh - 104px);
+  height: 100%;
   overflow: auto;
 }
 

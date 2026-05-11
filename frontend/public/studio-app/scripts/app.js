@@ -146,6 +146,7 @@ const state = {
   authMode: "unknown",
   authUser: null,
   profile: null,
+  chatQueue: [],
 };
 
 const fallbackModelCatalog = {
@@ -700,7 +701,7 @@ function setStatus(text, tone = "ready") {
 
 function setBusy(isBusy) {
   state.busy = isBusy;
-  promptInput.disabled = isBusy;
+  // Don't disable promptInput to allow queueing
   modelSelect.disabled = isBusy || state.modelLoading;
   if (modelPickerTrigger) {
     modelPickerTrigger.disabled = isBusy || state.modelLoading;
@@ -708,7 +709,16 @@ function setBusy(isBusy) {
   if (isBusy) {
     setModelMenuOpen(false);
   }
-  sendButton.disabled = isBusy || !state.activeProjectId;
+  
+  if (sendButton) {
+    sendButton.disabled = !state.activeProjectId;
+    if (isBusy) {
+        sendButton.classList.add('is-busy');
+    } else {
+        sendButton.classList.remove('is-busy');
+    }
+  }
+
   projectNameInput.disabled = isBusy;
   projectCreateButton.disabled = isBusy;
 }
@@ -3506,7 +3516,7 @@ promptInput.addEventListener("keydown", (event) => {
  */
 async function handleChatFormSubmit(event) {
   event.preventDefault();
-  if (state.busy || !state.activeProjectId) {
+  if (!state.activeProjectId) {
     return;
   }
 
@@ -3515,33 +3525,56 @@ async function handleChatFormSubmit(event) {
     return;
   }
 
+  // Queue the prompt
+  state.chatQueue.push(prompt);
   appendMessage("user", prompt);
   promptInput.value = "";
+
+  if (state.busy) {
+    setStatus(`Queued (${state.chatQueue.length})`, "pending");
+    return;
+  }
+
+  await processChatQueue();
+}
+
+/**
+ * Process the chat queue sequentially.
+ *
+ * @returns {Promise<void>}
+ */
+async function processChatQueue() {
+  if (state.busy || state.chatQueue.length === 0) {
+    return;
+  }
+
+  const prompt = state.chatQueue.shift();
   setBusy(true);
-  setStatus("Generating", "pending");
+  
+  const queueInfo = state.chatQueue.length > 0 ? ` (+${state.chatQueue.length} queued)` : '';
+  setStatus(`Generating${queueInfo}`, "pending");
   appendTypingIndicator();
 
   try {
     const response = await sendPrompt(state.activeProjectId, prompt);
     const requestMode = response?._requestMode === "iterate" ? "iterate" : "generate";
     removeTypingIndicator();
+    
     if (requestMode === "generate") {
-      syncCurrentLayoutFromResponse(response, requestMode); // LAYOUT-FIX: persist the top-level generate-dxf layout before refreshing chat history
-      startPreviewPolling(); // LAYOUT-FIX: begin chat refresh polling only after the saved layout is available for iterative mode
-      await loadProjectConversation(state.activeProjectId); // LAYOUT-FIX: refresh chat after layout persistence so the active project keeps its saved base layout
+      syncCurrentLayoutFromResponse(response, requestMode);
+      startPreviewPolling();
+      await loadProjectConversation(state.activeProjectId);
       setStatus("Ready", "ready");
-      return;
+    } else {
+      if (Array.isArray(response?.error) && response.error.length) {
+        appendMessage("assistant", `Update failed: ${response.error.join(" | ")}`, { isError: true });
+        setStatus("Error", "error");
+      } else {
+        syncCurrentLayoutFromResponse(response, requestMode);
+        appendIterativeResponseMessage(response);
+        setStatus("Ready", "ready");
+      }
     }
-
-    if (Array.isArray(response?.error) && response.error.length) {
-      appendMessage("assistant", `Update failed: ${response.error.join(" | ")}`, { isError: true });
-      setStatus("Error", "error");
-      return;
-    }
-
-    syncCurrentLayoutFromResponse(response, requestMode);
-    appendIterativeResponseMessage(response);
-    setStatus("Ready", "ready");
   } catch (error) {
     removeTypingIndicator();
     if (state.currentLayout) {
@@ -3558,6 +3591,11 @@ async function handleChatFormSubmit(event) {
     stopPreviewPolling();
     removeTypingIndicator();
     setBusy(false);
+    
+    // Process next item in queue if any
+    if (state.chatQueue.length > 0) {
+      await processChatQueue();
+    }
   }
 }
 

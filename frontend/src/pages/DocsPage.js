@@ -12,13 +12,13 @@ const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { s
 const fadeUp  = { hidden: { y: 18, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.48, ease: [0.22, 1, 0.36, 1] } } };
 
 const SECTIONS = [
-  { id: 'overview',    label: 'Overview',     icon: BookOpen },
-  { id: 'quickstart',  label: 'Quick Start',  icon: Zap },
-  { id: 'studio',      label: 'The CAD Studio',   icon: Layers },
-  { id: 'api',         label: 'API Reference',icon: Server },
-  { id: 'models',      label: 'Generation',   icon: Brain },
-  { id: 'export',      label: 'DXF Export',   icon: Download },
-  { id: 'faq',         label: 'FAQ',          icon: HelpCircle },
+  { id: 'overview', label: 'Product Overview', icon: BookOpen },
+  { id: 'quickstart', label: 'Getting Started', icon: Zap },
+  { id: 'studio', label: 'Studio Workflow', icon: Layers },
+  { id: 'api', label: 'API Reference', icon: Server },
+  { id: 'models', label: 'Generation Pipeline', icon: Brain },
+  { id: 'export', label: 'Export Pipeline', icon: Download },
+  { id: 'faq', label: 'Operational FAQ', icon: HelpCircle },
 ];
 
 function CodeBlock({ children, lang = 'bash' }) {
@@ -96,11 +96,11 @@ const DocsPage = () => {
             </span>
           </motion.div>
           <motion.h1 variants={fadeUp} className="app-page-title mb-4">
-            <span className="gradient-text">CadArena</span> Docs
+            <span className="gradient-text">CadArena</span> Documentation
           </motion.h1>
           <motion.p variants={fadeUp} className="app-page-copy">
-            Everything you need to understand, run, and build with CadArena — the conversational
-            AI platform that turns natural language into CAD floor plans.
+            Technical documentation for product teams, designers, and engineers working with CadArena.
+            This guide covers architecture, local setup, API contracts, and production-grade CAD export behavior.
           </motion.p>
         </motion.div>
 
@@ -137,17 +137,17 @@ const DocsPage = () => {
 
             {/* OVERVIEW */}
             <section>
-              <SectionHeading id="overview" icon={BookOpen}>Overview</SectionHeading>
+              <SectionHeading id="overview" icon={BookOpen}>Product Overview</SectionHeading>
               <p className="app-body mb-6">
-                CadArena is an AI-powered conversational CAD platform that transforms natural language descriptions into structured,
-                EBC 2023-compliant architectural floor plans. It combines an LLM-based generation pipeline with a FastAPI backend,
-                a React frontend, and a full studio workspace for iterative design.
+                CadArena is a conversational CAD platform that translates natural-language requirements into structured,
+                standards-aware architectural layouts and CAD deliverables. The platform combines a deterministic spatial planner,
+                LLM-assisted intent extraction, and a FastAPI delivery layer for reliable generation and export workflows.
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {[
-                  { icon: Brain, title: 'LLM-Based AI', body: 'LangChain + Ollama pipeline interprets your prompt and produces a structured floor plan.' },
-                  { icon: Cpu,   title: 'EBC 2023 Compliant', body: 'Egyptian Building Code 2023 constraints are enforced during generation — not as post-processing.' },
-                  { icon: FileCode2, title: 'DXF Export',     body: 'Every generated plan is exported as a CAD-compatible DXF file.' },
+                  { icon: Brain, title: 'Hybrid Inference', body: 'LLM extraction is paired with deterministic planning and validation for repeatable layout output.' },
+                  { icon: Cpu, title: 'Code-Aware Output', body: 'Spatial constraints and planning guards are enforced during generation, not after rendering.' },
+                  { icon: FileCode2, title: 'Production Export', body: 'Generated layouts are exported into CAD-consumable assets, including DXF, PNG, and PDF.' },
                 ].map(({ icon: Icon, title, body }) => (
                   <div key={title} className="app-card p-5">
                     <div className="app-icon-badge mb-3" aria-hidden="true"><Icon className="h-5 w-5" /></div>
@@ -160,8 +160,8 @@ const DocsPage = () => {
 
             {/* QUICK START */}
             <section>
-              <SectionHeading id="quickstart" icon={Zap}>Quick Start</SectionHeading>
-              <p className="app-body mb-5">Get CadArena running locally in three steps.</p>
+              <SectionHeading id="quickstart" icon={Zap}>Getting Started</SectionHeading>
+              <p className="app-body mb-5">Run a local development environment in three steps.</p>
 
               <h3 className="mb-2 font-bold text-slate-950 dark:text-slate-100">1. Clone the repository</h3>
               <CodeBlock lang="bash">{`git clone https://github.com/Youssefx64/CadArena.git
@@ -170,13 +170,13 @@ cd CadArena`}</CodeBlock>
               <h3 className="mb-2 font-bold text-slate-950 dark:text-slate-100">2. Start the backend</h3>
               <CodeBlock lang="bash">{`cd backend
 pip install -r requirements.txt
-cp .env.example .env        # fill in CADARENA_JWT_SECRET
+cp .env.example .env        # fill in CADARENA_JWT_SECRET + CADARENA_DATABASE_URL
 python -m uvicorn app.main:app --host localhost --port 8000`}</CodeBlock>
 
               <h3 className="mb-2 font-bold text-slate-950 dark:text-slate-100">3. Start the frontend</h3>
               <CodeBlock lang="bash">{`cd frontend
 npm install
-npm start                   # runs on http://localhost:5000`}</CodeBlock>
+npm start                   # runs on http://localhost:3000`}</CodeBlock>
 
               <div className="app-card-muted mt-6 flex items-start gap-3 rounded-2xl p-5">
                 <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
@@ -185,7 +185,8 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
                   <p className="mt-1 text-sm text-slate-600">
                     Copy <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">backend/.env.example</code> to{' '}
                     <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">backend/.env</code> and set at minimum:{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">CADARENA_JWT_SECRET</code> and optionally{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">CADARENA_JWT_SECRET</code>,{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">CADARENA_DATABASE_URL</code> and optionally{' '}
                     <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">HF_TOKEN</code> for higher Hugging Face rate limits.
                   </p>
                 </div>
@@ -194,7 +195,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
 
             {/* STUDIO */}
             <section>
-              <SectionHeading id="studio" icon={Layers}>The CAD Studio</SectionHeading>
+              <SectionHeading id="studio" icon={Layers}>Studio Workflow</SectionHeading>
               <p className="app-body mb-5">
                 The CAD Studio (<code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">/studio</code>) is CadArena&apos;s full-featured CAD workspace.
                 It provides a conversational interface to describe your floor plan, review the generated output, and refine it iteratively.
@@ -338,7 +339,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
 
             {/* DXF EXPORT */}
             <section>
-              <SectionHeading id="export" icon={Download}>DXF Export</SectionHeading>
+              <SectionHeading id="export" icon={Download}>Export Pipeline</SectionHeading>
               <p className="app-body mb-5">
                 CadArena generates DXF (Drawing Exchange Format) files compatible with AutoCAD 2013+ and Revit.
                 The export pipeline is handled by the <code className="rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800 dark:text-slate-300">ezdxf</code> library.
@@ -363,7 +364,7 @@ npm start                   # runs on http://localhost:5000`}</CodeBlock>
 
             {/* FAQ */}
             <section>
-              <SectionHeading id="faq" icon={HelpCircle}>FAQ</SectionHeading>
+              <SectionHeading id="faq" icon={HelpCircle}>Operational FAQ</SectionHeading>
               <div className="space-y-4">
                 {[
                   {

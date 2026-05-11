@@ -6,13 +6,34 @@
 import axios from 'axios';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const RAG_API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'http://localhost:8001';
+function resolveApiBaseUrl() {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  if (typeof window !== 'undefined' && window.location?.port === '3000') {
+    return 'http://localhost:8000';
+  }
+  return '';
+}
+
+function resolveRagApiBaseUrl() {
+  if (process.env.REACT_APP_RAG_API_URL) {
+    return process.env.REACT_APP_RAG_API_URL;
+  }
+  if (typeof window !== 'undefined' && window.location?.port === '3000') {
+    return 'http://localhost:8001';
+  }
+  return '';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+const RAG_API_BASE_URL = resolveRagApiBaseUrl();
 
 // Create axios instance with enhanced config
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 180000, // 3 minutes for generation
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -75,7 +96,8 @@ api.interceptors.response.use(
     } else if (error.response?.data?.error) {
       throw new Error(error.response.data.error);
     } else if (error.message.includes('Network Error')) {
-      throw new Error('Cannot connect to backend server. Please check if it\'s running on port 8000.');
+      const target = API_BASE_URL || 'the current host';
+      throw new Error(`Cannot connect to backend server (${target}). Please check that the API is running and reachable.`);
     } else {
       throw new Error(error.message || 'Network error. Please check your connection.');
     }
@@ -509,6 +531,47 @@ class CadArenaAPI {
     return response.data;
   }
 
+  async listArchChatThreads() {
+    const response = await api.get('/api/v1/archchat/threads');
+    return response.data;
+  }
+
+  async createArchChatThread() {
+    const response = await api.post('/api/v1/archchat/threads');
+    return response.data;
+  }
+
+  async renameArchChatThread(threadId, title) {
+    const response = await api.patch(`/api/v1/archchat/threads/${encodeURIComponent(threadId)}`, { title });
+    return response.data;
+  }
+
+  async deleteArchChatThread(threadId) {
+    const response = await api.delete(`/api/v1/archchat/threads/${encodeURIComponent(threadId)}`);
+    return response.data;
+  }
+
+  async getArchChatMessages(threadId) {
+    const response = await api.get(`/api/v1/archchat/threads/${encodeURIComponent(threadId)}/messages`);
+    return response.data;
+  }
+
+  async sendArchChatMessage({ threadId, content, topK = 5, collection = 'default', filters = {}, llmProvider = null, llmModel = null }) {
+    const body = { content, top_k: topK, collection, filters };
+    if (llmProvider) body.llm_provider = llmProvider;
+    if (llmModel) body.llm_model = llmModel;
+    const response = await api.post(
+      `/api/v1/archchat/threads/${encodeURIComponent(threadId)}/messages`,
+      body
+    );
+    return response.data;
+  }
+
+  async listRagModels() {
+    const response = await ragApi.get('/rag/models');
+    return response.data;
+  }
+
   async checkRagHealth() {
     const response = await ragApi.get('/rag/health');
     return response.data;
@@ -617,6 +680,12 @@ export const {
   createWorkspaceProject,
   getWorkspaceMessages,
   generateWorkspaceDxf,
+  listArchChatThreads,
+  createArchChatThread,
+  renameArchChatThread,
+  deleteArchChatThread,
+  getArchChatMessages,
+  sendArchChatMessage,
   listCommunityQuestions,
   getCommunityQuestion,
   createCommunityQuestion,

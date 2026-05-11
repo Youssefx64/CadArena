@@ -1,161 +1,162 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle2, Star, MessageCircle, Globe } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Search, MessageSquare, Eye, ArrowUp, PlusCircle, Tag, Layers } from 'lucide-react';
+import cadArenaAPI from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-const upcomingFeatures = [
-  {
-    icon: Star,
-    title: 'Reputation System',
-    description: 'Earn badges and build your professional profile as you contribute.',
-  },
-  {
-    icon: MessageCircle,
-    title: 'Q&A Forum',
-    description: 'Ask questions and share knowledge with architects and engineers.',
-  },
-  {
-    icon: Globe,
-    title: 'Global Community',
-    description: 'Connect with designers and engineers from around the world.',
-  },
-];
+const disciplines = ['all', 'architecture', 'civil', 'structural', 'construction', 'mep', 'materials', 'surveying', 'general'];
 
 export default function CommunityPage() {
-  const [email, setEmail] = React.useState('');
-  const [subscribed, setSubscribed] = React.useState(false);
+  const { user } = useAuth();
+  const [query, setQuery] = React.useState('');
+  const [discipline, setDiscipline] = React.useState('all');
+  const [questions, setQuestions] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [newTitle, setNewTitle] = React.useState('');
+  const [newBody, setNewBody] = React.useState('');
+  const [newTags, setNewTags] = React.useState('');
+  const [posting, setPosting] = React.useState(false);
 
-  const handleSubscribe = (e) => {
-    e.preventDefault();
-    if (email.trim()) {
-      setSubscribed(true);
-      setEmail('');
-      setTimeout(() => setSubscribed(false), 4000);
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await cadArenaAPI.listCommunityQuestions({ query, discipline, limit: 40, sort: 'active' });
+      setQuestions(res.questions || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [query, discipline]);
+
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  const openQuestion = async (id) => {
+    try {
+      const detail = await cadArenaAPI.getCommunityQuestion(id);
+      setSelected(detail);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-  };
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+  const submitQuestion = async (e) => {
+    e.preventDefault();
+    setPosting(true);
+    setError('');
+    try {
+      await cadArenaAPI.createCommunityQuestion({
+        title: newTitle,
+        body: newBody,
+        tags: newTags.split(',').map((t) => t.trim()).filter(Boolean),
+        discipline: discipline === 'all' ? 'general' : discipline,
+        author_name: user?.name || undefined,
+      });
+      setNewTitle('');
+      setNewBody('');
+      setNewTags('');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPosting(false);
+    }
   };
 
   return (
-    <div className="app-page bg-gradient-to-b from-slate-50 to-white dark:from-[#060912] dark:to-[#060912]">
-      <div className="app-shell">
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-          className="flex min-h-[calc(100vh-200px)] flex-col items-center justify-center px-4 py-20"
-        >
-          <div className="w-full max-w-2xl">
-            <motion.div
-              variants={itemVariants}
-              className="mb-10 flex justify-center"
-              aria-hidden="true"
-            >
-              <div className="relative">
-                <div className="absolute -inset-3 rounded-full bg-gradient-to-br from-primary-200/60 to-secondary-200/40 blur-xl" />
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-secondary-50 border border-primary-200/50 shadow-medium">
-                  <MessageCircle className="h-12 w-12 text-primary-600" strokeWidth={1.5} />
-                </div>
+    <div className="app-page">
+      <div className="app-shell space-y-6">
+        <div className="app-page-header">
+          <span className="app-pill"><Layers className="h-4 w-4" /> Engineering Community</span>
+          <h1 className="app-page-title">Ask, share, and review designs together</h1>
+          <p className="app-page-copy">A professional civil/architectural network for discussions, critiques, and practical troubleshooting.</p>
+        </div>
+
+        {error && <div className="rag-notice rag-notice-error">{error}</div>}
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <section className="xl:col-span-4 app-card p-5">
+            <h2 className="app-card-title mb-4 flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Create a post</h2>
+            <form onSubmit={submitQuestion} className="space-y-3">
+              <input className="app-input w-full" placeholder="Post title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required minLength={8} />
+              <textarea className="app-textarea w-full min-h-[140px]" placeholder="Describe your issue, design, or question..." value={newBody} onChange={(e) => setNewBody(e.target.value)} required minLength={20} />
+              <input className="app-input w-full" placeholder="Tags (comma separated)" value={newTags} onChange={(e) => setNewTags(e.target.value)} />
+              <button type="submit" className="app-button-primary w-full" disabled={posting}>{posting ? 'Publishing...' : 'Publish question'}</button>
+            </form>
+          </section>
+
+          <section className="xl:col-span-8 space-y-4">
+            <div className="app-card p-4 flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input className="app-input w-full pl-10" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title, body, tag..." />
               </div>
-            </motion.div>
+              <select className="app-input md:w-56" value={discipline} onChange={(e) => setDiscipline(e.target.value)}>
+                {disciplines.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
 
-            <motion.div variants={itemVariants} className="mb-2 text-center">
-              <span className="app-pill">
-                Under Active Development
-              </span>
-            </motion.div>
-
-            <motion.h1
-              variants={itemVariants}
-              className="mt-6 mb-4 text-center text-5xl font-black text-slate-950 dark:text-slate-50 md:text-6xl"
-              style={{ letterSpacing: '-0.045em' }}
-            >
-              Coming Soon
-            </motion.h1>
-
-            <motion.p
-              variants={itemVariants}
-              className="mb-10 text-center text-lg leading-relaxed text-slate-600 dark:text-slate-400"
-            >
-              We&apos;re building a world-class engineering community platform for architects
-              and designers. Be the first to know when we launch.
-            </motion.p>
-
-            <motion.form
-              variants={itemVariants}
-              onSubmit={handleSubscribe}
-              className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-center"
-              aria-label="Email notification signup"
-            >
-              <label htmlFor="notify-email" className="sr-only">Email address</label>
-              <input
-                id="notify-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email address"
-                className="app-input flex-1 sm:max-w-xs"
-                required
-                autoComplete="email"
-              />
-              <button
-                type="submit"
-                className="app-button-primary whitespace-nowrap"
-              >
-                <Mail className="h-4 w-4" aria-hidden="true" />
-                Notify Me
-              </button>
-            </motion.form>
-
-            <AnimatePresence>
-              {subscribed && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: -8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: -4 }}
-                  transition={{ duration: 0.2 }}
-                  className="mb-10 flex items-center justify-center gap-2 rounded-full border border-green-200 bg-green-50 px-6 py-3 text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-400"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                  <span className="font-semibold">You&apos;re on the list! We&apos;ll notify you when we launch.</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="mt-10 grid gap-5 sm:grid-cols-3"
-            >
-              {upcomingFeatures.map((feature) => {
-                const Icon = feature.icon;
-                return (
-                  <motion.div
-                    key={feature.title}
-                    variants={itemVariants}
-                    whileHover={{ y: -6, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }}
-                    className="app-card app-card-hover p-6 text-center"
+            <div className="space-y-3">
+              {loading ? (
+                <div className="app-card p-5">Loading community feed...</div>
+              ) : questions.length === 0 ? (
+                <div className="app-card p-5">No posts yet. Be the first one to ask.</div>
+              ) : (
+                questions.map((q) => (
+                  <motion.button
+                    key={q.id}
+                    type="button"
+                    whileHover={{ y: -2 }}
+                    onClick={() => openQuestion(q.id)}
+                    className="app-card app-card-hover w-full p-5 text-left"
                   >
-                    <div className="app-icon-badge mx-auto mb-4" aria-hidden="true">
-                      <Icon className="h-5 w-5" />
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-base font-black text-slate-900 dark:text-slate-50">{q.title}</h3>
+                      <span className="app-pill-muted">{q.discipline}</span>
                     </div>
-                    <h3 className="mb-2 text-base font-bold text-slate-950 dark:text-slate-100">{feature.title}</h3>
-                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{feature.description}</p>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{q.body}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <span className="inline-flex items-center gap-1"><ArrowUp className="h-3.5 w-3.5" /> {q.score}</span>
+                      <span className="inline-flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {q.answer_count}</span>
+                      <span className="inline-flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {q.view_count}</span>
+                      {(q.tags || []).slice(0, 3).map((tag) => (
+                        <span key={tag} className="inline-flex items-center gap-1 app-pill-muted"><Tag className="h-3 w-3" /> {tag}</span>
+                      ))}
+                    </div>
+                  </motion.button>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        {selected && (
+          <div className="app-card p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="app-card-title">{selected.question.title}</h2>
+              <button className="app-button-ghost" onClick={() => setSelected(null)}>Close</button>
+            </div>
+            <p className="app-body">{selected.question.body}</p>
+            <div className="mt-6 space-y-3">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100">Answers</h3>
+              {(selected.answers || []).length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">No answers yet.</p>
+              ) : (
+                selected.answers.map((a) => (
+                  <div key={a.id} className="app-card-muted p-4">
+                    <p className="text-sm leading-7 text-slate-700 dark:text-slate-300">{a.body}</p>
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">By {a.author_name}</p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </motion.div>
+        )}
       </div>
     </div>
   );

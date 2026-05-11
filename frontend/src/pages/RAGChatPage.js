@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardList,
+  Cpu,
   Database,
   FileCode2,
   FileText,
@@ -26,11 +27,12 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
-  Trash2,
   UploadCloud,
+  Zap,
 } from 'lucide-react';
 import { useReducedMotion } from '../hooks';
 import cadArenaAPI from '../services/api';
+import ArchChatSidebar from '../components/archchat/ArchChatSidebar';
 
 const defaultQuestion = 'What engineering guidance is indexed for architectural layout, structural coordination, and code constraints?';
 
@@ -109,7 +111,7 @@ StatusPill.propTypes = {
   state: PropTypes.oneOf(['healthy', 'error', 'checking']).isRequired,
 };
 
-function MetricCard({ icon: Icon, label, value, detail, loading }) {
+function MetricCard({ icon: Icon, label, value, detail = '', loading = false }) {
   return (
     <motion.article
       variants={messageVariants}
@@ -143,10 +145,7 @@ MetricCard.propTypes = {
   loading: PropTypes.bool,
 };
 
-MetricCard.defaultProps = {
-  detail: '',
-  loading: false,
-};
+
 
 function JsonToken({ token }) {
   let className = 'text-slate-300';
@@ -194,7 +193,7 @@ HighlightedJson.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-function SourceList({ sources, isLoading }) {
+function SourceList({ sources, isLoading = false }) {
   const [openItems, setOpenItems] = React.useState(() => new Set([0]));
 
   React.useEffect(() => {
@@ -327,9 +326,7 @@ SourceList.propTypes = {
   isLoading: PropTypes.bool,
 };
 
-SourceList.defaultProps = {
-  isLoading: false,
-};
+
 
 function PromptButton({ prompt, onSelect }) {
   return (
@@ -468,23 +465,32 @@ Notice.propTypes = {
 export default function RAGChatPage() {
   const ragUrl = process.env.REACT_APP_RAG_API_URL || 'http://localhost:8001';
   const prefersReducedMotion = useReducedMotion();
-  const [collection, setCollection] = React.useState('default');
-  const [topK, setTopK] = React.useState(5);
-  const [question, setQuestion] = React.useState(defaultQuestion);
+  const [collection] = React.useState('default');
+  const [topK] = React.useState(5);
+  const [question, setQuestion] = React.useState('');
   const [documentText, setDocumentText] = React.useState('');
   const [sourceName, setSourceName] = React.useState('');
   const [health, setHealth] = React.useState(null);
   const [healthState, setHealthState] = React.useState('checking');
   const [messages, setMessages] = React.useState([]);
   const [sources, setSources] = React.useState([]);
+  const [threads, setThreads] = React.useState([]);
+  const [activeThreadId, setActiveThreadId] = React.useState(null);
+  const [isLoadingThreads, setIsLoadingThreads] = React.useState(false);
   const [activeInspector, setActiveInspector] = React.useState('sources');
   const [notice, setNotice] = React.useState('');
   const [error, setError] = React.useState('');
   const [isQuerying, setIsQuerying] = React.useState(false);
   const [isIngesting, setIsIngesting] = React.useState(false);
-  const [isClearing, setIsClearing] = React.useState(false);
+  const [queryQueue, setQueryQueue] = React.useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
+  // LLM model selection
+  const [availableModels, setAvailableModels] = React.useState(null);
+  const [selectedProvider, setSelectedProvider] = React.useState(null);
+  const [selectedModel, setSelectedModel] = React.useState(null);
+  const [isModelMenuOpen, setIsModelMenuOpen] = React.useState(false);
+  const modelMenuRef = React.useRef(null);
   const messageListRef = React.useRef(null);
   const questionRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
@@ -503,9 +509,71 @@ export default function RAGChatPage() {
     }
   }, []);
 
+  const refreshThreads = React.useCallback(async () => {
+    setIsLoadingThreads(true);
+    try {
+      const data = await cadArenaAPI.listArchChatThreads();
+      setThreads(data.threads || []);
+    } catch (err) {
+      // Non-fatal: keep page usable even if ArchChat DB isn't configured.
+      setThreads([]);
+    } finally {
+      setIsLoadingThreads(false);
+    }
+  }, []);
+
+  const loadThreadMessages = React.useCallback(async (threadId) => {
+    if (!threadId) return;
+    setError('');
+    setNotice('');
+    try {
+      const history = await cadArenaAPI.getArchChatMessages(threadId);
+      setMessages(
+        (history || []).map((m) => ({
+          role: m.role,
+          text: m.content,
+          sourceCount: Array.isArray(m.rag_sources) ? m.rag_sources.length : undefined,
+        }))
+      );
+      // Use last assistant message's sources for inspector continuity.
+      const lastWithSources = [...(history || [])].reverse().find((m) => Array.isArray(m.rag_sources) && m.rag_sources.length);
+      setSources(lastWithSources?.rag_sources || []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
   React.useEffect(() => {
     refreshHealth();
   }, [refreshHealth]);
+
+  React.useEffect(() => {
+    refreshThreads();
+  }, [refreshThreads]);
+
+  // Load available LLM models on mount.
+  React.useEffect(() => {
+    cadArenaAPI.listRagModels().then((data) => {
+      setAvailableModels(data);
+      // Default to configured provider/model.
+      setSelectedProvider(data.default_provider || 'COHERE');
+      setSelectedModel(data.default_model || null);
+    }).catch(() => {
+      setAvailableModels({ ollama: [], cohere_available: true, default_provider: 'COHERE', default_model: '' });
+      setSelectedProvider('COHERE');
+    });
+  }, []);
+
+  // Close model menu on outside click.
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target)) {
+        setIsModelMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   React.useEffect(() => {
     const textarea = questionRef.current;
@@ -524,38 +592,66 @@ export default function RAGChatPage() {
   }, [messages, isQuerying, prefersReducedMotion]);
 
   const submitQuery = async (event) => {
-    event.preventDefault();
+    if (event) event.preventDefault();
     const trimmed = question.trim();
     if (!trimmed) return;
 
-    setIsQuerying(true);
-    setError('');
-    setNotice('');
-    setActiveInspector('sources');
-    setMessages((current) => [...current, { role: 'user', text: trimmed }]);
+    const userMsg = { role: 'user', text: trimmed };
+    setMessages((current) => [...current, userMsg]);
+    setQueryQueue((current) => [...current, trimmed]);
     setQuestion('');
-    try {
-      const result = await cadArenaAPI.queryRag({
-        question: trimmed,
-        topK,
-        collection,
-      });
-      const nextSources = result.sources || [];
-      setSources(nextSources);
-      setMessages((current) => [
-        ...current,
-        {
-          role: 'assistant',
-          text: result.answer || 'No answer returned.',
-          sourceCount: nextSources.length,
-        },
-      ]);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsQuerying(false);
-    }
   };
+
+  React.useEffect(() => {
+    const processNext = async () => {
+      if (isQuerying || queryQueue.length === 0) return;
+
+      const nextQuery = queryQueue[0];
+      // Functional update to remove the processed item
+      setQueryQueue((current) => current.slice(1));
+      setIsQuerying(true);
+      setError('');
+      setNotice('');
+      setActiveInspector('sources');
+
+      try {
+        let targetThreadId = activeThreadId;
+        if (!targetThreadId) {
+          const created = await cadArenaAPI.createArchChatThread();
+          targetThreadId = created?.thread?.id || null;
+          if (!targetThreadId) throw new Error('Unable to start a new chat thread.');
+          setActiveThreadId(targetThreadId);
+        }
+
+        const result = await cadArenaAPI.sendArchChatMessage({
+          threadId: targetThreadId,
+          content: nextQuery,
+          topK,
+          collection,
+          llmProvider: selectedProvider,
+          llmModel: selectedModel,
+        });
+
+        const nextSources = result.sources || [];
+        setSources(nextSources);
+        setMessages((current) => [
+          ...current,
+          {
+            role: 'assistant',
+            text: result.assistant_message?.content || 'No answer returned.',
+            sourceCount: nextSources.length,
+          },
+        ]);
+        await refreshThreads();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsQuerying(false);
+      }
+    };
+
+    processNext();
+  }, [isQuerying, queryQueue, activeThreadId, topK, collection, selectedProvider, selectedModel, refreshThreads]);
 
   const ingestDocument = async (event) => {
     event.preventDefault();
@@ -582,29 +678,6 @@ export default function RAGChatPage() {
     }
   };
 
-  const clearCollection = async () => {
-    const collectionName = collection || 'default';
-    if (typeof window !== 'undefined') {
-      const confirmed = window.confirm(`Clear the "${collectionName}" RAG collection?`);
-      if (!confirmed) return;
-    }
-
-    setIsClearing(true);
-    setError('');
-    setNotice('');
-    try {
-      await cadArenaAPI.clearRagCollection(collectionName);
-      setMessages([]);
-      setSources([]);
-      setNotice(`Collection ${collectionName} cleared.`);
-      await refreshHealth();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
   const handlePromptSelect = (prompt) => {
     setQuestion(prompt);
     window.requestAnimationFrame(() => questionRef.current?.focus());
@@ -615,12 +688,6 @@ export default function RAGChatPage() {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
     }
-  };
-
-  const handleTopKChange = (value) => {
-    const nextValue = Number(value);
-    if (!Number.isFinite(nextValue)) return;
-    setTopK(Math.min(20, Math.max(1, nextValue)));
   };
 
   const handleFiles = async (fileList) => {
@@ -659,15 +726,72 @@ export default function RAGChatPage() {
   const { isDark } = useDarkMode();
   const documentWordCount = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
   const healthLoading = healthState === 'checking' && !health;
-  const canAsk = Boolean(question.trim()) && !isQuerying;
+  const canAsk = Boolean(question.trim());
+
+  const handleCreateThread = async () => {
+    setError('');
+    try {
+      const data = await cadArenaAPI.createArchChatThread();
+      const thread = data.thread;
+      if (thread?.id) {
+        setActiveThreadId(thread.id);
+        setMessages([]);
+        setSources([]);
+        await refreshThreads();
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleSelectThread = async (threadId) => {
+    setActiveThreadId(threadId);
+    await loadThreadMessages(threadId);
+  };
+
+  const handleDeleteThread = async (threadId) => {
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm('Delete this chat?');
+      if (!confirmed) return;
+    }
+    setError('');
+    try {
+      await cadArenaAPI.deleteArchChatThread(threadId);
+      if (activeThreadId === threadId) {
+        setActiveThreadId(null);
+        setMessages([]);
+        setSources([]);
+      }
+      await refreshThreads();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleRenameThread = async () => {
+    const thread = threads.find((t) => t.id === activeThreadId);
+    if (!thread) return;
+    const nextTitle = typeof window !== 'undefined'
+      ? window.prompt('Rename chat', thread.title || 'New chat')
+      : null;
+    if (!nextTitle || !nextTitle.trim()) return;
+    setError('');
+    try {
+      await cadArenaAPI.renameArchChatThread(activeThreadId, nextTitle.trim());
+      await refreshThreads();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   return (
     <div
       style={{
-        minHeight: '100vh',
+        height: '100dvh',
         background: isDark ? '#09090b' : '#f8faff',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <Navbar />
@@ -675,8 +799,7 @@ export default function RAGChatPage() {
         style={{
           flex: '1 1 auto',
           minHeight: '0',
-          height: 'calc(100dvh - 72px)',
-          overflow: 'auto',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -709,7 +832,7 @@ export default function RAGChatPage() {
         </motion.header>
 
         <section className="rag-metrics-grid">
-          <MetricCard icon={Activity} label="API URL" value={ragUrl} detail="Standalone service" loading={false} />
+          <MetricCard icon={Activity} label="Retrieval Status" value={healthState === 'healthy' ? 'Connected' : 'Syncing'} detail="Real-time knowledge sync" loading={false} />
           <MetricCard icon={Database} label="Vector Store" value={health?.vector_store || 'Unavailable'} detail={health?.embedding_model || 'Embedding pending'} loading={healthLoading} />
           <MetricCard icon={ClipboardList} label="Documents" value={health?.document_count ?? 'Unavailable'} detail={`Collection: ${collection || 'default'}`} loading={healthLoading} />
         </section>
@@ -719,63 +842,20 @@ export default function RAGChatPage() {
         </AnimatePresence>
 
         <div className="rag-layout">
-          <motion.aside
+          <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...panelTransition, delay: 0.04 }}
-            className="rag-rail"
           >
-            <section className="rag-rail-group">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="rag-eyebrow">Workspace</p>
-                  <h2 className="rag-panel-title">Project retrieval</h2>
-                </div>
-                <ShieldCheck className="h-5 w-5 text-slate-500" aria-hidden="true" />
-              </div>
-
-              <div className="space-y-4">
-                <label className="rag-field">
-                  <span>Collection</span>
-                  <input
-                    value={collection}
-                    onChange={(event) => setCollection(event.target.value || 'default')}
-                    className="app-input"
-                  />
-                </label>
-                <label className="rag-field">
-                  <span>Top results</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={topK}
-                    onChange={(event) => handleTopKChange(event.target.value)}
-                    className="app-input"
-                  />
-                </label>
-                <button type="button" onClick={clearCollection} disabled={isClearing} className="rag-danger-button">
-                  {isClearing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
-                  Clear collection
-                </button>
-              </div>
-            </section>
-
-            <section className="rag-rail-group">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="rag-eyebrow">Prompts</p>
-                  <h2 className="rag-panel-title">Starting points</h2>
-                </div>
-                <MessageSquare className="h-5 w-5 text-slate-500" aria-hidden="true" />
-              </div>
-              <div className="space-y-2">
-                {promptSuggestions.map((prompt) => (
-                  <PromptButton key={prompt} prompt={prompt} onSelect={handlePromptSelect} />
-                ))}
-              </div>
-            </section>
-          </motion.aside>
+            <ArchChatSidebar
+              threads={threads}
+              activeThreadId={activeThreadId}
+              onSelectThread={handleSelectThread}
+              onCreateThread={handleCreateThread}
+              onDeleteThread={handleDeleteThread}
+              isLoading={isLoadingThreads}
+            />
+          </motion.div>
 
           <motion.section
             initial={{ opacity: 0, y: 14 }}
@@ -793,12 +873,21 @@ export default function RAGChatPage() {
                   <h2 className="rag-chat-title">Civil and architectural context synthesis</h2>
                 </div>
               </div>
-              <span className="rag-collection-chip">{collection || 'default'}</span>
+              <div className="flex items-center gap-2">
+                {activeThreadId && (
+                  <button type="button" onClick={handleRenameThread} className="rag-toolbar-button">
+                    Rename
+                  </button>
+                )}
+                <span className="rag-collection-chip">{collection || 'default'}</span>
+              </div>
             </div>
 
             <div ref={messageListRef} className="rag-message-list">
               <AnimatePresence initial={false}>
-                {messages.length === 0 && !isQuerying && <EmptyChat onPromptSelect={handlePromptSelect} />}
+                {messages.length === 0 && !isQuerying && (
+                  <EmptyChat onPromptSelect={handlePromptSelect} />
+                )}
                 {messages.map((message, index) => (
                   <ChatMessage key={`${message.role}-${index}-${message.text.slice(0, 24)}`} message={message} index={index} />
                 ))}
@@ -812,9 +901,98 @@ export default function RAGChatPage() {
                   <ShieldCheck className="h-4 w-4 text-slate-600 dark:text-slate-300" aria-hidden="true" />
                   Source-grounded engineering retrieval
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  <Gauge className="h-4 w-4" aria-hidden="true" />
-                  Top {topK}
+                {/* LLM Model Selector */}
+                <div ref={modelMenuRef} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    id="llm-model-selector"
+                    onClick={() => setIsModelMenuOpen((o) => !o)}
+                    className="rag-model-selector-btn"
+                    title={`Active model: ${selectedModel || selectedProvider || 'Default'}`}
+                  >
+                    {selectedProvider === 'OLLAMA' ? (
+                      <Cpu className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    <span className="rag-model-selector-label">
+                      {selectedModel
+                        ? selectedModel.split(':')[0]
+                        : (selectedProvider || 'Model')}
+                    </span>
+                    <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
+                  </button>
+
+                  <AnimatePresence>
+                    {isModelMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ duration: 0.14 }}
+                        className="rag-model-menu"
+                        role="listbox"
+                        aria-label="Select LLM model"
+                      >
+                        {/* Cohere */}
+                        {availableModels?.cohere_available && (
+                          <div className="rag-model-group">
+                            <span className="rag-model-group-label">☁ Cohere Cloud</span>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={selectedProvider === 'COHERE'}
+                              className={`rag-model-option ${selectedProvider === 'COHERE' ? 'rag-model-option-active' : ''}`}
+                              onClick={() => {
+                                setSelectedProvider('COHERE');
+                                setSelectedModel(availableModels?.default_model || null);
+                                setIsModelMenuOpen(false);
+                              }}
+                            >
+                              <Zap className="h-3.5 w-3.5 shrink-0" />
+                              <span className="min-w-0">
+                                <span className="block font-bold">{availableModels?.default_model || 'command-a-03-2025'}</span>
+                                <span className="block text-xs opacity-60">Cohere · Cloud</span>
+                              </span>
+                              {selectedProvider === 'COHERE' && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Ollama local models */}
+                        {availableModels?.ollama?.length > 0 && (
+                          <div className="rag-model-group">
+                            <span className="rag-model-group-label">⚡ Local (Ollama)</span>
+                            {availableModels.ollama.map((m) => (
+                              <button
+                                key={m.name}
+                                type="button"
+                                role="option"
+                                aria-selected={selectedProvider === 'OLLAMA' && selectedModel === m.name}
+                                className={`rag-model-option ${selectedProvider === 'OLLAMA' && selectedModel === m.name ? 'rag-model-option-active' : ''}`}
+                                onClick={() => {
+                                  setSelectedProvider('OLLAMA');
+                                  setSelectedModel(m.name);
+                                  setIsModelMenuOpen(false);
+                                }}
+                              >
+                                <Cpu className="h-3.5 w-3.5 shrink-0" />
+                                <span className="min-w-0">
+                                  <span className="block font-bold">{m.name.split(':')[0]}</span>
+                                  <span className="block text-xs opacity-60">{m.name} · {m.size_gb ? `${m.size_gb}GB` : 'Local'}</span>
+                                </span>
+                                {selectedProvider === 'OLLAMA' && selectedModel === m.name && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {!availableModels?.cohere_available && (!availableModels?.ollama?.length) && (
+                          <p className="rag-model-empty">No models detected. Configure Cohere API key or start Ollama.</p>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
               <label htmlFor="rag-question" className="sr-only">Question</label>
@@ -827,7 +1005,7 @@ export default function RAGChatPage() {
                   onKeyDown={handleQuestionKeyDown}
                   rows={1}
                   className="rag-question-input"
-                  placeholder="Ask the indexed knowledge base..."
+                  placeholder="Ask the engineering knowledge base (e.g. What structural constraints apply?)..."
                 />
                 <motion.button
                   type="submit"
