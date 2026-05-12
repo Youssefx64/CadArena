@@ -800,7 +800,11 @@ html[data-theme="dark"] .auth-form input {
   column-gap: 0;
   row-gap: 18px;
   grid-template-columns:
-    minmax(78px, var(--sidebar-width)) var(--resizer-width) minmax(410px, 1fr) var(--resizer-width) minmax(320px, var(--preview-width));
+    minmax(78px, var(--sidebar-width))
+    var(--resizer-width)
+    minmax(410px, 1fr)
+    var(--resizer-width)
+    minmax(320px, var(--preview-width));
   grid-template-rows: minmax(0, 1fr);
   animation: page-reveal 0.45s ease-out;
 }
@@ -834,22 +838,36 @@ html[data-theme="dark"] .auth-form input {
 
 .workspace.is-preview-hidden {
   grid-template-columns:
-    minmax(78px, var(--sidebar-width)) var(--resizer-width) minmax(420px, 1fr) 0 0;
+    minmax(78px, var(--sidebar-width))
+    var(--resizer-width)
+    minmax(420px, 1fr)
+    0
+    0;
 }
 
 .workspace.is-sidebar-collapsed {
   grid-template-columns:
-    minmax(78px, var(--sidebar-width)) 0 minmax(420px, 1fr) var(--resizer-width) minmax(320px, var(--preview-width));
+    minmax(78px, var(--sidebar-width))
+    0
+    minmax(420px, 1fr)
+    var(--resizer-width)
+    minmax(320px, var(--preview-width));
 }
 
 .workspace.is-sidebar-collapsed.is-preview-hidden {
   grid-template-columns:
-    minmax(78px, var(--sidebar-width)) 0 minmax(520px, 1fr) 0 0;
+    minmax(78px, var(--sidebar-width))
+    0
+    minmax(520px, 1fr)
+    0
+    0;
 }
 
 .workspace.is-dxf-render-mode {
   grid-template-columns:
-    minmax(78px, var(--sidebar-width)) var(--resizer-width) minmax(520px, 1fr);
+    minmax(78px, var(--sidebar-width))
+    var(--resizer-width)
+    minmax(520px, 1fr);
 }
 
 .workspace.is-dxf-render-mode .chat,
@@ -866,7 +884,9 @@ html[data-theme="dark"] .auth-form input {
 
 .workspace.is-dxf-render-mode.is-sidebar-collapsed {
   grid-template-columns:
-    minmax(78px, var(--sidebar-width)) 0 minmax(520px, 1fr);
+    minmax(78px, var(--sidebar-width))
+    0
+    minmax(520px, 1fr);
 }
 
 .panel {
@@ -887,9 +907,11 @@ html[data-theme="dark"] .auth-form input {
   inset: 0;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(280px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-      rgba(255, 255, 255, 0.38),
-      rgba(255, 255, 255, 0));
+  background: radial-gradient(
+    280px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(255, 255, 255, 0.38),
+    rgba(255, 255, 255, 0)
+  );
   transition: opacity 0.24s ease;
 }
 
@@ -897,7 +919,7 @@ html[data-theme="dark"] .auth-form input {
   opacity: 1;
 }
 
-.panel>* {
+.panel > * {
   position: relative;
   z-index: 1;
 }
@@ -1632,7 +1654,7 @@ body.is-resizing-workspace .workspace.is-layout-animating {
   min-width: 0;
 }
 
-.header-main>div {
+.header-main > div {
   min-width: 0;
 }
 
@@ -1895,13 +1917,13 @@ body.is-resizing-workspace .workspace.is-layout-animating {
   word-break: break-word;
 }
 
-.message>.file-hint {
+.message > .file-hint {
   margin-top: 4px;
   font-size: 0.74rem;
   line-height: 1.2;
 }
 
-.message.user>.file-hint {
+.message.user > .file-hint {
   color: rgba(236, 255, 249, 0.9);
   text-shadow: 0 1px 0 rgba(4, 52, 44, 0.24);
 }
@@ -2415,10 +2437,12 @@ body.is-resizing-workspace .workspace.is-layout-animating {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg,
-      rgba(255, 255, 255, 0) 10%,
-      rgba(255, 255, 255, 0.48) 45%,
-      rgba(255, 255, 255, 0) 70%);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 10%,
+    rgba(255, 255, 255, 0.48) 45%,
+    rgba(255, 255, 255, 0) 70%
+  );
   animation: shimmer 1.1s linear infinite;
 }
 
@@ -2681,7 +2705,6 @@ html[data-theme="dark"] .footer-icon {
     opacity: 0;
     transform: translateY(12px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2693,7 +2716,6 @@ html[data-theme="dark"] .footer-icon {
     opacity: 0;
     transform: translateY(6px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2711,7 +2733,6 @@ html[data-theme="dark"] .footer-icon {
   from {
     transform: translateY(-10px);
   }
-
   to {
     transform: translateY(12px);
   }
@@ -2721,7 +2742,6 @@ html[data-theme="dark"] .footer-icon {
   0% {
     transform: translateX(-95%);
   }
-
   100% {
     transform: translateX(95%);
   }
@@ -2731,21 +2751,18 @@ html[data-theme="dark"] .footer-icon {
   from {
     opacity: 0;
   }
-
   to {
     opacity: 1;
   }
 }
 
 @keyframes dot-bounce {
-
   0%,
   80%,
   100% {
     transform: translateY(0);
     opacity: 0.5;
   }
-
   40% {
     transform: translateY(-3px);
     opacity: 1;
@@ -2753,12 +2770,10 @@ html[data-theme="dark"] .footer-icon {
 }
 
 @keyframes pulse-state {
-
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(180, 106, 39, 0.1);
   }
-
   50% {
     box-shadow: 0 0 0 5px rgba(180, 106, 39, 0);
   }
@@ -2769,7 +2784,11 @@ html[data-theme="dark"] .footer-icon {
     --sidebar-width: 268px;
     --preview-width: 468px;
     grid-template-columns:
-      minmax(210px, var(--sidebar-width)) var(--resizer-width) minmax(360px, 1fr) var(--resizer-width) minmax(300px, var(--preview-width));
+      minmax(210px, var(--sidebar-width))
+      var(--resizer-width)
+      minmax(360px, 1fr)
+      var(--resizer-width)
+      minmax(300px, var(--preview-width));
   }
 
   .preview-canvas {
@@ -2885,7 +2904,7 @@ html[data-theme="dark"] .footer-icon {
     gap: 6px;
   }
 
-  .topbar-theme-btn {
+.topbar-theme-btn {
     min-width: 44px;
     min-height: 44px;
     width: 44px;
@@ -4091,7 +4110,7 @@ html[data-theme="dark"] .page-shell::before {
   pointer-events: none;
 }
 
-:is(.auth-card, .panel, .sidebar, .dxf-render-panel, .workspace-footer, .file-card)>* {
+:is(.auth-card, .panel, .sidebar, .dxf-render-panel, .workspace-footer, .file-card) > * {
   position: relative;
   z-index: 1;
 }
@@ -4423,7 +4442,8 @@ html[data-theme="dark"] .workspace-footer {
 }
 
 /* Global button system */
-:is(.topbar-btn,
+:is(
+  .topbar-btn,
   .auth-tab,
   .auth-submit,
   .sidebar-switch-btn,
@@ -4435,7 +4455,8 @@ html[data-theme="dark"] .workspace-footer {
   .chat-scroll-bottom-btn,
   .project-actions button,
   .topbar-theme-btn,
-  .topbar-layout-btn) {
+  .topbar-layout-btn
+) {
   font-weight: 700;
   letter-spacing: -0.01em;
   transition:
@@ -4451,7 +4472,8 @@ html[data-theme="dark"] .workspace-footer {
   padding-inline: 18px;
 }
 
-:is(.topbar-btn,
+:is(
+  .topbar-btn,
   .topbar-theme-btn,
   .topbar-layout-btn:not(.is-active),
   .auth-tab:not(.active),
@@ -4460,20 +4482,23 @@ html[data-theme="dark"] .workspace-footer {
   .project-select-btn,
   .preview-tool,
   .chat-scroll-bottom-btn,
-  .project-actions button) {
+  .project-actions button
+) {
   border-color: rgba(99, 102, 241, 0.18);
   background: rgba(255, 255, 255, 0.62);
   color: #312e81;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
-:is(.auth-submit,
+:is(
+  .auth-submit,
   .send-btn,
   .sidebar-action-btn.primary,
   .sidebar-switch-btn.active,
   .auth-tab.active,
   .topbar-layout-btn.is-active,
-  .project-create-form button) {
+  .project-create-form button
+) {
   border-color: rgba(99, 102, 241, 0.34);
   background: linear-gradient(135deg, #2563eb, #8b5cf6);
   color: #f8fafc;
@@ -4483,8 +4508,8 @@ html[data-theme="dark"] .workspace-footer {
 }
 
 @media (hover: hover) {
-
-  :is(.topbar-btn,
+  :is(
+    .topbar-btn,
     .topbar-theme-btn,
     .topbar-layout-btn,
     .auth-tab,
@@ -4496,11 +4521,13 @@ html[data-theme="dark"] .workspace-footer {
     .send-btn,
     .preview-tool,
     .chat-scroll-bottom-btn,
-    .project-actions button):hover:not(:disabled) {
+    .project-actions button
+  ):hover:not(:disabled) {
     transform: scale(1.03);
   }
 
-  :is(.topbar-btn,
+  :is(
+    .topbar-btn,
     .topbar-theme-btn,
     .topbar-layout-btn:not(.is-active),
     .auth-tab:not(.active),
@@ -4509,26 +4536,30 @@ html[data-theme="dark"] .workspace-footer {
     .project-select-btn,
     .preview-tool,
     .chat-scroll-bottom-btn,
-    .project-actions button):hover:not(:disabled) {
+    .project-actions button
+  ):hover:not(:disabled) {
     border-color: rgba(99, 102, 241, 0.3);
     background: linear-gradient(135deg, rgba(219, 234, 254, 0.9), rgba(237, 233, 254, 0.92));
     box-shadow: 0 18px 40px rgba(79, 70, 229, 0.14);
   }
 
-  :is(.auth-submit,
+  :is(
+    .auth-submit,
     .send-btn,
     .sidebar-action-btn.primary,
     .sidebar-switch-btn.active,
     .auth-tab.active,
     .topbar-layout-btn.is-active,
-    .project-create-form button):hover:not(:disabled) {
+    .project-create-form button
+  ):hover:not(:disabled) {
     box-shadow:
       0 26px 56px rgba(79, 70, 229, 0.28),
       0 0 0 1px rgba(255, 255, 255, 0.16) inset;
   }
 }
 
-:is(.topbar-btn,
+:is(
+  .topbar-btn,
   .topbar-theme-btn,
   .topbar-layout-btn,
   .auth-tab,
@@ -4540,13 +4571,15 @@ html[data-theme="dark"] .workspace-footer {
   .send-btn,
   .preview-tool,
   .chat-scroll-bottom-btn,
-  .project-actions button):disabled {
+  .project-actions button
+):disabled {
   opacity: 0.55;
   transform: none;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
-html[data-theme="dark"] :is(.topbar-btn,
+html[data-theme="dark"] :is(
+  .topbar-btn,
   .topbar-theme-btn,
   .topbar-layout-btn:not(.is-active),
   .auth-tab:not(.active),
@@ -4555,28 +4588,31 @@ html[data-theme="dark"] :is(.topbar-btn,
   .project-select-btn,
   .preview-tool,
   .chat-scroll-bottom-btn,
-  .project-actions button) {
+  .project-actions button
+) {
   border-color: rgba(129, 140, 248, 0.26);
   background: rgba(8, 12, 22, 0.82);
   color: #dbeafe;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
 }
 
-html[data-theme="dark"] :is(.auth-submit,
+html[data-theme="dark"] :is(
+  .auth-submit,
   .send-btn,
   .sidebar-action-btn.primary,
   .sidebar-switch-btn.active,
   .auth-tab.active,
   .topbar-layout-btn.is-active,
-  .project-create-form button) {
+  .project-create-form button
+) {
   border-color: rgba(167, 139, 250, 0.38);
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.96), rgba(124, 58, 237, 0.96));
   color: #f8fafc;
 }
 
 @media (hover: hover) {
-
-  html[data-theme="dark"] :is(.topbar-btn,
+  html[data-theme="dark"] :is(
+    .topbar-btn,
     .topbar-theme-btn,
     .topbar-layout-btn:not(.is-active),
     .auth-tab:not(.active),
@@ -4585,19 +4621,22 @@ html[data-theme="dark"] :is(.auth-submit,
     .project-select-btn,
     .preview-tool,
     .chat-scroll-bottom-btn,
-    .project-actions button):hover:not(:disabled) {
+    .project-actions button
+  ):hover:not(:disabled) {
     border-color: rgba(167, 139, 250, 0.32);
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.94), rgba(49, 46, 129, 0.9));
     box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
   }
 
-  html[data-theme="dark"] :is(.auth-submit,
+  html[data-theme="dark"] :is(
+    .auth-submit,
     .send-btn,
     .sidebar-action-btn.primary,
     .sidebar-switch-btn.active,
     .auth-tab.active,
     .topbar-layout-btn.is-active,
-    .project-create-form button):hover:not(:disabled) {
+    .project-create-form button
+  ):hover:not(:disabled) {
     box-shadow: 0 28px 60px rgba(37, 99, 235, 0.22);
   }
 }
@@ -4634,18 +4673,21 @@ html[data-theme="dark"] :is(.topbar-logo, .sidebar-mark) {
   background: rgba(8, 12, 22, 0.94) !important;
 }
 
-:is(.topbar-layout-btn.is-active,
+:is(
+  .topbar-layout-btn.is-active,
   .sidebar-action-btn.primary,
   .auth-submit,
   .send-btn,
   .project-create-form button,
   .sidebar-switch-btn.active,
-  .auth-tab.active) {
+  .auth-tab.active
+) {
   background: var(--gradient-primary) !important;
   border-color: rgba(99, 102, 241, 0.34);
 }
 
-:is(.topbar-btn,
+:is(
+  .topbar-btn,
   .topbar-theme-btn,
   .topbar-layout-btn:not(.is-active),
   .auth-tab:not(.active),
@@ -4654,11 +4696,13 @@ html[data-theme="dark"] :is(.topbar-logo, .sidebar-mark) {
   .project-select-btn,
   .preview-tool,
   .chat-scroll-bottom-btn,
-  .project-actions button):hover:not(:disabled) {
+  .project-actions button
+):hover:not(:disabled) {
   background: rgba(239, 246, 255, 0.9) !important;
 }
 
-html[data-theme="dark"] :is(.topbar-btn,
+html[data-theme="dark"] :is(
+  .topbar-btn,
   .topbar-theme-btn,
   .topbar-layout-btn:not(.is-active),
   .auth-tab:not(.active),
@@ -4667,7 +4711,8 @@ html[data-theme="dark"] :is(.topbar-btn,
   .project-select-btn,
   .preview-tool,
   .chat-scroll-bottom-btn,
-  .project-actions button):hover:not(:disabled) {
+  .project-actions button
+):hover:not(:disabled) {
   background: rgba(15, 23, 42, 0.9) !important;
 }
 

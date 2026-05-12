@@ -1111,6 +1111,8 @@ function triggerFileDownload(downloadUrl) {
   link.href = downloadUrl;
   link.rel = "noopener";
   link.style.display = "none";
+  link.setAttribute("download", ""); // Force download behavior
+  link.setAttribute("target", "_blank"); // Fallback for some iframe contexts
   document.body.append(link);
   link.click();
   link.remove();
@@ -1752,6 +1754,7 @@ function appendFileMessage(message, { autoScroll = true } = {}) {
   link.className = "file-action file-link";
   link.href = buildDownloadUrl(message.file_token, dxfName);
   link.setAttribute("download", dxfName);
+  link.setAttribute("target", "_blank");
   link.setAttribute("title", "Download DXF");
   link.append("Download");
   link.append(createDownloadIcon());
