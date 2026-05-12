@@ -11,7 +11,6 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.env_loader import load_backend_env
 from app.services.storage_common import (
-    connect_sqlite,
     normalize_email,
     normalize_name,
     normalize_url,

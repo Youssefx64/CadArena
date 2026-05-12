@@ -1,12 +1,9 @@
-"""Shared database utilities and common patterns for all storage modules."""
+"""Shared utilities and common patterns for all storage modules."""
 
 import re
-import sqlite3
 import time
-from contextlib import contextmanager
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Generator, Optional
+from typing import Any, Optional
 
 SLOW_QUERY_THRESHOLD_MS = 100
 
@@ -105,38 +102,6 @@ def coerce_json(value: Any, default: Optional[dict] = None) -> dict:
     return default or {}
 
 
-@contextmanager
-def connect_sqlite(db_path: Path) -> Generator[sqlite3.Connection, None, None]:
-    """Context manager for SQLite connections with consistent setup."""
-    connection = sqlite3.connect(str(db_path))
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    try:
-        yield connection
-        connection.commit()
-    except Exception:
-        connection.rollback()
-        raise
-    finally:
-        connection.close()
-
-
-def execute_with_timing(
-    connection: sqlite3.Connection,
-    query: str,
-    params: tuple = (),
-    operation_type: str = "query",
-) -> sqlite3.Cursor:
-    """Execute query and log if slow."""
-    start = time.time()
-    cursor = connection.execute(query, params)
-    duration_ms = (time.time() - start) * 1000
-
-    if duration_ms > SLOW_QUERY_THRESHOLD_MS:
-        from app.services.storage_logger import logger
-        logger.warning(
-            f"Slow {operation_type} ({duration_ms:.1f}ms): {query[:100]}",
-            extra={"duration_ms": duration_ms, "query": query[:200]},
-        )
-
-    return cursor
+# NOTE: connect_sqlite and execute_with_timing were removed after the
+# full migration to PostgreSQL (May 2026). All storage modules now use
+# postgres_compat.connect_postgres() exclusively.
