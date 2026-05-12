@@ -147,6 +147,21 @@ async def rag_ingest_files(
         filename = uploaded_file.filename or "uploaded-file"
         try:
             content = await uploaded_file.read()
+            
+            # Save a copy as an archive
+            import os
+            from datetime import datetime
+            from pathlib import Path
+            
+            archive_dir = Path(__file__).parent.parent / "src" / "assets"
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate a safe, timestamped filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_filename = "".join(c for c in filename if c.isalnum() or c in "._- ")
+            archive_path = archive_dir / f"{timestamp}_{safe_filename}"
+            archive_path.write_bytes(content)
+            
             text = extract_uploaded_document_text(
                 filename=filename,
                 content=content,
