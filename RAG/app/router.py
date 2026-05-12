@@ -153,7 +153,7 @@ async def rag_ingest_files(
             from datetime import datetime
             from pathlib import Path
             
-            archive_dir = Path(__file__).parent.parent / "src" / "assets"
+            archive_dir = Path(__file__).parent.parent / "src" / "assets" / "files"
             archive_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate a safe, timestamped filename
