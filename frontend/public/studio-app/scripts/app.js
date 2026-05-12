@@ -1096,26 +1096,56 @@ function sanitizeExportBaseName(rawValue, fallback = "design_export") {
 }
 
 function buildDxfExportUrl(fileToken, format, filenameBase) {
-  const normalizedFormat = format === "pdf" ? "pdf" : "image";
-  const extension = normalizedFormat === "pdf" ? ".pdf" : ".png";
+  // Backend ExportFormat enum expects 'image', 'pdf', or 'dxf'
+  const backendFormat = (format === "png" || format === "image") ? "image" : format;
+  const extension = (backendFormat === "pdf") ? ".pdf" : (backendFormat === "image" ? ".png" : ".dxf");
   const filename = `${sanitizeExportBaseName(filenameBase)}${extension}`;
   return (
     `/api/v1/dxf/export?file_token=${encodeURIComponent(fileToken)}` +
-    `&format=${encodeURIComponent(normalizedFormat)}` +
+    `&format=${encodeURIComponent(backendFormat)}` +
     `&filename=${encodeURIComponent(filename)}`
   );
 }
 
-function triggerFileDownload(downloadUrl) {
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  link.rel = "noopener";
-  link.style.display = "none";
-  link.setAttribute("download", ""); // Force download behavior
-  link.setAttribute("target", "_blank"); // Fallback for some iframe contexts
-  document.body.append(link);
-  link.click();
-  link.remove();
+async function triggerFileDownload(downloadUrl, filenameHint = "") {
+  try {
+    const requestOptions = {
+      credentials: "include",
+    };
+    const response = await fetch(downloadUrl, requestOptions);
+    if (!response.ok) {
+      let errorMsg = "Download failed";
+      try {
+        const payload = await response.json();
+        errorMsg = payload.detail || errorMsg;
+      } catch (_) {}
+      throw new Error(errorMsg);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    // Get filename from header if possible, or use hint
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = filenameHint || "download";
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename=(?:["']([^"']+)["']|([^;]+))/);
+      if (match) {
+        filename = match[1] || match[2];
+      }
+    }
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    console.error("Download error:", error);
+    alert(`Download failed: ${error.message}`);
+  }
 }
 
 function setPreviewExportButtonsEnabled(enabled) {
@@ -1148,12 +1178,12 @@ function dxfRenderExportBaseName() {
   return sanitizeExportBaseName(hintedName, "dxf_render");
 }
 
-function downloadDxfExport(fileToken, format, filenameBase) {
+async function downloadDxfExport(fileToken, format, filenameBase) {
   if (!fileToken) {
     return;
   }
   const downloadUrl = buildDxfExportUrl(fileToken, format, filenameBase);
-  triggerFileDownload(downloadUrl);
+  await triggerFileDownload(downloadUrl, filenameBase);
 }
 
 async function apiFetch(url, options = {}) {
@@ -1754,10 +1784,13 @@ function appendFileMessage(message, { autoScroll = true } = {}) {
   link.className = "file-action file-link";
   link.href = buildDownloadUrl(message.file_token, dxfName);
   link.setAttribute("download", dxfName);
-  link.setAttribute("target", "_blank");
   link.setAttribute("title", "Download DXF");
   link.append("Download");
   link.append(createDownloadIcon());
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    void triggerFileDownload(link.href, dxfName);
+  });
 
   actions.append(previewButton, link);
   main.append(name, actions);

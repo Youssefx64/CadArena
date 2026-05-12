@@ -68,6 +68,14 @@ def resolve_request_file_token(*, request: Request, file_token: str) -> Path | N
                 break
 
     if path_value is None:
+        # Fallback: search globally if not found in candidate scopes (robust for new tabs/cookies)
+        with _registry_lock:
+            for scope_name, scope_map in _owner_tokens.items():
+                path_value = scope_map.get(cleaned)
+                if path_value is not None:
+                    break
+
+    if path_value is None:
         return None
 
     try:
@@ -95,7 +103,7 @@ def _issue_file_token(*, owner_scope: str, absolute_path: str | Path) -> str:
         return token
 
 def _generate_token() -> str:
-    return secrets.token_urlsafe(8)
+    return secrets.token_urlsafe(16)
 
 def _candidate_owner_scopes(request: Request) -> list[str]:
     candidates: list[str] = []
