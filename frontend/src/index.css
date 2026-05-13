@@ -93,7 +93,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--text-strong);
-  background: var(--page-background);
+  background: 
+    linear-gradient(180deg, rgba(248, 250, 255, 0.94) 0%, rgba(248, 250, 255, 0.88) 100%),
+    url('./assets/bg-arena.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   min-height: 100vh;
 }
 
