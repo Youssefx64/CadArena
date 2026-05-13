@@ -12,15 +12,60 @@ import { useDarkMode } from '../../hooks/useDarkMode';
 
 const NAV_LINKS = [
   { name: 'Home',       href: '/',           icon: Home },
-  { name: 'Generate',   href: '/generate',   icon: Zap },
-  { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare, badge: 'RAG' },
-  { name: 'Community',  href: '/community',  icon: MessageCircle },
-  { name: 'Models',     href: '/models',     icon: Brain },
-  { name: 'Metrics',    href: '/metrics',    icon: BarChart3 },
+  { name: 'Generate',   href: '/generate',   icon: Zap,            protected: true },
+  { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare,  protected: true, badge: 'RAG' },
+  { name: 'Community',  href: '/community',  icon: MessageCircle,  protected: true },
+  { name: 'Models',     href: '/models',     icon: Brain,          protected: true },
+  { name: 'Metrics',    href: '/metrics',    icon: BarChart3,       protected: true },
   { name: 'About',      href: '/about',      icon: Info },
   { name: 'Developers', href: '/developers', icon: Users },
   { name: 'Docs',       href: '/docs',       icon: BookOpen },
 ];
+
+function NavLink({ item, active, isAuthenticated }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const targetHref = (!isAuthenticated && item.protected) 
+    ? `/login?from=${encodeURIComponent(item.href)}` 
+    : item.href;
+
+  return (
+    <Link 
+      to={targetHref} 
+      role="listitem"
+      aria-current={active ? 'page' : undefined}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`app-nav-link relative px-4 py-2 transition-colors ${active ? 'app-nav-link-active' : ''}`}
+    >
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            layoutId="nav-hover-bg"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 z-0 rounded-xl bg-primary-100/40 dark:bg-white/10"
+          />
+        )}
+      </AnimatePresence>
+      <span className="relative z-10 inline-flex items-center gap-2">
+        <span>{item.name}</span>
+        {item.badge ? (
+          <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-700 dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
+            {item.badge}
+          </span>
+        ) : null}
+      </span>
+    </Link>
+  );
+}
+
+NavLink.propTypes = {
+  item:            PropTypes.object.isRequired,
+  active:          PropTypes.bool,
+  isAuthenticated: PropTypes.bool,
+};
 
 function UserMenu({ user, profile, avatarTs, onLogout }) {
   const [open, setOpen] = useState(false);
@@ -187,23 +232,9 @@ export default function Navbar() {
           </div>
 
           <div className="hidden flex-1 items-center justify-center gap-0 md:flex" role="list">
-            {NAV_LINKS.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link key={item.name} to={item.href} role="listitem"
-                  aria-current={active ? 'page' : undefined}
-                  className={`app-nav-link ${active ? 'app-nav-link-active' : ''}`}>
-                  <span className="inline-flex items-center gap-2">
-                    <span>{item.name}</span>
-                    {item.badge ? (
-                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-700 dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              );
-            })}
+            {NAV_LINKS.map((item) => (
+              <NavLink key={item.name} item={item} active={isActive(item.href)} isAuthenticated={isAuthenticated} />
+            ))}
           </div>
 
           <div className="hidden shrink-0 items-center justify-end gap-2 md:flex">
@@ -323,9 +354,13 @@ export default function Navbar() {
               {NAV_LINKS.map((item, i) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const targetHref = (!isAuthenticated && item.protected) 
+                  ? `/login?from=${encodeURIComponent(item.href)}` 
+                  : item.href;
+
                 return (
                   <motion.div key={item.name} custom={i} variants={itemVariants} initial="hidden" animate="visible">
-                    <Link to={item.href} aria-current={active ? 'page' : undefined}
+                    <Link to={targetHref} aria-current={active ? 'page' : undefined}
                       className={`app-nav-link app-nav-link-mobile ${active ? 'app-nav-link-active' : ''}`}>
                       <Icon className="w-5 h-5" aria-hidden="true" />
                       <span className="inline-flex items-center gap-2">

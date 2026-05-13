@@ -59,15 +59,15 @@ function MainLayout() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.main
           key={location.pathname}
           className="flex-1"
-          initial={{ opacity: 0, y: 14, scale: 0.995 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 1.002 }}
-          transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-          style={{ willChange: 'transform, opacity' }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+          style={{ willChange: 'opacity, transform' }}
         >
           <Suspense fallback={<PageLoader />}>
             <Outlet />
