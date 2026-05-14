@@ -20,7 +20,7 @@ function RequireAuth({ children }) {
 RequireAuth.propTypes = { children: PropTypes.node.isRequired };
 
 const HomePage       = lazy(() => import('./pages/HomePage'));
-const GeneratorPage  = lazy(() => import('./pages/GeneratorPage'));
+const ArchVisionPage = lazy(() => import('./pages/ArchVisionPage'));
 const ModelsPage     = lazy(() => import('./pages/ModelsPage'));
 const MetricsPage    = lazy(() => import('./pages/MetricsPage'));
 const AboutPage      = lazy(() => import('./pages/AboutPage'));
@@ -124,7 +124,7 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/"              element={<HomePage />} />
               <Route path="/community"     element={protectedElement(<CommunityPage />)} />
-              <Route path="/generate"      element={protectedElement(<GeneratorPage />)} />
+              <Route path="/generate"      element={protectedElement(<ArchVisionPage />)} />
               <Route path="/models"        element={protectedElement(<ModelsPage />)} />
               <Route path="/metrics"       element={protectedElement(<MetricsPage />)} />
               <Route path="/about"         element={<AboutPage />} />

@@ -12,7 +12,7 @@ import { useDarkMode } from '../../hooks/useDarkMode';
 
 const NAV_LINKS = [
   { name: 'Home',       href: '/',           icon: Home },
-  { name: 'Generate',   href: '/generate',   icon: Zap,            protected: true },
+  { name: 'ArchVision', href: '/generate',   icon: Zap,            protected: true },
   { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare,  protected: true, badge: 'RAG' },
   { name: 'Community',  href: '/community',  icon: MessageCircle,  protected: true },
   { name: 'Models',     href: '/models',     icon: Brain,          protected: true },
