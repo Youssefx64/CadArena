@@ -1,102 +1,104 @@
-# 01 Activity Diagram - Prompt to DXF Workflow - CadArena
+# 01 Activity Diagram - Workspace, RAG, and DXF Workflow - CadArena
 
 ## Purpose
-This activity diagram describes the current end-to-end workflow that turns a user prompt into a persisted DXF file in CadArena. It reflects the React shell, the embedded Studio workspace, FastAPI routers, the deterministic design parser, the DXF pipeline, file-token handling, and workspace message persistence.
+This activity diagram documents the current workflows for workspace design generation, RAG-backed architecture chat, and DXF preview. The diagram is written in valid Mermaid syntax and uses English labels for academic documentation.
 
 ## Diagram
 
 ```mermaid
 flowchart TD
-    START_NODE(["Start"]) --> OPEN_STUDIO["User opens React /studio page"]
-    OPEN_STUDIO --> STUDIO_IFRAME["StudioPage loads /studio-app/index.html"]
-    STUDIO_IFRAME --> SELECT_PROJECT["Create or select workspace project"]
-    SELECT_PROJECT --> ENTER_PROMPT["Enter architectural prompt and select model"]
-    ENTER_PROMPT --> HAS_LAYOUT{"Existing project layout?"}
+    START([Start]) --> ENTRY_FLOW{User workflow}
 
-    HAS_LAYOUT -->|"No"| GENERATE_REQUEST["POST /api/v1/workspace/projects/{project_id}/generate-dxf or /workspace/me/projects/{project_id}/generate-dxf"]
-    HAS_LAYOUT -->|"Yes"| ITERATE_REQUEST["POST /api/v1/workspace/{project_id}/iterate or /workspace/me/projects/{project_id}/iterate"]
+    ENTRY_FLOW -->|Workspace design| AUTH{User session type}
+    AUTH -->|Guest workspace| GUEST_SCOPE[Bind workspace guest cookie]
+    AUTH -->|Authenticated workspace| AUTH_SCOPE[Resolve JWT authenticated user]
+    GUEST_SCOPE --> LOAD_PROJECT[Load workspace project]
+    AUTH_SCOPE --> LOAD_PROJECT
 
-    GENERATE_REQUEST --> BIND_USER["Bind guest cookie or resolve authenticated user"]
-    BIND_USER --> LOAD_PROJECT["Load project from workspace storage"]
-    LOAD_PROJECT --> PERSIST_USER["Persist user chat message"]
-    PERSIST_USER --> CLASSIFY_INTENT["classify_intent(prompt)"]
-    CLASSIFY_INTENT --> INTENT_KIND{"Message intent"}
+    LOAD_PROJECT --> PROJECT_FOUND{Project exists}
+    PROJECT_FOUND -->|No| PROJECT_ERROR[Return project not found error]
+    PROJECT_FOUND -->|Yes| SAVE_USER_MESSAGE[Persist user message]
 
-    INTENT_KIND -->|"Conversation"| CHAT_REPLY["chat_assistant.get_assistant_reply"]
-    CHAT_REPLY --> PERSIST_CHAT["Persist assistant chat reply"]
-    PERSIST_CHAT --> CHAT_RESPONSE["Return chat response"]
+    SAVE_USER_MESSAGE --> CLASSIFY_INTENT[Classify prompt intent]
+    CLASSIFY_INTENT --> INTENT_KIND{Intent type}
 
-    INTENT_KIND -->|"Design request"| PARSE_WITH_RETRY["_parse_with_layout_retry"]
-    PARSE_WITH_RETRY --> PARSER_SERVICE["parse_design_prompt_with_metadata"]
-    PARSER_SERVICE --> ORCHESTRATOR["DesignParseOrchestrator.parse"]
+    INTENT_KIND -->|Conversation| CHAT_REPLY[Generate assistant chat reply]
+    CHAT_REPLY --> SAVE_CHAT_REPLY[Persist assistant message]
+    SAVE_CHAT_REPLY --> CHAT_RESPONSE[Return chat response]
 
-    ORCHESTRATOR --> NORMALIZE_PROMPT["Normalize Arabic prompts and extract expected room counts"]
-    NORMALIZE_PROMPT --> COMPILE_PROMPT["PromptCompiler.compile"]
-    COMPILE_PROMPT --> PROVIDER_CHOICE{"Provider selection"}
-    PROVIDER_CHOICE -->|"Ollama local"| OLLAMA_LOCAL["OllamaProviderClient.generate"]
-    PROVIDER_CHOICE -->|"Ollama Cloud or Qwen Cloud"| QWEN_CLOUD["QwenCloudProviderClient.generate"]
-    PROVIDER_CHOICE -->|"HuggingFace local"| HUGGINGFACE["HuggingFaceProviderClient.generate"]
+    INTENT_KIND -->|New design| PARSE_REQUEST[Parse design prompt]
+    INTENT_KIND -->|Edit existing design| ITERATE_REQUEST[Run iterative design]
 
-    OLLAMA_LOCAL --> RAW_OUTPUT["Raw provider output"]
-    QWEN_CLOUD --> RAW_OUTPUT
-    HUGGINGFACE --> RAW_OUTPUT
+    PARSE_REQUEST --> MODEL_SELECT[Select configured parser provider and model]
+    MODEL_SELECT --> COMPILE_PROMPT[Compile extraction prompt]
+    COMPILE_PROMPT --> PROVIDER_CALL[Call local or cloud model provider]
+    PROVIDER_CALL --> PARSE_OUTPUT[Parse model output as structured data]
+    PARSE_OUTPUT --> OUTPUT_VALID{Structured output valid}
+    OUTPUT_VALID -->|No| REPAIR_OUTPUT[Apply repair or fallback prompt]
+    REPAIR_OUTPUT --> PARSE_OUTPUT
+    OUTPUT_VALID -->|Yes| VALIDATE_INTENT[Validate extracted intent]
 
-    RAW_OUTPUT --> OUTPUT_PARSE["OutputParser.parse"]
-    OUTPUT_PARSE --> JSON_REPAIR{"Valid extraction JSON?"}
-    JSON_REPAIR -->|"No, repair mode"| REPAIR_JSON["Permissive JSON extraction, repair prompt, or prompt fallback"]
-    REPAIR_JSON --> EXTRACT_VALIDATE["ExtractedIntentValidator.validate"]
-    JSON_REPAIR -->|"Yes"| EXTRACT_VALIDATE
+    VALIDATE_INTENT --> DERIVE_PROGRAM[Derive room program from prompt]
+    DERIVE_PROGRAM --> PLAN_LAYOUT[Plan deterministic room layout]
+    PLAN_LAYOUT --> PLAN_OPENINGS[Plan doors and windows]
+    PLAN_OPENINGS --> VALIDATE_LAYOUT[Validate layout metrics and rules]
 
-    EXTRACT_VALIDATE --> SELF_REVIEW["Self-review and room-count correction"]
-    SELF_REVIEW --> PROGRAM_DERIVE["PromptProgramDeriver.derive"]
-    PROGRAM_DERIVE --> LAYOUT_PLAN["DeterministicLayoutPlanner.plan_with_metadata"]
-    LAYOUT_PLAN --> OPENING_PLAN["DeterministicOpeningPlanner.plan"]
-    OPENING_PLAN --> INTENT_VALIDATE["IntentValidator.validate"]
-    INTENT_VALIDATE --> LAYOUT_VALIDATE["LayoutValidator.validate and build metrics"]
-    LAYOUT_VALIDATE --> PARSE_RESULT["ParsedDesignIntent plus LayoutMetrics"]
+    VALIDATE_LAYOUT --> LAYOUT_OK{Layout valid}
+    LAYOUT_OK -->|No| RETRY_ALLOWED{Retry allowed}
+    RETRY_ALLOWED -->|Yes| RELAX_PROMPT[Apply feasibility retry prompt]
+    RELAX_PROMPT --> PARSE_REQUEST
+    RETRY_ALLOWED -->|No| PARSE_ERROR[Return parser error]
+    LAYOUT_OK -->|Yes| BUILD_DXF_INTENT[Build DXF design intent]
 
-    PARSE_RESULT --> SAVE_PARSE_OUTPUT["Save parse output snapshot"]
-    SAVE_PARSE_OUTPUT --> BUILD_DXF_INTENT["DesignIntent.model_validate"]
-    BUILD_DXF_INTENT --> GENERATE_DXF["run_in_threadpool(generate_dxf_from_intent)"]
-    GENERATE_DXF --> DXF_VALIDATE["DesignIntentValidator.validate"]
-    DXF_VALIDATE --> PLACE_ROOMS["PlannerAgent places explicit or automatic rooms"]
-    PLACE_ROOMS --> WALLS["Generate room and boundary wall segments"]
-    WALLS --> CUT_OPENINGS["WallCutManager cuts doors and windows"]
-    CUT_OPENINGS --> RENDER_DXF["DXFRoomRenderer draws layers, labels, dimensions, furniture, stairs"]
-    RENDER_DXF --> SAVE_DXF["Save DXF under backend/output/dxf"]
-    SAVE_DXF --> ISSUE_TOKEN["Issue session or workspace file token"]
-    ISSUE_TOKEN --> PERSIST_ASSISTANT["Persist assistant message with file token"]
-    PERSIST_ASSISTANT --> SUCCESS_RESPONSE["Return layout, suggestions, metrics, file_token, and dxf_name"]
-    SUCCESS_RESPONSE --> PREVIEW["Studio requests /api/v1/dxf/preview with file_token"]
-    PREVIEW --> END_NODE(["End"])
+    ITERATE_REQUEST --> PATCH_MODE{Current layout provided}
+    PATCH_MODE -->|Yes| PATCH_LAYOUT[Patch existing layout]
+    PATCH_MODE -->|No| FULL_PARSE_FALLBACK[Use full parse fallback]
+    PATCH_LAYOUT --> BUILD_DXF_INTENT
+    FULL_PARSE_FALLBACK --> PARSE_REQUEST
 
-    ITERATE_REQUEST --> ITERATE_ROUTE["run_iterative_design"]
-    ITERATE_ROUTE --> ITERATE_PATCH{"Current layout provided?"}
-    ITERATE_PATCH -->|"Yes"| PATCH_LAYOUT["LayoutPatcher applies targeted edit"]
-    ITERATE_PATCH -->|"No"| FULL_PARSE_FALLBACK["Full parse fallback"]
-    PATCH_LAYOUT --> ITERATE_DXF["Optional DXF generation and preview token"]
-    FULL_PARSE_FALLBACK --> ITERATE_DXF
-    ITERATE_DXF --> ITERATE_RESPONSE["Return updated layout, changed_rooms, suggestions, preview_token"]
-    ITERATE_RESPONSE --> PREVIEW
+    BUILD_DXF_INTENT --> DXF_VALIDATE[Validate DXF intent]
+    DXF_VALIDATE --> PLACE_ROOMS[Place rooms with planner agent]
+    PLACE_ROOMS --> GENERATE_WALLS[Generate room and boundary walls]
+    GENERATE_WALLS --> CUT_OPENINGS[Cut wall openings for doors and windows]
+    CUT_OPENINGS --> RENDER_DXF[Render DXF layers]
+    RENDER_DXF --> SAVE_DXF[Save file under backend output directory]
+    SAVE_DXF --> ISSUE_TOKEN[Issue session or workspace file token]
+    ISSUE_TOKEN --> SAVE_ASSISTANT[Persist assistant message with file metadata]
+    SAVE_ASSISTANT --> RETURN_SUCCESS[Return layout, metrics, suggestions, and token]
+    RETURN_SUCCESS --> PREVIEW_REQUEST[Frontend requests DXF preview by token]
+    PREVIEW_REQUEST --> PREVIEW_RESPONSE[Return PNG preview or export response]
+    PREVIEW_RESPONSE --> END([End])
 
-    PARSE_WITH_RETRY -->|"Retryable layout error"| SOFT_RETRY["Soft feasibility retry"]
-    SOFT_RETRY --> HARD_RETRY{"Soft retry failed?"}
-    HARD_RETRY -->|"Yes"| HARD_RETRY_NODE["Emergency fallback retry"]
-    HARD_RETRY_NODE --> PARSER_SERVICE
-    HARD_RETRY -->|"No"| PARSE_RESULT
+    ENTRY_FLOW -->|RAG chat| RAG_AUTH[Require authenticated user]
+    RAG_AUTH --> RAG_THREAD{Thread exists}
+    RAG_THREAD -->|No| CREATE_RAG_THREAD[Create ArchChat thread]
+    RAG_THREAD -->|Yes| LOAD_RAG_THREAD[Load ArchChat thread]
+    CREATE_RAG_THREAD --> SAVE_RAG_USER[Persist RAG user message]
+    LOAD_RAG_THREAD --> SAVE_RAG_USER
+    SAVE_RAG_USER --> BUILD_RAG_QUERY[Build RAG query payload]
+    BUILD_RAG_QUERY --> CALL_RAG_API[POST standalone RAG API /rag/query]
+    CALL_RAG_API --> EMBED_QUERY[Embed user question]
+    EMBED_QUERY --> SEARCH_VECTOR_STORE[Search Qdrant vector collection]
+    SEARCH_VECTOR_STORE --> BUILD_CONTEXT[Build source-backed context]
+    BUILD_CONTEXT --> GENERATE_RAG_ANSWER[Generate answer with configured provider]
+    GENERATE_RAG_ANSWER --> RAG_OK{RAG response successful}
+    RAG_OK -->|Yes| SAVE_RAG_ASSISTANT[Persist assistant answer and sources]
+    SAVE_RAG_ASSISTANT --> RETURN_RAG_RESPONSE[Return answer, sources, and thread metadata]
+    RETURN_RAG_RESPONSE --> END
+    RAG_OK -->|No| SAVE_RAG_ERROR[Persist RAG error message]
+    SAVE_RAG_ERROR --> RETURN_RAG_ERROR[Return RAG service error]
+    RETURN_RAG_ERROR --> END
 
-    OUTPUT_PARSE -->|"Unrecoverable JSON error"| ERROR_RESPONSE["Return ParseDesignErrorResponse"]
-    EXTRACT_VALIDATE -->|"Schema error"| ERROR_RESPONSE
-    LAYOUT_PLAN -->|"Planning error"| ERROR_RESPONSE
-    OPENING_PLAN -->|"Rule violation"| ERROR_RESPONSE
-    BUILD_DXF_INTENT -->|"Invalid DXF intent"| ERROR_RESPONSE
-    GENERATE_DXF -->|"Runtime error"| ERROR_RESPONSE
-    ERROR_RESPONSE --> PERSIST_ERROR["Persist error message when inside workspace"]
-    PERSIST_ERROR --> END_NODE
+    PROJECT_ERROR --> END
+    CHAT_RESPONSE --> END
+    PARSE_ERROR --> SAVE_ERROR[Persist error message when workspace-scoped]
+    SAVE_ERROR --> END
 ```
 
 ## Architectural Notes
-- The Studio sends either a full generation request or an iterative edit request depending on whether the selected project already has a saved layout.
-- The parser is deliberately split from the DXF renderer: `DesignParseOrchestrator` produces validated geometry, then `generate_dxf_from_intent` renders that geometry to a CAD file.
-- Workspace file access is token-based; the frontend receives a `file_token` or `preview_token` rather than a raw filesystem path.
-- Repair mode can recover from invalid model output, infeasible planning, and failed opening placement before the request is reported as failed.
+- The workspace router coordinates project lookup, message persistence, intent routing, parser execution, DXF generation, token issuance, and response shaping.
+- The ArchChat router handles authenticated RAG threads, persists user and assistant messages, and calls the standalone RAG API.
+- The RAG API embeds the question, searches the configured vector store, builds source-backed context, and generates an answer with the configured provider.
+- Conversational prompts bypass the design parser and use the chat assistant service.
+- Design prompts pass through a model-backed extraction stage followed by deterministic planning, validation, and DXF rendering.
+- The browser receives a file token instead of a raw filesystem path.
