@@ -1,85 +1,126 @@
-# 03 Use Case Diagram - CadArena
+# 03 Use Case Diagram - CadArena User Capabilities
 
 ## Purpose
-This use case diagram summarizes the main capabilities currently exposed by CadArena to guests, registered users, and external systems.
+This use case diagram summarizes the current capabilities exposed by CadArena to guests, authenticated users, administrators of local services, and external integrations.
 
 ## Diagram
 
 ```mermaid
-flowchart TD
-    Guest(["Guest user"])
-    Registered(["Registered user"])
-    LLM(["LLM providers"])
-    SMTP(["SMTP server"])
-    Google(["Google OAuth"])
-    Files(["Local file storage"])
+flowchart LR
+    Guest[Guest user]
+    User[Authenticated user]
+    Operator[Local operator]
+    ModelProvider[Model provider]
+    EmbeddingProvider[Embedding provider]
+    RAGService[RAG service]
+    VectorStore[RAG vector store]
+    SMTP[SMTP server]
+    Google[Google OAuth]
+    Files[File storage]
 
-    subgraph CadArena["CadArena System"]
-        UC_BROWSE["Browse public pages and docs"]
-        UC_AUTH["Register, login, logout"]
-        UC_GOOGLE["Sign in with Google"]
-        UC_PROFILE["Manage profile and avatar"]
-        UC_PROVIDER_KEYS["Manage provider API keys"]
-        UC_PROJECTS["Manage workspace projects"]
-        UC_CHAT["Chat with workspace assistant"]
-        UC_GENERATE["Generate floor plan from prompt"]
-        UC_ITERATE["Refine existing layout iteratively"]
-        UC_PREVIEW["Preview DXF output"]
-        UC_UPLOAD["Upload external DXF"]
-        UC_DOWNLOAD["Download DXF"]
-        UC_EXPORT["Export DXF as PNG or PDF"]
-        UC_COMMUNITY["Use community Q&A"]
-        UC_CONTACT["Send contact message"]
-        UC_MODEL_CATALOG["Fetch parse model catalog"]
+    subgraph System[CadArena system]
+        Browse[Browse public pages]
+        Register[Register and sign in]
+        GoogleLogin[Sign in with Google]
+        Profile[Manage profile and avatar]
+        ProviderKeys[Manage provider API keys]
+        Workspace[Manage workspace projects]
+        Chat[Use workspace chat]
+        Generate[Generate floor plan from prompt]
+        Iterate[Refine an existing layout]
+        Preview[Preview generated DXF]
+        Upload[Upload existing DXF]
+        Download[Download DXF]
+        Export[Export PNG or PDF]
+        Community[Use engineering community]
+        Contact[Send contact message]
+        ModelCatalog[Read parser model catalog]
+        ArchChat[Use RAG-backed architecture chat]
+        RagQuery[Query indexed engineering references]
+        RagIngestFiles[Upload and ingest RAG files]
+        RagIngestText[Ingest raw text documents]
+        RagModels[List RAG models]
+        RagCollection[Clear RAG collection]
+        RagHealth[Check RAG health]
+        Health[Check health and metrics]
+        DockerRun[Run containerized service]
     end
 
-    Guest --> UC_BROWSE
-    Guest --> UC_PROJECTS
-    Guest --> UC_CHAT
-    Guest --> UC_GENERATE
-    Guest --> UC_ITERATE
-    Guest --> UC_PREVIEW
-    Guest --> UC_UPLOAD
-    Guest --> UC_DOWNLOAD
-    Guest --> UC_EXPORT
-    Guest --> UC_COMMUNITY
-    Guest --> UC_CONTACT
-    Guest --> UC_MODEL_CATALOG
+    Guest --> Browse
+    Guest --> Workspace
+    Guest --> Chat
+    Guest --> Generate
+    Guest --> Iterate
+    Guest --> Preview
+    Guest --> Upload
+    Guest --> Download
+    Guest --> Export
+    Guest --> Community
+    Guest --> Contact
+    Guest --> ModelCatalog
 
-    Registered --> UC_BROWSE
-    Registered --> UC_AUTH
-    Registered --> UC_GOOGLE
-    Registered --> UC_PROFILE
-    Registered --> UC_PROVIDER_KEYS
-    Registered --> UC_PROJECTS
-    Registered --> UC_CHAT
-    Registered --> UC_GENERATE
-    Registered --> UC_ITERATE
-    Registered --> UC_PREVIEW
-    Registered --> UC_UPLOAD
-    Registered --> UC_DOWNLOAD
-    Registered --> UC_EXPORT
-    Registered --> UC_COMMUNITY
-    Registered --> UC_CONTACT
-    Registered --> UC_MODEL_CATALOG
+    User --> Browse
+    User --> Register
+    User --> GoogleLogin
+    User --> Profile
+    User --> ProviderKeys
+    User --> Workspace
+    User --> Chat
+    User --> Generate
+    User --> Iterate
+    User --> Preview
+    User --> Upload
+    User --> Download
+    User --> Export
+    User --> Community
+    User --> ArchChat
+    User --> RagQuery
+    User --> RagIngestFiles
+    User --> ModelCatalog
 
-    UC_GENERATE --> UC_MODEL_CATALOG
-    UC_GENERATE --> UC_PREVIEW
-    UC_ITERATE --> UC_PREVIEW
-    UC_PREVIEW --> UC_EXPORT
-    UC_UPLOAD --> UC_PREVIEW
+    Operator --> Health
+    Operator --> RagHealth
+    Operator --> RagModels
+    Operator --> RagIngestText
+    Operator --> RagCollection
+    Operator --> DockerRun
 
-    LLM -.-> UC_GENERATE
-    LLM -.-> UC_ITERATE
-    SMTP -.-> UC_CONTACT
-    Google -.-> UC_GOOGLE
-    Files -.-> UC_PREVIEW
-    Files -.-> UC_DOWNLOAD
-    Files -.-> UC_EXPORT
+    Generate --> ModelCatalog
+    Generate --> Preview
+    Iterate --> Preview
+    Preview --> Export
+    Upload --> Preview
+    ArchChat --> RAGService
+    ArchChat --> RagQuery
+    RagQuery --> RAGService
+    RagIngestFiles --> RAGService
+    RagIngestText --> RAGService
+    RagModels --> RAGService
+    RagCollection --> RAGService
+    RagHealth --> RAGService
+
+    ModelProvider -.-> Generate
+    ModelProvider -.-> Iterate
+    ModelProvider -.-> RagQuery
+    EmbeddingProvider -.-> RagQuery
+    EmbeddingProvider -.-> RagIngestFiles
+    EmbeddingProvider -.-> RagIngestText
+    VectorStore -.-> RagQuery
+    VectorStore -.-> RagIngestFiles
+    VectorStore -.-> RagIngestText
+    VectorStore -.-> RagCollection
+    VectorStore -.-> RagHealth
+    SMTP -.-> Contact
+    Google -.-> GoogleLogin
+    Files -.-> Preview
+    Files -.-> Download
+    Files -.-> Export
 ```
 
 ## Architectural Notes
-- Guests are supported through a local workspace identity and a guest cookie; registered users use JWT-backed `/workspace/me/*` routes.
-- Model-backed use cases call local Ollama, Ollama Cloud/Qwen-compatible, or local HuggingFace providers through the parser service.
-- DXF preview, download, and export use file tokens so browser clients do not receive direct server paths.
-- Community Q&A supports anonymous display names for guests and authenticated author identity for signed-in users.
+- Guests use cookie-bound workspace identity; authenticated users use the JWT-backed `/workspace/me` route set.
+- The design parser can call local Ollama, Ollama Cloud compatible endpoints, Qwen-compatible cloud endpoints, or a local HuggingFace model.
+- ArchChat is authenticated and delegates retrieval requests to the standalone RAG API.
+- The standalone RAG API supports reference querying, text ingestion, file ingestion, model listing, collection clearing, and health checks.
+- RAG ingestion uses the configured embedding provider and stores vectors in the configured vector store, Qdrant by default.
+- DXF preview, download, upload, and export are token-mediated file operations.
