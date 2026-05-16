@@ -1,1 +1,18 @@
-Generic single-database configuration.
+# Alembic for Legacy RAG Schema
+
+Use this only when maintaining the older `RAG/src` SQL schema.
+
+From `RAG/src/models/db_schemas/nutrition_rag`:
+
+```bash
+cp alembic.example.ini alembic.ini
+```
+
+Set `sqlalchemy.url` in `alembic.ini`, then run migrations:
+
+```bash
+alembic revision --autogenerate -m "Describe schema change"
+alembic upgrade head
+```
+
+The current `RAG/app` service does not need these migrations when it runs with the default Qdrant vector store.
