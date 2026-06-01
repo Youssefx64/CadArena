@@ -6,6 +6,7 @@
   --gradient-primary: linear-gradient(var(--gradient-angle), var(--gradient-blue), var(--gradient-purple));
   --gradient-soft: linear-gradient(var(--gradient-angle), rgba(59, 130, 246, 0.08), rgba(124, 58, 237, 0.1));
   --surface-gradient: linear-gradient(var(--gradient-angle), rgba(255, 255, 255, 0.94), rgba(248, 250, 255, 0.9));
+  --platform-bg-image: url("../assets/bg-arena.jpg");
   --bg-main: #f7f9ff;
   --bg-accent-a: #eef4ff;
   --bg-accent-b: #f3f0ff;
@@ -119,16 +120,26 @@ body {
   color: var(--text-main);
   overflow: hidden;
   background:
+    linear-gradient(180deg, rgba(248, 250, 255, 0.9) 0%, rgba(248, 250, 255, 0.84) 100%),
     radial-gradient(circle at 14% 9%, var(--bg-accent-a) 0%, rgba(219, 234, 254, 0) 35%),
     radial-gradient(circle at 90% 92%, var(--bg-accent-b) 0%, rgba(237, 233, 254, 0) 34%),
-    linear-gradient(170deg, #f8faff 0%, var(--bg-main) 100%);
+    var(--platform-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 html[data-theme="dark"] body {
   background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.9) 0%, rgba(2, 6, 23, 0.84) 100%),
     radial-gradient(circle at 14% 9%, rgba(37, 99, 235, 0.34) 0%, rgba(37, 99, 235, 0) 38%),
     radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.3) 0%, rgba(124, 58, 237, 0) 36%),
-    linear-gradient(168deg, #020617 0%, var(--bg-main) 100%);
+    var(--platform-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .page-shell {
@@ -1612,14 +1623,14 @@ body.is-resizing-workspace .workspace.is-layout-animating {
   padding: 18px;
   overflow: visible;
   z-index: 5;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.89), rgba(248, 253, 251, 0.88));
 }
 
 .chat.is-empty-project {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* no grid override needed — flex handles it */
 }
 
 .chat.is-empty-project .chat-thread {
@@ -1628,6 +1639,7 @@ body.is-resizing-workspace .workspace.is-layout-animating {
 
 .chat-header,
 .preview-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1728,8 +1740,9 @@ body.is-resizing-workspace .workspace.is-layout-animating {
 }
 
 .chat-thread {
+  flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
   padding: 10px;
   border-radius: 15px;
   border: 1px solid rgba(17, 67, 61, 0.08);
@@ -1737,8 +1750,8 @@ body.is-resizing-workspace .workspace.is-layout-animating {
     radial-gradient(circle at 15% 14%, rgba(202, 243, 231, 0.46), rgba(202, 243, 231, 0) 40%),
     radial-gradient(circle at 88% 84%, rgba(255, 230, 199, 0.62), rgba(255, 230, 199, 0) 45%),
     #f9fffd;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 11px;
 }
 
@@ -1929,6 +1942,7 @@ body.is-resizing-workspace .workspace.is-layout-animating {
 }
 
 .chat-form {
+  flex-shrink: 0;
   border-top: 1px solid rgba(17, 67, 61, 0.12);
   padding-top: 14px;
   display: grid;
@@ -4643,11 +4657,27 @@ html[data-theme="dark"] :is(
 
 /* Gradient restraint: reserve the blue-purple gradient for primary actions and highlights only. */
 body {
-  background: var(--bg-main);
+  background:
+    linear-gradient(180deg, rgba(248, 250, 255, 0.9) 0%, rgba(248, 250, 255, 0.84) 100%),
+    radial-gradient(circle at 14% 9%, var(--bg-accent-a) 0%, rgba(219, 234, 254, 0) 35%),
+    radial-gradient(circle at 90% 92%, var(--bg-accent-b) 0%, rgba(237, 233, 254, 0) 34%),
+    var(--platform-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 html[data-theme="dark"] body {
-  background: var(--bg-main);
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.9) 0%, rgba(2, 6, 23, 0.84) 100%),
+    radial-gradient(circle at 14% 9%, rgba(37, 99, 235, 0.22) 0%, rgba(37, 99, 235, 0) 38%),
+    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.2) 0%, rgba(124, 58, 237, 0) 36%),
+    var(--platform-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 :is(.topbar, .auth-card, .panel, .sidebar, .dxf-render-panel, .workspace-footer, .file-card) {
