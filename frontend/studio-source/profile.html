@@ -8,13 +8,18 @@
     <link rel="shortcut icon" href="/static/assets/cadarena-mark.svg" />
     <script>
       (() => {
-        const key = "cadarena_theme";
+        const appKey = "cadarena-theme";
+        const studioKey = "cadarena_theme";
+        let theme = "light";
         try {
-          localStorage.setItem(key, "light");
+          const stored = localStorage.getItem(appKey) || localStorage.getItem(studioKey);
+          theme = stored === "dark" ? "dark" : "light";
+          localStorage.setItem(appKey, theme);
+          localStorage.setItem(studioKey, theme);
         } catch (_error) {
           // best effort persistence
         }
-        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.setAttribute("data-theme", theme);
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +28,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles/profile.css?v=profile4" />
+    <link rel="stylesheet" href="/static/styles/profile.css?v=profile5" />
     <link rel="stylesheet" href="/static/styles/back-nav.css?v=1" />
   </head>
   <body>
@@ -128,6 +133,6 @@
     </div>
 
     <script src="/static/scripts/back-nav.js?v=1" defer></script>
-    <script type="module" src="/static/scripts/profile.js?v=profile4"></script>
+    <script type="module" src="/static/scripts/profile.js?v=profile5"></script>
   </body>
 </html>

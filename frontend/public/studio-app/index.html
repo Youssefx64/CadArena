@@ -8,13 +8,18 @@
     <link rel="shortcut icon" href="./assets/cadarena-mark.svg" />
     <script>
       (() => {
-        const key = "cadarena_theme";
+        const appKey = "cadarena-theme";
+        const studioKey = "cadarena_theme";
+        let theme = "light";
         try {
-          localStorage.setItem(key, "light");
+          const stored = localStorage.getItem(appKey) || localStorage.getItem(studioKey);
+          theme = stored === "dark" ? "dark" : "light";
+          localStorage.setItem(appKey, theme);
+          localStorage.setItem(studioKey, theme);
         } catch (_error) {
           // best effort persistence
         }
-        document.documentElement.setAttribute("data-theme", "light");
+        document.documentElement.setAttribute("data-theme", theme);
       })();
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -25,7 +30,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles/styles.css?v=theme50" />
+    <link rel="stylesheet" href="./styles/styles.css?v=theme51" />
+    <link rel="stylesheet" href="./styles/viewer.css?v=1" />
     <link rel="stylesheet" href="./styles/back-nav.css?v=1" />
   </head>
   <body>
@@ -590,6 +596,15 @@
               Generate a DXF from chat to see its live preview here.
             </div>
             <img id="preview-image" alt="Generated DXF preview" />
+            <canvas id="cad-viewer-canvas" style="display:none; width:100%; height:100%; position:absolute; inset:0;"></canvas>
+            <div id="cad-layer-panel" class="cad-layer-panel" style="display:none;"></div>
+            <div id="cad-viewer-toolbar" class="cad-viewer-toolbar" style="display:none;">
+              <button class="cad-tb-btn" id="cad-grid-toggle" title="Toggle grid">Grid</button>
+              <button class="cad-tb-btn" id="cad-crosshair-toggle" title="Toggle crosshair">+</button>
+              <button class="cad-tb-btn" id="cad-dark-toggle" title="Toggle dark/light">◑</button>
+              <button class="cad-tb-btn" id="cad-fit-btn" title="Zoom to fit">Fit</button>
+              <span id="cad-zoom-label" class="cad-zoom-label"></span>
+            </div>
           </div>
         </aside>
 
@@ -693,6 +708,7 @@
     </div>
 
     <script src="./scripts/back-nav.js?v=1" defer></script>
-    <script type="module" src="./scripts/app.js?v=theme41"></script>
+    <script src="./scripts/viewer.js?v=1"></script>
+    <script type="module" src="./scripts/app.js?v=theme42"></script>
   </body>
 </html>

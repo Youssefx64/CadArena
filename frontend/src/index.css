@@ -561,6 +561,11 @@ textarea {
     @apply min-h-screen py-8;
   }
 
+  .platform-fullscreen-page,
+  .rag-page-frame {
+    background: transparent;
+  }
+
   .app-page-header {
     @apply text-center mb-16;
   }
@@ -1624,7 +1629,7 @@ textarea {
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: #f1f5f9;
+    background: transparent;
     overflow: hidden;
   }
 
@@ -1934,11 +1939,15 @@ body,
 
 [data-theme="dark"] body {
   color: var(--text-strong);
-  background: var(--page-background);
-  background-image:
-    radial-gradient(ellipse 100% 60% at 50% -10%, rgba(79, 70, 229, 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 40% at 90% 50%, rgba(124, 58, 237, 0.05) 0%, transparent 60%);
+  background:
+    linear-gradient(180deg, rgba(6, 9, 18, 0.9) 0%, rgba(6, 9, 18, 0.84) 100%),
+    radial-gradient(ellipse 100% 60% at 50% -10%, rgba(79, 70, 229, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 90% 50%, rgba(124, 58, 237, 0.1) 0%, transparent 60%),
+    url('./assets/bg-arena.jpg');
+  background-size: cover;
+  background-position: center;
   background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 /* ─── Dark text selection ─────────────────────────────────────────────────── */
@@ -2298,6 +2307,63 @@ body,
     linear-gradient(90deg, rgba(139, 92, 246, 0.055) 1px, transparent 1px);
 }
 
+/* ─── Global ambient background (all platform pages) ─────────────────────── */
+.global-ambient-bg {
+  position: fixed;
+  inset: -30% -15%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.global-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(88px);
+  will-change: transform;
+}
+.global-orb-1 {
+  width: 720px; height: 720px;
+  top: -5%; left: -8%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.13) 0%, transparent 70%);
+  animation: orb-drift-1 22s ease-in-out infinite;
+}
+.global-orb-2 {
+  width: 620px; height: 620px;
+  top: -12%; right: -6%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
+  animation: orb-drift-2 28s ease-in-out infinite;
+}
+.global-orb-3 {
+  width: 520px; height: 520px;
+  bottom: -10%; left: 36%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+  animation: orb-drift-3 34s ease-in-out infinite;
+}
+.global-grid-pattern {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.025) 1px, transparent 1px);
+  background-size: 52px 52px;
+  pointer-events: none;
+  z-index: 0;
+}
+[data-theme="dark"] .global-orb-1 {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.38) 0%, transparent 70%);
+}
+[data-theme="dark"] .global-orb-2 {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.32) 0%, transparent 70%);
+}
+[data-theme="dark"] .global-orb-3 {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.26) 0%, transparent 70%);
+}
+[data-theme="dark"] .global-grid-pattern {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.05) 1px, transparent 1px);
+}
+
 /* ─── Section tinted background ───────────────────────────────────────────── */
 .section-tinted-bg {
   background: var(--section-tinted-bg);
@@ -2550,9 +2616,9 @@ html {
   --rag-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   overflow: visible;
   background:
-    radial-gradient(circle at 14% 9%, rgba(59, 130, 246, 0.16) 0%, rgba(219, 234, 254, 0) 34%),
-    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.14) 0%, rgba(237, 233, 254, 0) 34%),
-    linear-gradient(168deg, #f8faff 0%, #f7f9ff 100%);
+    radial-gradient(circle at 14% 9%, rgba(59, 130, 246, 0.1) 0%, rgba(219, 234, 254, 0) 34%),
+    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.08) 0%, rgba(237, 233, 254, 0) 34%),
+    rgba(248, 250, 255, 0.22);
 }
 
 .rag-workspace.app-page {
@@ -3528,9 +3594,9 @@ html {
   --rag-accent-purple: #8b5cf6;
   --rag-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 42px rgba(0, 0, 0, 0.32);
   background:
-    radial-gradient(circle at 14% 9%, rgba(37, 99, 235, 0.34) 0%, rgba(37, 99, 235, 0) 38%),
-    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.3) 0%, rgba(124, 58, 237, 0) 36%),
-    linear-gradient(168deg, #020617 0%, #060913 100%);
+    radial-gradient(circle at 14% 9%, rgba(37, 99, 235, 0.18) 0%, rgba(37, 99, 235, 0) 38%),
+    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0) 36%),
+    rgba(2, 6, 23, 0.3);
 }
 
 [data-theme="dark"] .rag-consolebar,

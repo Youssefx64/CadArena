@@ -21,8 +21,6 @@ RequireAuth.propTypes = { children: PropTypes.node.isRequired };
 
 const HomePage       = lazy(() => import('./pages/HomePage'));
 const ArchVisionPage = lazy(() => import('./pages/ArchVisionPage'));
-const ModelsPage     = lazy(() => import('./pages/ModelsPage'));
-const MetricsPage    = lazy(() => import('./pages/MetricsPage'));
 const AboutPage      = lazy(() => import('./pages/AboutPage'));
 const DevelopersPage = lazy(() => import('./pages/DevelopersPage'));
 const StudioPage     = lazy(() => import('./pages/StudioPage'));
@@ -54,28 +52,58 @@ function PageLoader() {
   );
 }
 
+function GlobalAmbientBg() {
+  return (
+    <>
+      <div className="global-ambient-bg" aria-hidden="true">
+        <div className="global-orb global-orb-1" />
+        <div className="global-orb global-orb-2" />
+        <div className="global-orb global-orb-3" />
+      </div>
+      <div className="global-grid-pattern" aria-hidden="true" />
+    </>
+  );
+}
+
+function FullscreenBackdrop({ children }) {
+  return (
+    <>
+      <GlobalAmbientBg />
+      <div className="relative z-[1] min-h-screen">
+        <Suspense fallback={<PageLoader />}>
+          {children}
+        </Suspense>
+      </div>
+    </>
+  );
+}
+FullscreenBackdrop.propTypes = { children: PropTypes.node.isRequired };
+
 function MainLayout() {
   const location = useLocation();
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <AnimatePresence>
-        <motion.main
-          key={location.pathname}
-          className="flex-1"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          style={{ willChange: 'opacity, transform' }}
-        >
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
-        </motion.main>
-      </AnimatePresence>
-      <Footer />
-    </div>
+    <>
+      <GlobalAmbientBg />
+      <div className="min-h-screen flex flex-col relative z-[1]">
+        <Navbar />
+        <AnimatePresence>
+          <motion.main
+            key={location.pathname}
+            className="flex-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+            style={{ willChange: 'opacity, transform' }}
+          >
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </motion.main>
+        </AnimatePresence>
+        <Footer />
+      </div>
+    </>
   );
 }
 
@@ -95,9 +123,9 @@ function App() {
               path="/studio"
               element={
                 <RequireAuth>
-                  <Suspense fallback={<PageLoader />}>
+                  <FullscreenBackdrop>
                     <StudioPage />
-                  </Suspense>
+                  </FullscreenBackdrop>
                 </RequireAuth>
               }
             />
@@ -105,9 +133,9 @@ function App() {
               path="/rag-chat"
               element={
                 <RequireAuth>
-                  <Suspense fallback={<PageLoader />}>
+                  <FullscreenBackdrop>
                     <RAGChatPage />
-                  </Suspense>
+                  </FullscreenBackdrop>
                 </RequireAuth>
               }
             />
@@ -115,9 +143,9 @@ function App() {
               path="/viewer"
               element={
                 <RequireAuth>
-                  <Suspense fallback={<PageLoader />}>
+                  <FullscreenBackdrop>
                     <ViewerPage />
-                  </Suspense>
+                  </FullscreenBackdrop>
                 </RequireAuth>
               }
             />
@@ -125,8 +153,6 @@ function App() {
               <Route path="/"              element={<HomePage />} />
               <Route path="/community"     element={protectedElement(<CommunityPage />)} />
               <Route path="/generate"      element={protectedElement(<ArchVisionPage />)} />
-              <Route path="/models"        element={protectedElement(<ModelsPage />)} />
-              <Route path="/metrics"       element={protectedElement(<MetricsPage />)} />
               <Route path="/about"         element={<AboutPage />} />
               <Route path="/developers"    element={<DevelopersPage />} />
               <Route path="/login"         element={<LoginPage />} />

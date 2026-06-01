@@ -8,7 +8,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar';
-import { useDarkMode } from '../hooks/useDarkMode';
 import {
   Activity,
   AlertCircle,
@@ -723,7 +722,6 @@ export default function RAGChatPage() {
     handleFiles(event.dataTransfer.files);
   };
 
-  const { isDark } = useDarkMode();
   const documentWordCount = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
   const healthLoading = healthState === 'checking' && !health;
   const canAsk = Boolean(question.trim());
@@ -786,9 +784,9 @@ export default function RAGChatPage() {
 
   return (
     <div
+      className="rag-page-frame"
       style={{
         height: '100dvh',
-        background: isDark ? '#09090b' : '#f8faff',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',

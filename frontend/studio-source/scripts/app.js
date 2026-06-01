@@ -95,6 +95,7 @@ const explicitAuthTab = authTabFromQuery === "register" || authTabFromQuery === 
 
 const USER_STORAGE_KEY = "cadarena_workspace_user_id";
 const THEME_STORAGE_KEY = "cadarena_theme";
+const ROOT_THEME_STORAGE_KEY = "cadarena-theme";
 const AUTH_VISITED_STORAGE_KEY = "cadarena_auth_visited";
 const AUTH_KNOWN_ACCOUNT_STORAGE_KEY = "cadarena_has_registered_account";
 const WORKSPACE_LAYOUT_STORAGE_KEY = "cadarena_workspace_layout_v1";
@@ -663,8 +664,20 @@ function initializeWorkspaceLayout() {
   applyWorkspaceLayout({ persist: false });
 }
 
+function normalizeTheme(value) {
+  return value === "dark" ? "dark" : "light";
+}
+
+function readStoredTheme() {
+  try {
+    return normalizeTheme(localStorage.getItem(ROOT_THEME_STORAGE_KEY) || localStorage.getItem(THEME_STORAGE_KEY));
+  } catch (_error) {
+    return "light";
+  }
+}
+
 function currentTheme() {
-  return "light";
+  return normalizeTheme(document.documentElement.getAttribute("data-theme") || readStoredTheme());
 }
 
 function updateThemeToggleButton() {
@@ -672,25 +685,33 @@ function updateThemeToggleButton() {
     return;
   }
   themeToggleButton.hidden = true;
-  const label = "Light mode";
+  const label = currentTheme() === "dark" ? "Dark mode" : "Light mode";
   themeToggleButton.setAttribute("aria-label", label);
   themeToggleButton.title = label;
 }
 
-function setTheme() {
-  const normalized = "light";
+function setTheme(theme = readStoredTheme()) {
+  const normalized = normalizeTheme(theme);
   document.documentElement.setAttribute("data-theme", normalized);
   try {
     localStorage.setItem(THEME_STORAGE_KEY, normalized);
+    localStorage.setItem(ROOT_THEME_STORAGE_KEY, normalized);
   } catch (_error) {
     // best effort persistence
+  }
+  if (state._cadViewer) {
+    state._cadViewer.setDarkMode(normalized === "dark");
+    const darkBtn = document.getElementById("cad-dark-toggle");
+    if (darkBtn) {
+      darkBtn.classList.toggle("active", state._cadViewer.dark);
+    }
   }
   updateThemeToggleButton();
   renderGoogleAuthButton();
 }
 
 function toggleTheme() {
-  setTheme();
+  setTheme(currentTheme() === "dark" ? "light" : "dark");
 }
 
 function setStatus(text, tone = "ready") {
@@ -1226,6 +1247,17 @@ function resetPreview() {
   if (previewSource) {
     previewSource.textContent = "-";
   }
+  // Clean up CAD viewer
+  if (state._cadViewer) {
+    state._cadViewer.destroy();
+    state._cadViewer = null;
+  }
+  const cadCanvas = document.getElementById("cad-viewer-canvas");
+  const cadLayerPanel = document.getElementById("cad-layer-panel");
+  const cadToolbar = document.getElementById("cad-viewer-toolbar");
+  if (cadCanvas) cadCanvas.style.display = "none";
+  if (cadLayerPanel) cadLayerPanel.style.display = "none";
+  if (cadToolbar) cadToolbar.style.display = "none";
   updatePreviewCanvasInteractionState();
   updateZoomLevelLabel();
 }
@@ -1398,6 +1430,105 @@ function updatePreview({ fileName, fileToken }) {
   previewImage.classList.remove("is-visible");
   previewCanvas.classList.add("loading");
 
+  // Try CAD canvas viewer first, fall back to PNG
+  const cadCanvas = document.getElementById("cad-viewer-canvas");
+  const cadLayerPanel = document.getElementById("cad-layer-panel");
+  const cadToolbar = document.getElementById("cad-viewer-toolbar");
+
+  if (cadCanvas && typeof window.CadViewer === "function") {
+    _loadCadViewer(fileToken, cadCanvas, cadLayerPanel, cadToolbar);
+  } else {
+    _loadPngPreview(fileToken);
+  }
+}
+
+function _loadCadViewer(fileToken, cadCanvas, cadLayerPanel, cadToolbar) {
+  const renderDataUrl = `/api/v1/dxf/render-data?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
+
+  fetch(renderDataUrl, { credentials: "include" })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      previewCanvas.classList.remove("loading");
+      previewEmpty.style.display = "none";
+      previewImage.style.display = "none";
+      cadCanvas.style.display = "block";
+      if (cadLayerPanel) cadLayerPanel.style.display = "block";
+      if (cadToolbar) cadToolbar.style.display = "flex";
+
+      if (state._cadViewer) {
+        state._cadViewer.destroy();
+      }
+
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      const zoomLabel = document.getElementById("cad-zoom-label");
+
+      state._cadViewer = new window.CadViewer(cadCanvas, {
+        dark: isDark,
+        showGrid: true,
+        crosshair: true,
+        onZoomChange: (pct) => {
+          if (zoomLabel) zoomLabel.textContent = `${pct}%`;
+        },
+      });
+
+      state._cadViewer.load(data);
+
+      if (cadLayerPanel) {
+        window.buildLayerPanel(cadLayerPanel, state._cadViewer);
+      }
+
+      // Wire toolbar buttons
+      const gridBtn = document.getElementById("cad-grid-toggle");
+      const crosshairBtn = document.getElementById("cad-crosshair-toggle");
+      const darkBtn = document.getElementById("cad-dark-toggle");
+      const fitBtn = document.getElementById("cad-fit-btn");
+
+      if (gridBtn) {
+        gridBtn.classList.add("active");
+        gridBtn.onclick = () => {
+          state._cadViewer.showGrid = !state._cadViewer.showGrid;
+          gridBtn.classList.toggle("active", state._cadViewer.showGrid);
+          state._cadViewer.render();
+        };
+      }
+      if (crosshairBtn) {
+        crosshairBtn.classList.add("active");
+        crosshairBtn.onclick = () => {
+          state._cadViewer.showCrosshair = !state._cadViewer.showCrosshair;
+          crosshairBtn.classList.toggle("active", state._cadViewer.showCrosshair);
+          state._cadViewer.render();
+        };
+      }
+      if (darkBtn) {
+        darkBtn.onclick = () => {
+          state._cadViewer.setDarkMode(!state._cadViewer.dark);
+          darkBtn.classList.toggle("active", state._cadViewer.dark);
+          if (cadLayerPanel) window.buildLayerPanel(cadLayerPanel, state._cadViewer);
+        };
+      }
+      if (fitBtn) {
+        fitBtn.onclick = () => state._cadViewer.zoomToFit();
+      }
+
+      if (zoomLabel) {
+        zoomLabel.textContent = `${state._cadViewer.getZoomPercent()}%`;
+      }
+
+      updatePreviewCanvasInteractionState();
+    })
+    .catch(() => {
+      // Fall back to PNG preview
+      cadCanvas.style.display = "none";
+      if (cadLayerPanel) cadLayerPanel.style.display = "none";
+      if (cadToolbar) cadToolbar.style.display = "none";
+      _loadPngPreview(fileToken);
+    });
+}
+
+function _loadPngPreview(fileToken) {
   const previewUrl = `/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
 
   previewImage.onload = () => {
@@ -3189,6 +3320,12 @@ if (themeToggleButton) {
   });
 }
 
+window.addEventListener("storage", (event) => {
+  if (event.key === THEME_STORAGE_KEY || event.key === ROOT_THEME_STORAGE_KEY) {
+    setTheme(readStoredTheme());
+  }
+});
+
 if (togglePreviewButton) {
   togglePreviewButton.addEventListener("click", () => {
     togglePreviewVisibility();
@@ -3375,14 +3512,17 @@ if (previewDownloadPdfButton) {
 }
 
 previewZoomInButton.addEventListener("click", () => {
+  if (state._cadViewer) { state._cadViewer.zoomIn(); return; }
   setPreviewScale(state.previewScale + 0.15);
 });
 
 previewZoomOutButton.addEventListener("click", () => {
+  if (state._cadViewer) { state._cadViewer.zoomOut(); return; }
   setPreviewScale(state.previewScale - 0.15);
 });
 
 previewZoomResetButton.addEventListener("click", () => {
+  if (state._cadViewer) { state._cadViewer.zoomToFit(); return; }
   setPreviewScale(1);
 });
 

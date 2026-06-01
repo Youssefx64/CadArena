@@ -20,8 +20,6 @@ const Footer = () => {
         { name: 'ArchChat (RAG)', href: '/rag-chat', internal: true },
         { name: 'Community', href: '/community', internal: true },
         { name: 'Generate', href: '/generate', internal: true },
-        { name: 'Models', href: '/models', internal: true },
-        { name: 'Metrics', href: '/metrics', internal: true },
       ],
     },
     {

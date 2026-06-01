@@ -6,6 +6,7 @@
   --gradient-primary: linear-gradient(var(--gradient-angle), var(--gradient-blue), var(--gradient-purple));
   --gradient-soft: linear-gradient(var(--gradient-angle), rgba(59, 130, 246, 0.08), rgba(124, 58, 237, 0.1));
   --surface-gradient: linear-gradient(var(--gradient-angle), rgba(255, 255, 255, 0.94), rgba(248, 250, 255, 0.9));
+  --platform-bg-image: url("../assets/bg-arena.jpg");
   --bg-main: #f7f9ff;
   --bg-accent-a: #eef4ff;
   --bg-accent-b: #f3f0ff;
@@ -68,11 +69,27 @@ body {
 body {
   font-family: "Inter", sans-serif;
   color: var(--text-main);
-  background: var(--bg-main);
+  background:
+    linear-gradient(180deg, rgba(248, 250, 255, 0.9) 0%, rgba(248, 250, 255, 0.84) 100%),
+    radial-gradient(circle at 14% 9%, rgba(59, 130, 246, 0.14) 0%, rgba(219, 234, 254, 0) 35%),
+    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.12) 0%, rgba(237, 233, 254, 0) 34%),
+    var(--platform-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 html[data-theme="dark"] body {
-  background: var(--bg-main);
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.9) 0%, rgba(2, 6, 23, 0.84) 100%),
+    radial-gradient(circle at 14% 9%, rgba(37, 99, 235, 0.22) 0%, rgba(37, 99, 235, 0) 38%),
+    radial-gradient(circle at 90% 92%, rgba(124, 58, 237, 0.2) 0%, rgba(124, 58, 237, 0) 36%),
+    var(--platform-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .profile-page-shell {

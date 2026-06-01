@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Menu, X, Home, Zap, BarChart3, Brain, Info, Users,
+  Menu, X, Home, Zap, Info, Users,
   MessageCircle, MessageSquare, LogIn, UserPlus, LogOut,
   User, Settings, ChevronDown, BookOpen, Sun, Moon,
 } from 'lucide-react';
@@ -15,8 +15,6 @@ const NAV_LINKS = [
   { name: 'ArchVision', href: '/generate',   icon: Zap,            protected: true },
   { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare,  protected: true, badge: 'RAG' },
   { name: 'Community',  href: '/community',  icon: MessageCircle,  protected: true },
-  { name: 'Models',     href: '/models',     icon: Brain,          protected: true },
-  { name: 'Metrics',    href: '/metrics',    icon: BarChart3,       protected: true },
   { name: 'About',      href: '/about',      icon: Info },
   { name: 'Developers', href: '/developers', icon: Users },
   { name: 'Docs',       href: '/docs',       icon: BookOpen },

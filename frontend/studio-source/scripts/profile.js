@@ -1,4 +1,5 @@
 const THEME_STORAGE_KEY = "cadarena_theme";
+const ROOT_THEME_STORAGE_KEY = "cadarena-theme";
 const DEFAULT_PROFILE_AVATAR = "/static/assets/cadarena-mark.svg";
 const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -29,8 +30,20 @@ const state = {
   profilePayload: null,
 };
 
+function normalizeTheme(value) {
+  return value === "dark" ? "dark" : "light";
+}
+
+function readStoredTheme() {
+  try {
+    return normalizeTheme(localStorage.getItem(ROOT_THEME_STORAGE_KEY) || localStorage.getItem(THEME_STORAGE_KEY));
+  } catch (_error) {
+    return "light";
+  }
+}
+
 function currentTheme() {
-  return "light";
+  return normalizeTheme(document.documentElement.getAttribute("data-theme") || readStoredTheme());
 }
 
 function updateThemeToggleButton() {
@@ -38,16 +51,17 @@ function updateThemeToggleButton() {
     return;
   }
   themeToggleButton.hidden = true;
-  const label = "Light mode";
+  const label = currentTheme() === "dark" ? "Dark mode" : "Light mode";
   themeToggleButton.setAttribute("aria-label", label);
   themeToggleButton.title = label;
 }
 
-function setTheme() {
-  const normalized = "light";
+function setTheme(theme = readStoredTheme()) {
+  const normalized = normalizeTheme(theme);
   document.documentElement.setAttribute("data-theme", normalized);
   try {
     localStorage.setItem(THEME_STORAGE_KEY, normalized);
+    localStorage.setItem(ROOT_THEME_STORAGE_KEY, normalized);
   } catch (_error) {
     // best effort
   }
@@ -55,7 +69,7 @@ function setTheme() {
 }
 
 function toggleTheme() {
-  setTheme();
+  setTheme(currentTheme() === "dark" ? "light" : "dark");
 }
 
 function setFeedback(message, tone = "info") {
@@ -469,6 +483,12 @@ if (themeToggleButton) {
     toggleTheme();
   });
 }
+
+window.addEventListener("storage", (event) => {
+  if (event.key === THEME_STORAGE_KEY || event.key === ROOT_THEME_STORAGE_KEY) {
+    setTheme(readStoredTheme());
+  }
+});
 
 if (openStudioButton) {
   openStudioButton.addEventListener("click", () => {
