@@ -217,3 +217,177 @@ def build_design_parser_prompt(user_prompt: str) -> str:
         f"User request: {user_prompt.strip()}\n"
         "JSON output:"
     )
+
+
+# Normalized Arabic letters mapping (Alef to bare Alef, Teh Marbutah to Ha, Alef Maksura to Yeh)
+_ARABIC_TO_ENGLISH_MAP = {
+    # Duals (with different spelling variations normalized to Teh Marbutah/Ha/Alef Maksura/Yeh)
+    "حمامين": "2 bathrooms",
+    "حمامان": "2 bathrooms",
+    "غرفتين": "2 bedrooms",
+    "غرفتان": "2 bedrooms",
+    "اوضتين": "2 bedrooms",
+    "اوضتان": "2 bedrooms",
+    "نومين": "2 bedrooms",
+    "مطبخين": "2 kitchens",
+    "مطبخان": "2 kitchens",
+    "ممرين": "2 corridors",
+    "ممران": "2 corridors",
+    "سلمين": "2 stairs",
+    "سلمان": "2 stairs",
+
+    # Plurals & Phrases
+    "غرف نوم": "bedrooms",
+    "غرفه نوم": "bedroom",
+    "اوضه نوم": "bedroom",
+    "اوض نوم": "bedrooms",
+    "غرف معيشه": "living rooms",
+    "غرفه معيشه": "living room",
+    "غرف جلوس": "living rooms",
+    "غرفه جلوس": "living room",
+    "دوره مياه": "bathroom",
+    "دورات مياه": "bathrooms",
+    
+    # Creation/Edit verbs
+    "اضافه": "add",
+    "اضف": "add",
+    "ضيف": "add",
+    "زود": "add",
+    "حط": "add",
+    "احذف": "remove",
+    "امسح": "remove",
+    "ازاله": "remove",
+    "ازيل": "remove",
+    "حذف": "remove",
+    "مسح": "remove",
+    "الغ": "remove",
+    "شيل": "remove",
+    "كبر": "make bigger",
+    "وسع": "make bigger",
+    "زياده": "make bigger",
+    "توسيع": "make bigger",
+    "صغر": "make smaller",
+    "قلل": "make smaller",
+    "تضييق": "make smaller",
+    "بدل": "swap",
+    "تبديل": "swap",
+    "غير": "swap",
+    "تغيير": "swap",
+
+    # Prepositions & Adjectives
+    "بجانب": "adjacent to",
+    "جنب": "adjacent to",
+    "بجوار": "adjacent to",
+    "بين": "between",
+
+    # Singular Rooms
+    "حمام": "bathroom",
+    "حمامات": "bathrooms",
+    "مطبخ": "kitchen",
+    "مطابخ": "kitchens",
+    "ريسبشن": "living room",
+    "صاله": "living room",
+    "صالون": "living room",
+    "سفره": "dining room",
+    "ممر": "corridor",
+    "طرقه": "corridor",
+    "سلم": "stairs",
+    "غرف": "bedrooms",
+    "غرفه": "bedroom",
+    "اوضه": "bedroom",
+    "اوض": "bedrooms",
+    
+    # Numbers
+    "واحد": "1",
+    "واحده": "1",
+    "اثنين": "2",
+    "اثنان": "2",
+    "اتنين": "2",
+    "ثلاثه": "3",
+    "ثلاث": "3",
+    "تلاته": "3",
+    "تلات": "3",
+    "اربعه": "4",
+    "اربع": "4",
+    "خمسه": "5",
+    "خمس": "5",
+    "سته": "6",
+    "ست": "6",
+    "سبعه": "7",
+    "سبع": "7",
+    "ثمانيه": "8",
+    "ثماني": "8",
+    "تمانيه": "8",
+    "تماني": "8",
+    "تسعه": "9",
+    "تسع": "9",
+    "عشره": "10",
+    "عشر": "10",
+    
+    # Dimensions & Units
+    "متر مربع": "sqm",
+    "متر مربعا": "sqm",
+    "م٢": "sqm",
+    "م2": "sqm",
+    "متر": "meters",
+    "امتار": "meters",
+    "م": "meters",
+    "في": " x ",
+    "بـ": " x ",
+    "ضرب": " x ",
+    "عرض": "width",
+    "عرضه": "width",
+    "طول": "height",
+    "طوله": "height",
+    "ارتفاع": "height",
+    "مساحه": "area",
+    "بمساحه": "area",
+    
+    # Building types
+    "شقه": "apartment",
+    "بيت": "house",
+    "فيلا": "villa",
+}
+
+
+def normalize_arabic_text(text: str) -> str:
+    """Normalize Arabic orthographic variations for robust key mapping."""
+    # Normalize Alef variations
+    text = re.sub(r"[إأآ]", "ا", text)
+    # Normalize Teh Marbutah to Ha
+    text = re.sub(r"ة", "ه", text)
+    # Normalize Alef Maksura to Yeh
+    text = re.sub(r"ى", "ي", text)
+    return text
+
+
+def translate_arabic_to_english(prompt: str) -> str:
+    """
+    Robustly translate Arabic architectural/design keywords to English
+    without stripping unmatched text.
+    """
+    import unicodedata
+    normalized_prompt = unicodedata.normalize("NFKC", str(prompt or "")).strip()
+    
+    # Normalize Arabic digits first
+    translated = normalized_prompt
+    for arabic_digit, ascii_digit in [
+        ("٠", "0"), ("١", "1"), ("٢", "2"), ("٣", "3"), ("٤", "4"),
+        ("٥", "5"), ("٦", "6"), ("٧", "7"), ("٨", "8"), ("٩", "9")
+    ]:
+        translated = translated.replace(arabic_digit, ascii_digit)
+        
+    translated = normalize_arabic_text(translated)
+    
+    # Sort keywords by length descending
+    sorted_keywords = sorted(
+        _ARABIC_TO_ENGLISH_MAP.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    )
+    
+    for arabic, english in sorted_keywords:
+        translated = translated.replace(arabic, f" {english} ")
+        
+    return re.sub(r"\s+", " ", translated).strip()
+

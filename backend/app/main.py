@@ -5,17 +5,20 @@ This module initializes the FastAPI application and registers API routes.
 """
 
 import asyncio
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
+import psutil
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.core.env_loader import load_backend_env
-from app.core.logging import get_logger
+from app.core.logging import get_logger, request_id_ctx
 
 load_backend_env()
 
@@ -131,69 +134,71 @@ app.include_router(archchat_router, prefix="/api/v1")
 
 # --- Enterprise Observability ---
 
-from app.core.logging import get_logger, request_id_ctx
-from uuid import uuid4
-import time
-
-logger = get_logger(__name__)
-
-@app.middleware("http")
-async def tracing_middleware(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", uuid4().hex)
-    token = request_id_ctx.set(request_id)
-    start_time = time.perf_counter()
-    
-    try:
-        response = await call_next(request)
-        process_time = (time.perf_counter() - start_time) * 1000
-        response.headers["X-Request-ID"] = request_id
-        response.headers["X-Process-Time"] = str(process_time)
-        
-        logger.info(
-            f"request_id={request_id} method={request.method} path={request.url.path} "
-            f"status={response.status_code} latency={process_time:.2f}ms"
-        )
-        return response
-    finally:
-        request_id_ctx.reset(token)
-
-@app.middleware("http")
-async def profiling_middleware(request: Request, call_next):
-    # Enable profiling via header for authorized users/debug mode
-    if request.headers.get("X-Profile") == "true":
-        import cProfile
-        import pstats
-        import io
-        
-        pr = cProfile.Profile()
-        pr.enable()
-        response = await call_next(request)
-        pr.disable()
-        
-        s = io.StringIO()
-        ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
-        ps.print_stats(20) # Top 20 functions
-        
-        logger.info(f"Performance Profile for {request.url.path}:\n{s.getvalue()}")
-        return response
-    
-    return await call_next(request)
-
-import psutil
-import os
-
 # Metrics storage
 _active_requests = 0
 
-@app.middleware("http")
-async def metrics_middleware(request: Request, call_next):
-    global _active_requests
-    _active_requests += 1
-    try:
-        response = await call_next(request)
-        return response
-    finally:
-        _active_requests -= 1
+class ObservabilityASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        global _active_requests
+        _active_requests += 1
+
+        headers = dict(scope.get("headers", []))
+        x_request_id = headers.get(b"x-request-id", b"").decode("latin-1").strip()
+        request_id = x_request_id if x_request_id else uuid4().hex
+        token = request_id_ctx.set(request_id)
+        
+        start_time = time.perf_counter()
+        
+        # Check profiling header
+        x_profile = headers.get(b"x-profile", b"").decode("latin-1").strip()
+        should_profile = x_profile == "true"
+
+        status_code_box = [200]
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code_box[0] = message.get("status", 200)
+                headers_list = list(message.get("headers", []))
+                latency = (time.perf_counter() - start_time) * 1000
+                headers_list.append((b"x-request-id", request_id.encode("latin-1")))
+                headers_list.append((b"x-process-time", f"{latency:.2f}".encode("latin-1")))
+                message["headers"] = headers_list
+            await send(message)
+
+        try:
+            if should_profile:
+                import cProfile
+                import pstats
+                import io
+                pr = cProfile.Profile()
+                pr.enable()
+                try:
+                    await self.app(scope, receive, send_wrapper)
+                finally:
+                    pr.disable()
+                    s = io.StringIO()
+                    ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+                    ps.print_stats(20)
+                    logger.info(f"Performance Profile for {scope['path']}:\n{s.getvalue()}")
+            else:
+                await self.app(scope, receive, send_wrapper)
+        finally:
+            _active_requests -= 1
+            request_id_ctx.reset(token)
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.info(
+                f"request_id={request_id} method={scope['method']} path={scope['path']} "
+                f"status={status_code_box[0]} latency={latency_ms:.2f}ms"
+            )
+
+app.add_middleware(ObservabilityASGIMiddleware)
 
 @app.get("/metrics", tags=["Enterprise"])
 async def get_metrics():
@@ -215,9 +220,8 @@ async def get_metrics():
 @app.get("/health", tags=["Enterprise"])
 async def health_check():
     """Enterprise health diagnostics."""
-    import os
     import httpx
-    
+
     health = {
         "status": "healthy",
         "timestamp": time.time(),
@@ -239,7 +243,7 @@ async def health_check():
         health["status"] = "degraded"
 
     # 2. Check RAG Service
-    rag_url = (os.getenv("CADARENA_RAG_API_URL", "") or "http://localhost:8001").rstrip("/")
+    rag_url = (os.getenv("CADARENA_RAG_API_URL", "") or "http://127.0.0.1:8001").rstrip("/")
     try:
         async with httpx.AsyncClient(timeout=1.0) as client:
             resp = await client.get(f"{rag_url}/rag/ping")
@@ -305,7 +309,6 @@ def root():
 @app.get("/generate", include_in_schema=False)
 @app.get("/rag-chat", include_in_schema=False)
 @app.get("/models", include_in_schema=False)
-@app.get("/metrics", include_in_schema=False)
 @app.get("/about", include_in_schema=False)
 @app.get("/developers", include_in_schema=False)
 def react_app_route():
