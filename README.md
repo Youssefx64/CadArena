@@ -6,6 +6,7 @@
 
 **AI-Assisted Platform for Civil and Architectural Workflows**
 
+[![Release: v2.0.0](https://img.shields.io/badge/Release-v2.0.0-success)](https://github.com/Youssefx64/CadArena/releases/tag/v2.0.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/)
 [![React 18+](https://img.shields.io/badge/React-18%2B-61dafb)](https://react.dev/)
@@ -63,6 +64,17 @@ graph LR
 | **Responsive Design** | Works on desktop, tablet, and mobile |
 | **WCAG 2.1 AA** | Fully accessible to all users |
 
+### 🆕 v2.0.0 Features
+
+| Feature | Description |
+| --- | --- |
+| **RAG System** | Multi-format document parsers (PDF, DXF, IFC, CSV, XLSX) with knowledge graphs |
+| **Quality Gates** | Architectural quality validation ensuring production-ready designs |
+| **Studio-Next UI** | Modern component framework with 7 new components (ActivityFeed, Viewport, Inspector, etc.) |
+| **Furniture Rendering** | Enhanced DXF with realistic furniture placement |
+| **Advanced Agents** | Intelligent orchestration, validation, and extraction agents |
+| **Comprehensive Tests** | 100+ tests covering quality gates, parsers, and API endpoints |
+
 ---
 
 ## 🏛️ Architecture Overview
@@ -71,18 +83,25 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph Frontend["🎨 Frontend (React)"]
+    subgraph Frontend["🎨 Frontend (React v2.0)"]
         UI["React UI<br/>Components"]
         Chat["Chat Interface"]
         Preview["DXF Preview"]
         Community["Community Hub"]
+        Studio["Studio-Next<br/>Framework"]
     end
     
     subgraph Backend["⚙️ Backend (FastAPI)"]
         Router["Intent Router"]
         Parser["Design Parser"]
-        Validator["Layout Validator"]
-        Renderer["DXF Renderer"]
+        Validator["Quality Gate<br/>Validator"]
+        Renderer["DXF Renderer<br/>+ Furniture"]
+    end
+    
+    subgraph RAG["🤖 RAG System (v2.0)"]
+        Parsers["Multi-Format<br/>Parsers"]
+        KG["Knowledge<br/>Graph"]
+        Agents["Intelligence<br/>Agents"]
     end
     
     subgraph Storage["💾 Storage"]
@@ -92,16 +111,19 @@ graph TB
     
     UI -->|HTTP/WebSocket| Router
     Chat -->|Prompts| Router
+    Studio -->|Commands| Router
     Router -->|Classify Intent| Parser
     Parser -->|Generate Layout| Validator
-    Validator -->|Validate EBC| Renderer
+    Validator -->|Quality Check| Renderer
     Renderer -->|Output| Preview
     Renderer -->|Save| Files
+    RAG -->|Context| Parser
     Router -->|User Data| DB
     Community -->|Q&A| DB
     
     style Frontend fill:#61dafb,stroke:#0891b2,color:#000
     style Backend fill:#009688,stroke:#00695c,color:#fff
+    style RAG fill:#9c27b0,stroke:#6a1b9a,color:#fff
     style Storage fill:#ff9800,stroke:#e65100,color:#fff
 ```
 
@@ -112,24 +134,26 @@ sequenceDiagram
     participant User
     participant Frontend
     participant Backend
+    participant RAG
     participant Parser
-    participant Validator
+    participant QualityGate
     participant Renderer
     
     User->>Frontend: "3 bedroom apartment 100 sqm"
     Frontend->>Backend: POST /design/generate
+    Backend->>RAG: Retrieve context from documents
     Backend->>Parser: Parse intent & extract specs
     Parser->>Parser: Generate layout
-    Parser->>Validator: Validate against EBC 2023
+    Parser->>QualityGate: Validate against EBC & Architecture
     
-    alt Compliant
-        Validator->>Renderer: Render to DXF
+    alt All Checks Pass
+        QualityGate->>Renderer: Render to DXF with furniture
         Renderer->>Frontend: Return preview + file
-        Frontend->>User: Display floor plan
-    else Non-compliant
-        Validator->>Backend: Return violations
+        Frontend->>User: Display professional floor plan
+    else Quality Issues Detected
+        QualityGate->>Backend: Return quality violations
         Backend->>Frontend: Suggest modifications
-        Frontend->>User: "Adjust room sizes..."
+        Frontend->>User: "Improve room sizes..."
     end
 ```
 
@@ -233,46 +257,75 @@ CadArena/
 │   │   ├── schemas/                     # Pydantic schemas
 │   │   ├── services/
 │   │   │   ├── design_parser/           # Layout generation engine
+│   │   │   │   ├── quality_gate.py      # ✨ NEW: Architectural quality validation
 │   │   │   │   ├── layout_planner.py    # Spatial planning
 │   │   │   │   ├── layout_validator.py  # EBC compliance
 │   │   │   │   ├── opening_planner.py   # Door/window placement
-│   │   │   │   └── egyptian_building_code.py  # EBC constants
+│   │   │   │   └── orchestrator.py      # Service orchestration
+│   │   │   ├── dxf_render_data.py       # ✨ NEW: Render configuration
 │   │   │   ├── intent_router.py         # Intent classification
-│   │   │   └── dxf_room_renderer.py     # DXF generation
+│   │   │   └── dxf_room_renderer.py     # DXF generation with furniture
 │   │   ├── utils/
 │   │   │   └── design_prompt.py         # System prompts
-│   │   └── tests/                       # Test suite
+│   │   └── tests/                       # Comprehensive test suite
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── README.md
 │
+├── 📂 RAG/                              # ✨ NEW: RAG System (v2.0)
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── parsers/                     # Multi-format document parsers
+│   │   │   ├── pdf.py
+│   │   │   ├── dxf.py
+│   │   │   ├── ifc.py
+│   │   │   ├── csv.py
+│   │   │   └── xlsx.py
+│   │   ├── agents/                      # Intelligence agents
+│   │   │   ├── orchestrator.py
+│   │   │   ├── validation.py
+│   │   │   └── extraction.py
+│   │   ├── knowledge_graph.py           # Semantic knowledge mapping
+│   │   ├── vector_store.py              # Vector embeddings
+│   │   └── router.py                    # RAG API endpoints
+│   ├── tests/                           # RAG system tests
+│   ├── requirements.txt
+│   └── README.md
+│
 ├── 📂 frontend/                         # React application
 │   ├── src/
-│   │   ├── components/                  # Reusable components
-│   │   ├── pages/                       # Page components
-│   │   ├── hooks/                       # Custom hooks
-│   │   ├── utils/                       # Utilities
-│   │   ├── styles/                      # Global styles
-│   │   ├── App.js
-│   │   └── index.js
+│   │   ├── components/
+│   │   │   ├── studio-next/             # ✨ NEW: Modern UI Framework
+│   │   │   │   ├── ActivityFeedNext.js  # Activity tracking
+│   │   │   │   ├── EngineeringViewportNext.js  # CAD viewport
+│   │   │   │   ├── InspectorTabsNext.js # Property inspector
+│   │   │   │   ├── ProjectExplorerNext.js # Project browser
+│   │   │   │   └── WorkspaceShellNext.js # Layout framework
+│   │   │   ├── illustrations/           # ✨ NEW: Visual assets
+│   │   │   ├── IconRegistry.js          # ✨ NEW: Icon management
+│   │   │   └── ...
+│   │   ├── pages/
+│   │   │   ├── FeaturesPage.js          # ✨ NEW: Features showcase
+│   │   │   ├── StudioNextPage.js        # ✨ NEW: New interface
+│   │   │   ├── NotFoundPage.js          # ✨ NEW: 404 handling
+│   │   │   └── ...
+│   │   ├── services/api.js              # Enhanced API client
+│   │   └── ...
 │   ├── public/
-│   │   ├── assets/                      # Logo & images
-│   │   └── studio-app/                  # Legacy studio
+│   │   ├── assets/
+│   │   │   └── cadarena-social-card.png # ✨ NEW: Brand asset
+│   │   └── ...
 │   ├── package.json
 │   ├── tailwind.config.js
 │   ├── jest.config.js
 │   └── README.md
 │
 ├── 📂 docker/                           # Container setup
-│   ├── Dockerfile                       # Multi-stage build
-│   ├── docker-compose.yml               # Compose config
+│   ├── Dockerfile
+│   ├── docker-compose.yml
 │   └── README.md
 │
 ├── 📂 docs/                             # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── API.md
-│   └── DESIGN.md
-│
 ├── .dockerignore
 ├── .gitignore
 ├── LICENSE
@@ -293,6 +346,17 @@ CadArena/
 | **Pydantic** | 2.0+ | Data validation |
 | **Uvicorn** | 0.23+ | ASGI server |
 | **pytest** | 7.0+ | Testing |
+| **ezdxf** | 1.0+ | DXF generation |
+
+### RAG System (v2.0)
+
+| Technology | Purpose |
+| --- | --- |
+| **LangChain** | LLM orchestration |
+| **FAISS / Qdrant** | Vector embeddings & search |
+| **PyPDF2 / pptx** | Document parsing |
+| **Ollama** | Local LLM inference |
+| **NetworkX** | Knowledge graph construction |
 
 ### Frontend
 
@@ -493,18 +557,79 @@ Built with ❤️ using:
 
 ## 📊 Project Statistics
 
+- **Latest Release**: v2.0.0 (June 30, 2026)
 - **Backend**: Python + FastAPI
 - **Frontend**: React + Tailwind CSS
-- **Tests**: 100+ test cases
-- **Components**: 20+ reusable components
-- **API Endpoints**: 30+ endpoints
+- **RAG System**: Multi-format parsers + Knowledge graphs
+- **Tests**: 120+ test cases
+- **Components**: 30+ reusable components (including 7 new Studio-Next components)
+- **API Endpoints**: 40+ endpoints
+- **New Files (v2.0.0)**: 78 new files
+- **Total Commits (v2.0.0)**: 20 well-organized commits
 - **Documentation**: Comprehensive
 - **Accessibility**: WCAG 2.1 AA compliant
 - **Building Code**: EBC 2023 compliant
 
+### v2.0.0 Release Highlights
+
+```
+✨ Complete RAG System with Multi-Format Parsers
+   - PDF, DXF, IFC, CSV, XLSX document ingestion
+   - Knowledge graph for semantic relationships
+   - Intelligent agent framework
+
+🏛️ Architectural Quality Gates
+   - Production-ready design validation
+   - Comprehensive violation reporting
+   - Tolerance modes for iterative design
+
+🎨 Modern Studio-Next UI Framework
+   - 7 new professional components
+   - Enhanced viewport and inspector
+   - Activity feed and timeline
+
+📊 Enhanced DXF Rendering
+   - Realistic furniture placement
+   - Multi-floor support
+   - Improved layer organization
+
+✅ Comprehensive Testing
+   - 120+ test cases
+   - Quality gate validation tests
+   - Multi-format parser tests
+   - API integration tests
+```
+
 ---
 
-<div align="center">
+## 📝 Release Notes
+
+### v2.0.0 - Major Release (June 30, 2026)
+
+**New Features:**
+- 🤖 Complete RAG system with multi-format document parsers and knowledge graphs
+- 🏛️ Architectural quality gate validation for production-ready designs
+- 🎨 Modern studio-next UI framework with 7 new professional components
+- 📊 Enhanced DXF rendering with realistic furniture and multi-floor support
+- 🧠 Intelligent agent framework for document extraction and validation
+- 📚 Multi-format document support (PDF, DXF, IFC, CSV, XLSX, TXT, images)
+
+**Improvements:**
+- ✨ Better validation thresholds for layout quality
+- 🔧 Enhanced design parser orchestration
+- 📈 Improved error handling and diagnostics
+- 🎯 Better user experience with new UI components
+- 🧪 Comprehensive test suite (120+ tests)
+
+**Breaking Changes:**
+- ❌ Removed outdated ArchVisionPage component
+- 📊 Updated validation thresholds for better quality (window ratio 0.05→0.10)
+
+**Commits:** 20 well-organized commits covering RAG, Quality Gates, DXF rendering, and UI enhancements
+
+[View Full Changelog](https://github.com/Youssefx64/CadArena/releases/tag/v2.0.0)
+
+---
 
 **Made with ❤️ by the CadArena Team**
 
