@@ -463,7 +463,7 @@ class DeterministicLayoutPlanner:
                 raise LayoutPlanningError(
                     f"Room '{name}' exceeds {int(_MAX_ROOM_AREA_RATIO * 100)}% of boundary area"
                 )
-            if room_type == "living" and "living" in name.lower():
+            if room_type == "living" and any(k in name.lower() for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 if area - (boundary_area * _MAX_LIVING_AREA_RATIO) > _EPSILON:
                     raise LayoutPlanningError(
                         f"Living room exceeds {int(_MAX_LIVING_AREA_RATIO * 100)}% of boundary area"
@@ -703,7 +703,7 @@ class DeterministicLayoutPlanner:
             needs_window = (
                 room_type == "bedroom"
                 or room_type == "kitchen"
-                or (room_type == "living" and "living" in name)
+                or (room_type == "living" and any(k in name for k in ("living", "salon", "reception", "lounge", "sitting", "family")))
                 or (room_type == "bathroom" and "laundry" not in name)
             )
             if not needs_window:
@@ -761,7 +761,7 @@ class DeterministicLayoutPlanner:
                 if width >= 2.4 - _EPSILON and length >= 2.6 - _EPSILON:
                     passed += 1
 
-            if room_type == "living" and "living" in name:
+            if room_type == "living" and any(k in name for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 checks += 1
                 if width >= 3.5 - _EPSILON:
                     passed += 1
@@ -903,10 +903,19 @@ class DeterministicLayoutPlanner:
         output = dict(assignments)
         by_index = {item.index: item for item in rooms}
         required = [item for item in rooms if self._requires_exterior_opening(item)]
+        
+        def donor_priority(item: _RoomPlanItem) -> int:
+            lowered = item.name.lower()
+            if item.room_type in ("corridor", "laundry") or "laundry" in lowered or "storage" in lowered:
+                return 0
+            if item.room_type == "bathroom":
+                return 1
+            return 2
+
         donor_order = sorted(
             rooms,
             key=lambda item: (
-                int(self._requires_exterior_opening(item)),
+                donor_priority(item),
                 item.index,
                 item.name,
             ),
@@ -944,6 +953,11 @@ class DeterministicLayoutPlanner:
                 for donor in donor_order:
                     if donor.index == item.index:
                         continue
+                    if item.zone != donor.zone:
+                        continue
+                    if donor_priority(donor) >= donor_priority(item):
+                        continue
+
                     donor_rect = output[donor.index]
                     if not self._rect_has_exterior(
                         rect=donor_rect,
@@ -1222,7 +1236,7 @@ class DeterministicLayoutPlanner:
             for low_area in low_area_candidates:
                 low_height = low_area / boundary_width
                 high_height = usable_height - low_height
-                if low_height <= 1.5 or high_height <= 1.5:
+                if (low_rooms and low_height <= 1.5) or (high_rooms and high_height <= 1.5):
                     last_error = "Unable to split zones around corridor with usable heights"
                     continue
 
@@ -1342,7 +1356,7 @@ class DeterministicLayoutPlanner:
             for low_area in low_area_candidates:
                 low_width = low_area / boundary_height
                 high_width = usable_width - low_width
-                if low_width <= 1.5 or high_width <= 1.5:
+                if (low_rooms and low_width <= 1.5) or (high_rooms and high_width <= 1.5):
                     last_error = "Unable to split vertical zones with usable widths"
                     continue
 
@@ -1450,6 +1464,7 @@ class DeterministicLayoutPlanner:
                 rect=private_rect,
                 rooms=private_rooms,
                 preferred_axis=private_preferred_axis,
+                force_preferred_axis=True,
             )
         )
         return output
@@ -1520,6 +1535,7 @@ class DeterministicLayoutPlanner:
         rect: _Rect,
         rooms: list[_RoomPlanItem],
         preferred_axis: Literal["vertical", "horizontal"],
+        force_preferred_axis: bool = False,
     ) -> dict[int, _Rect]:
         if not rooms:
             return {}
@@ -1547,7 +1563,11 @@ class DeterministicLayoutPlanner:
         area_a_bounds = self._group_area_bounds(group_a)
         area_b_bounds = self._group_area_bounds(group_b)
 
-        axes = [preferred_axis, "horizontal" if preferred_axis == "vertical" else "vertical"]
+        if force_preferred_axis:
+            axes = [preferred_axis]
+        else:
+            axes = [preferred_axis, "horizontal" if preferred_axis == "vertical" else "vertical"]
+
         for axis in axes:
             for trial_ratio in self._ratio_candidates(ratio):
                 try:
@@ -1568,10 +1588,22 @@ class DeterministicLayoutPlanner:
                 if rect_b.area + _EPSILON < sum(item.min_area for item in group_b):
                     continue
 
-                child_preferred = "vertical" if axis == "horizontal" else "horizontal"
+                child_preferred = preferred_axis if force_preferred_axis else ("vertical" if axis == "horizontal" else "horizontal")
                 try:
-                    output = self._pack_zone_recursive(rect=rect_a, rooms=group_a, preferred_axis=child_preferred)
-                    output.update(self._pack_zone_recursive(rect=rect_b, rooms=group_b, preferred_axis=child_preferred))
+                    output = self._pack_zone_recursive(
+                        rect=rect_a,
+                        rooms=group_a,
+                        preferred_axis=child_preferred,
+                        force_preferred_axis=force_preferred_axis,
+                    )
+                    output.update(
+                        self._pack_zone_recursive(
+                            rect=rect_b,
+                            rooms=group_b,
+                            preferred_axis=child_preferred,
+                            force_preferred_axis=force_preferred_axis,
+                        )
+                    )
                     return output
                 except LayoutPlanningError:
                     continue
@@ -1584,14 +1616,32 @@ class DeterministicLayoutPlanner:
         # Keep very small wet/service spaces separate from bedroom clusters to
         # avoid infeasible mixed-group splits in narrow private bands.
         if len(ordered) >= 3:
-            bathrooms = [item for item in ordered if item.room_type == "bathroom"]
-            bedrooms = [item for item in ordered if item.room_type == "bedroom"]
-            others = [item for item in ordered if item.room_type not in {"bedroom", "bathroom"}]
-            if bathrooms and bedrooms and len(bedrooms) >= 2:
-                group_a = bedrooms + others
-                group_b = bathrooms
-                if group_a and group_b:
-                    return group_a, group_b
+            is_private = all(item.zone == "private" for item in ordered)
+            if is_private:
+                master_beds = [item for item in ordered if item.room_type == "bedroom" and "master" in item.name.lower()]
+                private_baths = [item for item in ordered if item.room_type == "bathroom" and any(k in item.name.lower() for k in ("private", "master"))]
+                child_beds = [item for item in ordered if item.room_type == "bedroom" and "master" not in item.name.lower()]
+                shared_baths = [item for item in ordered if item.room_type == "bathroom" and not any(k in item.name.lower() for k in ("private", "master"))]
+                others = [item for item in ordered if item.room_type not in {"bedroom", "bathroom"}]
+
+                master_unit = master_beds + private_baths
+                kids_unit = child_beds + shared_baths + others
+                if master_unit and kids_unit:
+                    return master_unit, kids_unit
+
+                bedrooms = master_beds + child_beds
+                bathrooms = private_baths + shared_baths
+                if bedrooms and bathrooms:
+                    return bedrooms + others, bathrooms
+            else:
+                bathrooms = [item for item in ordered if item.room_type == "bathroom"]
+                bedrooms = [item for item in ordered if item.room_type == "bedroom"]
+                others = [item for item in ordered if item.room_type not in {"bedroom", "bathroom"}]
+                if bathrooms and bedrooms and len(bedrooms) >= 2:
+                    group_a = bedrooms + others
+                    group_b = bathrooms
+                    if group_a and group_b:
+                        return group_a, group_b
 
         group_a: list[_RoomPlanItem] = []
         group_b: list[_RoomPlanItem] = []
@@ -2031,7 +2081,7 @@ class DeterministicLayoutPlanner:
         lowered = item.name.lower()
         if item.room_type == "bedroom":
             return True
-        if item.room_type == "living" and "living" in lowered:
+        if item.room_type == "living" and any(k in lowered for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
             return True
         if item.room_type == "kitchen":
             return True
@@ -2709,7 +2759,7 @@ def _collapse_internal_gaps(
 def _room_gap_absorption_priority(room: dict[str, Any]) -> int:
     room_type = str(room.get("room_type", "")).strip().lower()
     room_name = str(room.get("name", "")).lower()
-    if room_type == "living" and "living" in room_name:
+    if room_type == "living" and any(k in room_name for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
         return 3
     if room_type == "living":
         return 2
@@ -2773,7 +2823,7 @@ def _finalize_normalized_rooms(
             y0 = 0.0
             height = boundary_h
 
-        if room_type == "living" and "living" in room_name:
+        if room_type == "living" and any(k in room_name for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
             max_living_area = (boundary_w * boundary_h * _MAX_LIVING_PREFERRED_RATIO) - 1e-4
             current_area = width * height
             if current_area > max_living_area + _EPSILON:
@@ -2786,10 +2836,10 @@ def _finalize_normalized_rooms(
                 else:
                     height = max(0.01, max_living_area / max(width, _EPSILON))
 
-        room_origin["x"] = round(x0, 4)
-        room_origin["y"] = round(y0, 4)
-        room["width"] = round(min(width, max(0.01, boundary_w - x0)), 4)
-        room["height"] = round(min(height, max(0.01, boundary_h - y0)), 4)
+        room_origin["x"] = round(x0, 2)
+        room_origin["y"] = round(y0, 2)
+        room["width"] = round(min(width, max(0.01, boundary_w - x0)), 2)
+        room["height"] = round(min(height, max(0.01, boundary_h - y0)), 2)
 
     return rooms
 

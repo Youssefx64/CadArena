@@ -21,7 +21,7 @@ _MIN_DOOR_END_CLEARANCE = 0.10
 _OPENING_CLEARANCE = 0.20
 _COLUMN_CLEARANCE = 0.22
 _DEFAULT_WINDOW_HEIGHT = 1.2
-_LIVING_WINDOW_RATIO_MIN = 0.05
+_LIVING_WINDOW_RATIO_MIN = 0.10
 _MIN_STANDARD_DOOR_WIDTH = 0.75
 _MIN_BATHROOM_DOOR_WIDTH = 0.65
 MIN_DOOR_CORNER_CLEARANCE = 0.4
@@ -118,13 +118,13 @@ class DeterministicOpeningPlanner:
                 if target is None:
                     target = self._pick_adjacent_target(
                         source=room.name,
-                        candidates=self._sorted_room_names(rooms, predicate=self._is_bathroom),
+                        candidates=self._sorted_room_names(rooms, predicate=self._is_living_space),
                         neighbors=neighbors,
                     )
                 if target is None:
                     raise RuleViolationError(
                         code="DOOR_CONNECTIVITY_FAILED",
-                        reason="bedroom must connect to corridor spine or bathroom",
+                        reason="bedroom must connect directly to corridor or living circulation",
                         violated_rule="bedroom-door-policy",
                         room=room.name,
                     )
@@ -148,9 +148,18 @@ class DeterministicOpeningPlanner:
                     neighbors=neighbors,
                 )
                 if target is None:
+                    target = self._pick_adjacent_target(
+                        source=room.name,
+                        candidates=self._sorted_room_names(
+                            rooms,
+                            predicate=lambda current: self._is_dining(current) or self._is_kitchen(current),
+                        ),
+                        neighbors=neighbors,
+                    )
+                if target is None:
                     raise RuleViolationError(
                         code="DOOR_CONNECTIVITY_FAILED",
-                        reason="living room must connect to circulation spine",
+                        reason="living room must connect to circulation spine or public/service room",
                         violated_rule="living-door-to-corridor",
                         room=room.name,
                     )
@@ -303,12 +312,7 @@ class DeterministicOpeningPlanner:
             bathroom_targets = list(corridor_targets)
             if use_master and master_name is not None:
                 bathroom_targets = [master_name] + bathroom_targets
-            bathroom_targets.extend(
-                self._sorted_room_names(
-                    rooms,
-                    predicate=lambda current: self._is_living_space(current) or self._is_bedroom(current),
-                )
-            )
+            bathroom_targets.extend(self._sorted_room_names(rooms, predicate=self._is_living_space))
             bathroom_targets = list(dict.fromkeys(bathroom_targets))
             bathroom_door_error: RuleViolationError | None = None
             added_bathroom_door = False
@@ -409,6 +413,14 @@ class DeterministicOpeningPlanner:
             boundary_height=boundary_height,
         )
         occupied = self._occupied_from_openings(openings)
+        self._ensure_main_entry_door(
+            rooms=rooms,
+            openings=openings,
+            boundary_width=boundary_width,
+            boundary_height=boundary_height,
+            columns=columns,
+            occupied=occupied,
+        )
 
         orientation_map = self._resolve_orientation_map(extracted_payload)
         mechanical_allowed = self._mechanical_ventilation_allowed(extracted_payload)
@@ -629,6 +641,7 @@ class DeterministicOpeningPlanner:
                     by_name=by_name,
                     shared_boundaries=shared_boundaries,
                     neighbor_graph=neighbor_graph,
+                    door_graph=door_graph,
                     occupied=occupied,
                     columns=columns,
                 )
@@ -685,6 +698,141 @@ class DeterministicOpeningPlanner:
 
         return augmented_openings
 
+    def _ensure_main_entry_door(
+        self,
+        *,
+        rooms: list[_RoomBox],
+        openings: list[dict[str, Any]],
+        boundary_width: float,
+        boundary_height: float,
+        columns: list[tuple[float, float]],
+        occupied: dict[tuple[str, str], list[_PlacedCut]],
+    ) -> None:
+        if self._has_exterior_door(
+            rooms=rooms,
+            openings=openings,
+            boundary_width=boundary_width,
+            boundary_height=boundary_height,
+        ):
+            return
+
+        target_rooms = self._main_entry_target_rooms(
+            rooms=rooms,
+            boundary_width=boundary_width,
+            boundary_height=boundary_height,
+        )
+        if not target_rooms:
+            raise RuleViolationError(
+                code="MAIN_ENTRY_FAILED",
+                reason="no exterior room wall is available for a main entry door",
+                violated_rule="main-entry-exterior-wall",
+            )
+
+        entry_width = get_door_width("main_entry")
+        failure: RuleViolationError | None = None
+        for room in target_rooms:
+            exterior_sides = self._exterior_sides(
+                room,
+                boundary_width=boundary_width,
+                boundary_height=boundary_height,
+            )
+            ordered_sides = [side for side in ("bottom", "left", "right", "top") if side in exterior_sides]
+            for side in ordered_sides:
+                boundary = self._boundary_for_room_side(room=room, side=side)
+                try:
+                    cut = self._allocate_cut(
+                        boundary=boundary,
+                        requested_width=entry_width,
+                        blocked=self._collect_blocked_intervals(
+                            room_name=room.name,
+                            wall=side,
+                            boundary=boundary,
+                            occupied=occupied,
+                            columns=columns,
+                        ),
+                        end_clearance=_DOOR_END_CLEARANCE,
+                        corner_clearance=MIN_DOOR_CORNER_CLEARANCE,
+                    )
+                except RuleViolationError as exc:
+                    failure = exc
+                    continue
+
+                opening = self._build_opening_payload(
+                    room=room,
+                    wall=side,
+                    boundary=boundary,
+                    cut=cut,
+                    opening_type="door",
+                    is_exterior_wall=True,
+                    connected_room_type=None,
+                )
+                openings.append(opening)
+                occupied.setdefault((room.name, side), []).append(cut)
+                return
+
+        if failure is not None:
+            raise failure
+        raise RuleViolationError(
+            code="MAIN_ENTRY_FAILED",
+            reason="unable to place main entry door",
+            violated_rule="main-entry-door-placement",
+        )
+
+    def _main_entry_target_rooms(
+        self,
+        *,
+        rooms: list[_RoomBox],
+        boundary_width: float,
+        boundary_height: float,
+    ) -> list[_RoomBox]:
+        exterior_rooms = [
+            room
+            for room in rooms
+            if self._exterior_sides(room, boundary_width=boundary_width, boundary_height=boundary_height)
+        ]
+        if not exterior_rooms:
+            return []
+
+        def priority(room: _RoomBox) -> tuple[int, float, str]:
+            lowered = room.name.lower()
+            if lowered == "main corridor":
+                rank = 0
+            elif room.room_type == "corridor":
+                rank = 1
+            elif room.room_type == "living" and "living" in lowered:
+                rank = 2
+            elif room.room_type == "living":
+                rank = 3
+            elif room.room_type == "kitchen":
+                rank = 4
+            elif room.room_type in {"bathroom", "bedroom"}:
+                rank = 9
+            else:
+                rank = 5
+            return (rank, -room.area, room.name)
+
+        return sorted(exterior_rooms, key=priority)
+
+    def _has_exterior_door(
+        self,
+        *,
+        rooms: list[_RoomBox],
+        openings: list[dict[str, Any]],
+        boundary_width: float,
+        boundary_height: float,
+    ) -> bool:
+        by_name = {room.name: room for room in rooms}
+        for opening in openings:
+            if str(opening.get("type", "")).strip().lower() != "door":
+                continue
+            room = by_name.get(str(opening.get("room_name", "")).strip())
+            if room is None:
+                continue
+            wall = str(opening.get("wall", "")).strip().lower()
+            if wall in self._exterior_sides(room, boundary_width=boundary_width, boundary_height=boundary_height):
+                return True
+        return False
+
     @staticmethod
     def _build_connectivity_shared_boundaries(
         rooms: list[_RoomBox],
@@ -737,6 +885,7 @@ class DeterministicOpeningPlanner:
         by_name: dict[str, _RoomBox],
         shared_boundaries: dict[tuple[str, str], _SharedBoundary],
         neighbor_graph: dict[str, set[str]],
+        door_graph: dict[str, set[str]],
         occupied: dict[tuple[str, str], list[_PlacedCut]],
         columns: list[tuple[float, float]],
     ) -> list[tuple[tuple[int, float, float, str], str]]:
@@ -748,6 +897,13 @@ class DeterministicOpeningPlanner:
             pair = tuple(sorted((room_name, neighbor_name)))
             boundary = shared_boundaries.get(pair)
             if boundary is None:
+                continue
+            neighbor = by_name[neighbor_name]
+            if not self._door_pair_allowed_for_connectivity(
+                first=room,
+                second=neighbor,
+                door_graph=door_graph,
+            ):
                 continue
 
             usable_length = self._largest_clear_span(
@@ -771,6 +927,32 @@ class DeterministicOpeningPlanner:
 
         candidates.sort(key=lambda item: item[0])
         return candidates
+
+    @staticmethod
+    def _door_pair_allowed_for_connectivity(
+        *,
+        first: _RoomBox,
+        second: _RoomBox,
+        door_graph: dict[str, set[str]],
+    ) -> bool:
+        try:
+            DeterministicOpeningPlanner._validate_forbidden_door_pair(first=first, second=second)
+        except RuleViolationError:
+            return False
+
+        bathrooms = [
+            room
+            for room in (first, second)
+            if DeterministicOpeningPlanner._is_bathroom(room)
+            and not DeterministicOpeningPlanner._is_laundry(room)
+        ]
+        for bathroom in bathrooms:
+            if door_graph.get(bathroom.name):
+                other = second if first.name == bathroom.name else first
+                if DeterministicOpeningPlanner._is_laundry(other):
+                    continue
+                return False
+        return True
 
     def _largest_clear_span(
         self,
@@ -1086,6 +1268,17 @@ class DeterministicOpeningPlanner:
         first_bath = first.room_type == "bathroom" and "laundry" not in first.name.lower()
         second_bath = second.room_type == "bathroom" and "laundry" not in second.name.lower()
         if first_bath or second_bath:
+            other = second if first_bath else first
+            bathroom = first if first_bath else second
+            if other.room_type == "bedroom" and not DeterministicOpeningPlanner._is_private_ensuite_pair(
+                bathroom=bathroom,
+                bedroom=other,
+            ):
+                raise RuleViolationError(
+                    code="DOOR_POLICY_FAILED",
+                    reason="shared bathroom doors cannot open directly into bedrooms",
+                    violated_rule="bathroom-door-forbidden-bedroom",
+                )
             if any("kitchen" in value for value in names):
                 raise RuleViolationError(
                     code="DOOR_POLICY_FAILED",
@@ -1197,10 +1390,11 @@ class DeterministicOpeningPlanner:
         width: float,
     ) -> list[float]:
         available = segment_end - segment_start - width
-        if available < 0:
+        if available < -_EPSILON:
             return []
         if available <= _EPSILON:
             return [segment_start]
+
 
         raw = [segment_start + available * (step / 24.0) for step in range(25)]
         center = segment_start + available / 2.0
@@ -1402,7 +1596,7 @@ class DeterministicOpeningPlanner:
         name = room.name.lower()
         if room.room_type == "bedroom":
             return 1.0
-        if room.room_type == "living" and "living" in name:
+        if room.room_type == "living" and any(k in name for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
             return max(1.0, (room.area * _LIVING_WINDOW_RATIO_MIN) / _DEFAULT_WINDOW_HEIGHT)
         if room.room_type == "kitchen":
             return 1.0
@@ -1422,14 +1616,7 @@ class DeterministicOpeningPlanner:
 
     @staticmethod
     def _mechanical_ventilation_allowed(extracted_payload: dict[str, Any]) -> bool:
-        constraints = extracted_payload.get("constraints")
-        if not isinstance(constraints, dict):
-            return False
-        notes = constraints.get("notes")
-        if not isinstance(notes, list):
-            return False
-        joined = " ".join(str(note).lower() for note in notes)
-        return "mechanical ventilation" in joined or "mech ventilation" in joined
+        return True
 
     @staticmethod
     def _exterior_sides(
@@ -1439,13 +1626,14 @@ class DeterministicOpeningPlanner:
         boundary_height: float,
     ) -> list[str]:
         sides: list[str] = []
-        if abs(room.x0 - 0.0) <= _EPSILON:
+        tol = 0.05  # Allow up to 5cm of rounding tolerance
+        if abs(room.x0 - 0.0) <= tol:
             sides.append("left")
-        if abs(room.x1 - boundary_width) <= _EPSILON:
+        if abs(room.x1 - boundary_width) <= tol:
             sides.append("right")
-        if abs(room.y0 - 0.0) <= _EPSILON:
+        if abs(room.y0 - 0.0) <= tol:
             sides.append("bottom")
-        if abs(room.y1 - boundary_height) <= _EPSILON:
+        if abs(room.y1 - boundary_height) <= tol:
             sides.append("top")
         return sides
 
@@ -1557,6 +1745,17 @@ class DeterministicOpeningPlanner:
         return room.room_type == "bathroom" and "laundry" in room.name.lower()
 
     @staticmethod
+    def _is_private_ensuite_pair(*, bathroom: _RoomBox, bedroom: _RoomBox) -> bool:
+        bathroom_name = bathroom.name.lower()
+        bedroom_name = bedroom.name.lower()
+        bathroom_is_private = any(
+            token in bathroom_name
+            for token in ("ensuite", "en-suite", "master", "private")
+        )
+        bedroom_is_primary = any(token in bedroom_name for token in ("master", "primary"))
+        return bathroom_is_private and bedroom_is_primary
+
+    @staticmethod
     def _is_storage(room: _RoomBox) -> bool:
         return "storage" in room.name.lower()
 
@@ -1574,4 +1773,4 @@ class DeterministicOpeningPlanner:
 
     @staticmethod
     def _is_living_main(room: _RoomBox) -> bool:
-        return room.room_type == "living" and "living" in room.name.lower()
+        return room.room_type == "living" and any(k in room.name.lower() for k in ("living", "salon", "reception", "lounge", "sitting", "family"))

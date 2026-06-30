@@ -33,52 +33,67 @@ class _ProgramToken:
 
 _PROGRAM_TOKENS: list[_ProgramToken] = [
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*(?:master|primary)\s*bedrooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*(?:master|primary)\s*bedrooms?\b"),
         name="Master Bedroom",
         room_type="bedroom",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*(?:children|child|kids?)\s*bedrooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*(?:children|child|kids?)\s*bedrooms?\b"),
         name="Children Bedroom",
         room_type="bedroom",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*(?:private|en[- ]?suite)\s*bathrooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*(?:private|en[- ]?suite)\s*bathrooms?\b"),
         name="Private Bathroom",
         room_type="bathroom",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*shared\s*bathrooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*shared\s*bathrooms?\b"),
         name="Shared Bathroom",
         room_type="bathroom",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*guest\s*bathrooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*guest\s*bathrooms?\b"),
         name="Guest Bathroom",
         room_type="bathroom",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*living\s*rooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*living\s*rooms?\b"),
         name="Living Room",
         room_type="living",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*dining\s*rooms?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*salons?\b"),
+        name="Salon",
+        room_type="living",
+    ),
+    _ProgramToken(
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*receptions?\b"),
+        name="Reception",
+        room_type="living",
+    ),
+    _ProgramToken(
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*lounges?\b"),
+        name="Lounge",
+        room_type="living",
+    ),
+    _ProgramToken(
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*dining\s*rooms?\b"),
         name="Dining Room",
         room_type="living",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*kitchens?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*kitchens?\b"),
         name="Kitchen",
         room_type="kitchen",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*laundr(?:y|ies)\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*laundr(?:y|ies)\b"),
         name="Laundry",
         room_type="bathroom",
     ),
     _ProgramToken(
-        pattern=re.compile(r"(?P<count>\d+)\s*storage(?:\s*rooms?)?\b"),
+        pattern=re.compile(r"\b(?P<count>\d+)?\s*storage(?:\s*rooms?)?\b"),
         name="Storage",
         room_type="corridor",
     ),
@@ -119,7 +134,8 @@ class PromptProgramDeriver:
                 continue
             total = 0
             for match in matches:
-                total += max(0, int(match.group("count")))
+                val = match.group("count")
+                total += int(val) if val is not None else 1
             if total > 0:
                 extracted.append(
                     {
@@ -130,9 +146,57 @@ class PromptProgramDeriver:
                 )
             working = token.pattern.sub(" ", working)
 
+        archetype_program = self._parse_apartment_archetype(normalized)
+        if archetype_program:
+            self._merge_minimum_program(extracted, archetype_program)
         self._append_keyword_singletons(extracted=extracted, normalized_text=normalized)
         self._append_generic_counts(extracted=extracted, residual_text=working)
         return extracted
+
+    @staticmethod
+    def _parse_apartment_archetype(normalized_text: str) -> list[dict[str, Any]]:
+        bedroom_count: int | None = None
+        br_match = re.search(r"\b(?P<count>\d+)\s*(?:br|bdr|bed)\b", normalized_text)
+        if br_match is not None:
+            bedroom_count = int(br_match.group("count"))
+        apartment_match = re.search(r"\b(?P<count>\d+)\s*[- ]*bedroom\s+(?:apartment|flat|unit|house)\b", normalized_text)
+        if apartment_match is not None:
+            bedroom_count = int(apartment_match.group("count"))
+
+        if bedroom_count is None:
+            if re.search(r"\bstudio\b", normalized_text):
+                bedroom_count = 0
+            else:
+                return []
+
+        bedroom_count = max(0, min(6, bedroom_count))
+        bathroom_count = 1 if bedroom_count <= 2 else 2
+        program: list[dict[str, Any]] = [
+            {"name": "Living Room", "room_type": "living", "count": 1},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+            {"name": "Bathroom", "room_type": "bathroom", "count": bathroom_count},
+        ]
+        if bedroom_count > 0:
+            program.insert(0, {"name": "Bedroom", "room_type": "bedroom", "count": bedroom_count})
+        if bedroom_count >= 2:
+            program.append({"name": "Main Corridor", "room_type": "corridor", "count": 1})
+        return program
+
+    @staticmethod
+    def _merge_minimum_program(
+        extracted: list[dict[str, Any]],
+        minimum_program: list[dict[str, Any]],
+    ) -> None:
+        by_type = {str(item.get("room_type")): item for item in extracted}
+        for item in minimum_program:
+            room_type = str(item.get("room_type"))
+            current = by_type.get(room_type)
+            if current is None:
+                copied = dict(item)
+                extracted.append(copied)
+                by_type[room_type] = copied
+                continue
+            current["count"] = max(int(current.get("count", 1)), int(item.get("count", 1)))
 
     @staticmethod
     def _normalize_numbers(text: str) -> str:
@@ -147,6 +211,12 @@ class PromptProgramDeriver:
         existing_types = {item["room_type"] for item in extracted}
         if "Living Room" not in existing_names and "living room" in normalized_text:
             extracted.append({"name": "Living Room", "room_type": "living", "count": 1})
+        if "Salon" not in existing_names and "salon" in normalized_text:
+            extracted.append({"name": "Salon", "room_type": "living", "count": 1})
+        if "Reception" not in existing_names and "reception" in normalized_text:
+            extracted.append({"name": "Reception", "room_type": "living", "count": 1})
+        if "Lounge" not in existing_names and "lounge" in normalized_text:
+            extracted.append({"name": "Lounge", "room_type": "living", "count": 1})
         if "Dining Room" not in existing_names and "dining room" in normalized_text:
             extracted.append({"name": "Dining Room", "room_type": "living", "count": 1})
         if "Kitchen" not in existing_names and "kitchen" in normalized_text:

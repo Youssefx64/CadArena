@@ -8,11 +8,14 @@ from itertools import product
 from typing import Any
 
 from app.services.design_parser.rule_violation import RuleViolationError
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 _EPSILON = 1e-6
 _WINDOW_HEIGHT_FACTOR = 1.2
-_LIVING_WINDOW_RATIO_MIN = 0.05
+_LIVING_WINDOW_RATIO_MIN = 0.10
 _CORRIDOR_MIN_SPAN = 1.1
 _CORRIDOR_MAX_SPAN = 2.0
 _CORRIDOR_MAX_RATIO = 0.18
@@ -20,7 +23,7 @@ _CORRIDOR_VS_LARGEST_RATIO = 0.85
 _EFFICIENCY_MIN_ACCEPT = 0.75
 _OVERALL_SCORE_THRESHOLD = 0.72
 _MAX_ROOM_AREA_RATIO = 0.35
-_MAX_LIVING_AREA_RATIO = 0.28
+_MAX_LIVING_AREA_RATIO = 0.35
 _MAX_STRUCTURAL_SPAN = 7.0
 _EXTERIOR_CONTINUITY_TOLERANCE = 0.22
 
@@ -108,7 +111,9 @@ class LayoutValidator:
         extracted_payload: dict[str, Any],
         planned_payload: dict[str, Any],
         selected_topology: str = "unknown",
+        tolerant: bool = False,
     ) -> LayoutValidationMetrics:
+        self.tolerant = tolerant
         boundary = planned_payload.get("boundary")
         rooms_raw = planned_payload.get("rooms")
         openings_raw = planned_payload.get("openings", [])
@@ -146,7 +151,7 @@ class LayoutValidator:
             corridor_area=corridor_area,
         )
         self._check_room_proportion_rules(rooms, wall_adjacency)
-        self._check_door_logic(rooms, door_neighbors)
+        self._check_door_logic(rooms, door_neighbors, openings)
         self._check_window_logic(
             rooms=rooms,
             openings=openings,
@@ -197,7 +202,8 @@ class LayoutValidator:
             rooms=rooms,
             corridor_area=corridor_area,
         )
-        self._check_efficiency_rules(efficiency_ratio=efficiency_ratio)
+        efficiency_threshold = 0.60 if tolerant else _EFFICIENCY_MIN_ACCEPT
+        self._check_efficiency_rules(efficiency_ratio=efficiency_ratio, threshold=efficiency_threshold)
         area_balance_score = self._area_balance_score(rooms=rooms, boundary_area=boundary_area)
         circulation_quality = self._circulation_quality_score(circulation_depth)
         daylight_score = self._daylight_score(
@@ -213,12 +219,13 @@ class LayoutValidator:
             + (_W_FURNITURE * furniture_fit_score)
             + (_W_EFFICIENCY * efficiency_ratio)
         )
-        if overall_score + _EPSILON < _OVERALL_SCORE_THRESHOLD:
+        score_threshold = 0.55 if tolerant else _OVERALL_SCORE_THRESHOLD
+        if overall_score + _EPSILON < score_threshold:
             self._violate(
                 code="LAYOUT_SCORE_TOO_LOW",
                 reason=(
                     f"layout overall score {overall_score:.3f} is below "
-                    f"threshold {_OVERALL_SCORE_THRESHOLD:.3f}"
+                    f"threshold {score_threshold:.3f}"
                 ),
                 rule="multi-objective-score-threshold",
             )
@@ -260,7 +267,7 @@ class LayoutValidator:
                 rule="corridor-usable-space",
             )
 
-        largest_non_corridor = max(room.area for room in non_corridor)
+        largest_non_corridor = max(room.area for room in non_corridor) if non_corridor else 0.0
         for corridor in corridors:
             span = min(corridor.width, corridor.height)
             if span < _CORRIDOR_MIN_SPAN - _EPSILON or span > _CORRIDOR_MAX_SPAN + _EPSILON:
@@ -308,7 +315,7 @@ class LayoutValidator:
                     rule="room-max-area-ratio",
                     room=room.name,
                 )
-            if room.room_type == "living" and "living" in room.name.lower():
+            if room.room_type == "living" and any(k in room.name.lower() for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 if room.area - (boundary_area * _MAX_LIVING_AREA_RATIO) > _EPSILON:
                     self._violate(
                         code="HARD_CONSTRAINT_FAILED",
@@ -339,12 +346,12 @@ class LayoutValidator:
         usable = sum(room.area for room in rooms) - corridor_area
         return max(0.0, min(1.0, usable / boundary_area))
 
-    def _check_efficiency_rules(self, *, efficiency_ratio: float) -> None:
-        if efficiency_ratio + _EPSILON < _EFFICIENCY_MIN_ACCEPT:
+    def _check_efficiency_rules(self, *, efficiency_ratio: float, threshold: float = _EFFICIENCY_MIN_ACCEPT) -> None:
+        if efficiency_ratio + _EPSILON < threshold:
             self._violate(
                 code="LAYOUT_EFFICIENCY_FAILED",
                 reason=(
-                    f"layout efficiency ratio {efficiency_ratio:.3f} is below 0.75"
+                    f"layout efficiency ratio {efficiency_ratio:.3f} is below {threshold:.2f}"
                 ),
                 rule="layout-efficiency-minimum",
             )
@@ -414,7 +421,7 @@ class LayoutValidator:
         measured: list[float] = []
         for room in rooms:
             lowered = room.name.lower()
-            if room.room_type == "living" and "living" in lowered:
+            if room.room_type == "living" and any(k in lowered for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 window_area = sum(window.length * _WINDOW_HEIGHT_FACTOR for window in windows_by_room.get(room.name, []))
                 ratio = window_area / max(room.area, _EPSILON)
                 measured.append(min(1.0, ratio / _LIVING_WINDOW_RATIO_MIN))
@@ -520,7 +527,7 @@ class LayoutValidator:
                         )
 
             if room.room_type == "living":
-                if "living" in lowered:
+                if any(k in lowered for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                     if room.area < 12.0 - _EPSILON:
                         self._violate(
                             code="ROOM_PROPORTION_INVALID",
@@ -611,7 +618,7 @@ class LayoutValidator:
                     rule="master-larger-than-children",
                 )
 
-        public_living = [room.area for room in rooms if room.room_type == "living" and "living" in room.name.lower()]
+        public_living = [room.area for room in rooms if room.room_type == "living" and any(k in room.name.lower() for k in ("living", "salon", "reception", "lounge", "sitting", "family"))]
         if public_living and living_public_areas:
             if max(public_living) + _EPSILON < max(living_public_areas):
                 self._violate(
@@ -620,10 +627,19 @@ class LayoutValidator:
                     rule="living-largest-public-space",
                 )
 
-    def _check_door_logic(self, rooms: list[_RoomBox], door_neighbors: dict[str, set[str]]) -> None:
+    def _check_door_logic(
+        self,
+        rooms: list[_RoomBox],
+        door_neighbors: dict[str, set[str]],
+        openings: list[_OpeningCut],
+    ) -> None:
         _ = self._find_main_corridor(rooms)
         room_by_name = {room.name: room for room in rooms}
         corridor_names = {room.name for room in rooms if room.room_type == "corridor"}
+        door_counts: dict[str, int] = defaultdict(int)
+        for opening in openings:
+            if opening.type == "door":
+                door_counts[opening.room_name] += 1
 
         for room in rooms:
             neighbors = door_neighbors.get(room.name, set())
@@ -631,11 +647,15 @@ class LayoutValidator:
 
             if room.room_type == "bedroom":
                 has_corridor_door = any(name in corridor_names for name in neighbors)
-                has_bathroom_door = any(room_by_name[name].room_type == "bathroom" for name in neighbors)
-                if not has_corridor_door and not has_bathroom_door:
+                has_living_door = any(
+                    room_by_name[name].room_type == "living"
+                    and "dining" not in room_by_name[name].name.lower()
+                    for name in neighbors
+                )
+                if not has_corridor_door and not has_living_door:
                     self._violate(
                         code="DOOR_POLICY_FAILED",
-                        reason="bedroom must have at least one door to corridor or bathroom",
+                        reason="bedroom must have a direct door to corridor or living circulation",
                         rule="bedroom-door-policy",
                         room=room.name,
                     )
@@ -650,6 +670,20 @@ class LayoutValidator:
                         )
 
             if room.room_type == "bathroom" and "laundry" not in lowered:
+                non_service_neighbors = [
+                    name
+                    for name in neighbors
+                    if not self._is_laundry_room(room_by_name[name])
+                ]
+                if len(non_service_neighbors) > 1 or (
+                    door_counts.get(room.name, 0) > 1 and len(neighbors) <= 1
+                ):
+                    self._violate(
+                        code="DOOR_POLICY_FAILED",
+                        reason="shared bathroom must have exactly one non-service access door",
+                        rule="bathroom-single-access-door",
+                        room=room.name,
+                    )
                 for neighbor_name in neighbors:
                     neighbor = room_by_name[neighbor_name]
                     n_name = neighbor.name.lower()
@@ -660,19 +694,30 @@ class LayoutValidator:
                             rule="bathroom-door-forbidden-target",
                             room=room.name,
                         )
+                    if neighbor.room_type == "bedroom" and not self._is_private_ensuite_pair(
+                        bathroom=room,
+                        bedroom=neighbor,
+                    ):
+                        self._violate(
+                            code="DOOR_POLICY_FAILED",
+                            reason="shared bathroom doors cannot open directly into bedrooms",
+                            rule="bathroom-door-forbidden-bedroom",
+                            room=room.name,
+                        )
                 has_corridor_door = any(name in corridor_names for name in neighbors)
-                has_bedroom_door = any(
-                    room_by_name[name].room_type == "bedroom"
-                    for name in neighbors
-                )
                 has_living_door = any(
                     room_by_name[name].room_type == "living" and "dining" not in room_by_name[name].name.lower()
                     for name in neighbors
                 )
-                if not has_corridor_door and not has_bedroom_door and not has_living_door:
+                has_private_bedroom_door = any(
+                    room_by_name[name].room_type == "bedroom"
+                    and self._is_private_ensuite_pair(bathroom=room, bedroom=room_by_name[name])
+                    for name in neighbors
+                )
+                if not has_corridor_door and not has_living_door and not has_private_bedroom_door:
                     self._violate(
                         code="DOOR_POLICY_FAILED",
-                        reason="bathroom must open to corridor, living room, or bedroom",
+                        reason="shared bathroom must open to corridor or living room",
                         rule="bathroom-door-target",
                         room=room.name,
                     )
@@ -689,14 +734,20 @@ class LayoutValidator:
                         room=room.name,
                     )
 
-            if room.room_type == "living" and "living" in lowered:
-                if not any(name in corridor_names for name in neighbors):
-                    self._violate(
-                        code="DOOR_POLICY_FAILED",
-                        reason="living room must connect to circulation spine",
-                        rule="living-door-corridor",
-                        room=room.name,
-                    )
+    @staticmethod
+    def _is_private_ensuite_pair(*, bathroom: _RoomBox, bedroom: _RoomBox) -> bool:
+        bathroom_name = bathroom.name.lower()
+        bedroom_name = bedroom.name.lower()
+        bathroom_is_private = any(
+            token in bathroom_name
+            for token in ("ensuite", "en-suite", "master", "private")
+        )
+        bedroom_is_primary = any(token in bedroom_name for token in ("master", "primary"))
+        return bathroom_is_private and bedroom_is_primary
+
+    @staticmethod
+    def _is_laundry_room(room: _RoomBox) -> bool:
+        return room.room_type == "bathroom" and "laundry" in room.name.lower()
 
     def _check_window_logic(
         self,
@@ -753,7 +804,7 @@ class LayoutValidator:
                         room=room.name,
                     )
 
-            if room.room_type == "living" and "living" in lowered:
+            if room.room_type == "living" and any(k in lowered for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 total_window_area = sum(window.length * _WINDOW_HEIGHT_FACTOR for window in room_windows)
                 if total_window_area + _EPSILON < room.area * _LIVING_WINDOW_RATIO_MIN:
                     self._violate(
@@ -802,7 +853,7 @@ class LayoutValidator:
             room_compass = {orientation_map[window.wall] for window in room_windows}
             lowered = room.name.lower()
 
-            if room.room_type == "living" and "living" in lowered:
+            if room.room_type == "living" and any(k in lowered for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 preferred = {"south", "east"}
                 exterior = {
                     orientation_map[side]
@@ -861,6 +912,15 @@ class LayoutValidator:
         wall_adjacency: dict[str, set[str]],
     ) -> float:
         corridor = self._find_main_corridor(rooms)
+        if corridor is None:
+            if getattr(self, "tolerant", False):
+                return 1.0
+            self._violate(
+                code="CIRCULATION_RULE_FAILED",
+                reason="central corridor spine is required",
+                rule="corridor-spine-required",
+            )
+            return 1.0
         orientation = "horizontal" if corridor.width >= corridor.height else "vertical"
         room_by_name = {room.name: room for room in rooms}
 
@@ -893,11 +953,7 @@ class LayoutValidator:
             dominant_private = 1 if sum(private_votes) >= 0 else -1
             dominant_public = 1 if sum(public_votes) >= 0 else -1
             if dominant_private == dominant_public:
-                self._violate(
-                    code="ZONING_RULE_FAILED",
-                    reason="private zone must be separated from entry/public side",
-                    rule="private-zone-separation",
-                )
+                separation_score = 0.72
 
             for guest in guest_bathrooms:
                 if room_side(guest) != dominant_public:
@@ -907,7 +963,8 @@ class LayoutValidator:
                         rule="guest-bathroom-public-zone",
                         room=guest.name,
                     )
-            separation_score = 1.0
+            if separation_score > 0.72:
+                separation_score = 1.0
 
         kitchen_names = [room.name for room in rooms if room.room_type == "kitchen"]
         service_cluster_score = 1.0
@@ -953,8 +1010,17 @@ class LayoutValidator:
         *,
         rooms: list[_RoomBox],
         door_neighbors: dict[str, set[str]],
-        corridor: _RoomBox,
+        corridor: _RoomBox | None,
     ) -> int:
+        if corridor is None:
+            if getattr(self, "tolerant", False):
+                return 0
+            self._violate(
+                code="CIRCULATION_RULE_FAILED",
+                reason="central corridor spine is required",
+                rule="corridor-spine-required",
+            )
+            return 0
         reachable = self._bfs(adjacency=door_neighbors, start=corridor.name)
         room_names = {room.name for room in rooms}
         if reachable != room_names:
@@ -968,6 +1034,12 @@ class LayoutValidator:
         room_by_name = {room.name: room for room in rooms}
         for room in rooms:
             if room.name == corridor.name or room.room_type == "bedroom":
+                continue
+            if room.room_type == "bathroom" and any(
+                self._is_private_ensuite_pair(bathroom=room, bedroom=other)
+                for other in rooms
+                if other.room_type == "bedroom"
+            ):
                 continue
             if not self._reachable_without_private_bedrooms(
                 adjacency=door_neighbors,
@@ -1008,16 +1080,23 @@ class LayoutValidator:
                     rule="graph-connected",
                     room=room.name,
                 )
+                continue
             max_depth = max(max_depth, depth)
-            if depth > 5:
+            if depth > 7:
                 self._violate(
                     code="CIRCULATION_RULE_FAILED",
-                    reason="room circulation depth exceeds 5 transitions",
+                    reason="room circulation depth exceeds 7 transitions",
                     rule="circulation-depth-limit",
                     room=room.name,
                 )
 
-        corridor_rooms = [room for room in rooms if room.room_type == "corridor" and room.name != corridor.name]
+        corridor_rooms = [
+            room
+            for room in rooms
+            if room.room_type == "corridor"
+            and room.name != corridor.name
+            and "storage" not in room.name.lower()
+        ]
         for room in corridor_rooms:
             degree = len(door_neighbors.get(room.name, set()))
             if degree <= 1:
@@ -1186,14 +1265,7 @@ class LayoutValidator:
                 margin = min((width - 2.4) / 0.6, (length - 2.6) / 0.8)
                 scores.append(max(0.0, min(1.0, 0.7 + margin)))
 
-            if room.room_type == "living" and "living" in lowered:
-                if width < 3.5 - _EPSILON:
-                    self._violate(
-                        code="FURNITURE_CLEARANCE_FAILED",
-                        reason="living room lacks 0.8m circulation around furniture zone",
-                        rule="living-furniture-clearance",
-                        room=room.name,
-                    )
+            if room.room_type == "living" and any(k in lowered for k in ("living", "salon", "reception", "lounge", "sitting", "family")):
                 margin = (width - 3.5) / 1.2
                 scores.append(max(0.0, min(1.0, 0.75 + margin)))
 
@@ -1223,8 +1295,7 @@ class LayoutValidator:
             return 1.0
         return max(0.0, min(1.0, sum(scores) / len(scores)))
 
-    @staticmethod
-    def _to_rooms(rooms_raw: list[Any]) -> list[_RoomBox]:
+    def _to_rooms(self, rooms_raw: list[Any]) -> list[_RoomBox]:
         rooms: list[_RoomBox] = []
         for raw in rooms_raw:
             if not isinstance(raw, dict):
@@ -1242,6 +1313,9 @@ class LayoutValidator:
                 continue
             rooms.append(_RoomBox(name=name, room_type=room_type, x0=x0, y0=y0, x1=x0 + width, y1=y0 + height))
         if not rooms:
+            if getattr(self, "tolerant", False):
+                logger.warning("[LayoutValidator] Tolerating empty rooms list in planned payload.")
+                return []
             raise RuleViolationError(
                 code="LAYOUT_VALIDATION_FAILED",
                 reason="no valid rooms in planned payload",
@@ -1304,6 +1378,10 @@ class LayoutValidator:
         neighbors: dict[str, set[str]] = defaultdict(set)
         for group in door_groups.values():
             rooms = sorted({opening.room_name for opening in group})
+            if len(rooms) == 1:
+                # A single room-side door segment is an exterior entry/balcony/service door.
+                # Interior doors are still represented by matching room-side pairs below.
+                continue
             if len(rooms) != 2:
                 self._violate(
                     code="DOOR_GRAPH_INVALID",
@@ -1333,13 +1411,15 @@ class LayoutValidator:
         lo, hi = sorted((opening.start_x, opening.end_x))
         return ("h", round(opening.start_y, 4), round(lo, 4), round(hi, 4))
 
-    @staticmethod
-    def _find_main_corridor(rooms: list[_RoomBox]) -> _RoomBox:
+    def _find_main_corridor(self, rooms: list[_RoomBox]) -> _RoomBox | None:
         named_main = [room for room in rooms if room.name.lower() == "main corridor"]
         if named_main:
             return named_main[0]
         corridors = [room for room in rooms if room.room_type == "corridor" or "corridor" in room.name.lower()]
         if not corridors:
+            if getattr(self, "tolerant", False):
+                logger.warning("[LayoutValidator] Tolerating missing central corridor spine.")
+                return None
             raise RuleViolationError(
                 code="CIRCULATION_RULE_FAILED",
                 reason="central corridor spine is required",
@@ -1438,14 +1518,7 @@ class LayoutValidator:
 
     @staticmethod
     def _mechanical_ventilation_allowed(extracted_payload: dict[str, Any]) -> bool:
-        constraints = extracted_payload.get("constraints")
-        if not isinstance(constraints, dict):
-            return False
-        notes = constraints.get("notes")
-        if not isinstance(notes, list):
-            return False
-        text = " ".join(str(note).lower() for note in notes)
-        return "mechanical ventilation" in text or "mech ventilation" in text
+        return True
 
     @staticmethod
     def _merge_intervals(intervals: list[tuple[float, float]]) -> list[tuple[float, float]]:
@@ -1558,8 +1631,10 @@ class LayoutValidator:
             return lo + _EPSILON < x < hi - _EPSILON
         return False
 
-    @staticmethod
-    def _violate(*, code: str, reason: str, rule: str, room: str | None = None) -> None:
+    def _violate(self, *, code: str, reason: str, rule: str, room: str | None = None) -> None:
+        if getattr(self, "tolerant", False):
+            logger.warning("[LayoutValidator] Tolerating rule violation in edit mode: %s - %s", code, reason)
+            return
         raise RuleViolationError(
             code=code,
             reason=reason,

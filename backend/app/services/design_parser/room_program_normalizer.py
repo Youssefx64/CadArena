@@ -18,8 +18,8 @@ _MAX_ROOM_RATIO = 0.35
 _MAX_LIVING_RATIO = 0.28
 
 _DIMENSION_PATTERN = re.compile(
-    r"(?P<w>\d+(?:\.\d+)?)\s*(?:m|meter|meters)?\s*[x×]\s*"
-    r"(?P<h>\d+(?:\.\d+)?)\s*(?:m|meter|meters)?",
+    r"(?P<w>\d+(?:\.\d+)?)\s*(?:m|meter|meters|متر|م|امتار)?\s*(?:[xX×*]|في|ضرب|by)\s*"
+    r"(?P<h>\d+(?:\.\d+)?)\s*(?:m|meter|meters|متر|م|امتار)?",
     re.I,
 )
 _NUMBER_WORDS = {
@@ -39,6 +39,7 @@ _NUMBER_WORDS = {
 _COUNT_TOKEN = r"(?P<count>\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
 
 _ROOM_COUNT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(rf"\b{_COUNT_TOKEN}\s*(?:br|bdr|bed)\b", re.I), "bedroom"),
     (re.compile(rf"\b{_COUNT_TOKEN}\s*[- ]*(?:master|primary|children|child|kids?)?\s*bedrooms?\b", re.I), "bedroom"),
     (
         re.compile(
@@ -184,14 +185,21 @@ def normalize_extracted_room_program(payload: dict[str, Any], *, prompt: str | N
 def extract_prompt_boundary(prompt: str) -> tuple[float, float] | None:
     """Extract explicit prompt dimensions and return them in landscape orientation."""
 
-    match = _DIMENSION_PATTERN.search(prompt)
-    if match is None:
+    matches = list(_DIMENSION_PATTERN.finditer(prompt))
+    if not matches:
         return None
-    width = _positive_float(match.group("w"))
-    height = _positive_float(match.group("h"))
-    if width is None or height is None:
-        return None
-    return (max(width, height), min(width, height))
+
+    best_dimensions: tuple[float, float] | None = None
+    max_area = -1.0
+    for match in matches:
+        w = _positive_float(match.group("w"))
+        h = _positive_float(match.group("h"))
+        if w is not None and h is not None:
+            area = w * h
+            if area > max_area:
+                max_area = area
+                best_dimensions = (max(w, h), min(w, h))
+    return best_dimensions
 
 
 def extract_requested_room_counts(prompt: str) -> dict[str, int]:
@@ -199,21 +207,28 @@ def extract_requested_room_counts(prompt: str) -> dict[str, int]:
 
     normalized = _normalize_number_words(prompt)
     counts: dict[str, int] = {}
+    matched_ranges: list[tuple[int, int]] = []
 
+    # 1. Process explicit counts
     for pattern, room_type in _ROOM_COUNT_PATTERNS:
-        total = 0
         for match in pattern.finditer(normalized):
             parsed = _parse_count(match.group("count"))
             if parsed is not None:
-                total += parsed
-        if total > 0:
-            counts[room_type] = counts.get(room_type, 0) + total
+                counts[room_type] = counts.get(room_type, 0) + parsed
+                matched_ranges.append(match.span())
 
+    # 2. Process implicit counts (non-overlapping)
     for pattern, room_type in _ROOM_IMPLICIT_PATTERNS:
-        if room_type in counts:
-            continue
-        if pattern.search(normalized):
-            counts[room_type] = 1
+        for match in pattern.finditer(normalized):
+            start, end = match.span()
+            overlap = False
+            for m_start, m_end in matched_ranges:
+                if not (end <= m_start or start >= m_end):
+                    overlap = True
+                    break
+            if not overlap:
+                counts[room_type] = counts.get(room_type, 0) + 1
+                matched_ranges.append((start, end))
 
     return counts
 
@@ -231,7 +246,17 @@ def _coerce_room_entries(raw_program: Any) -> list[dict[str, Any]]:
             room_type = str(raw.get("room_type", "")).strip().lower()
         count = _positive_int(raw.get("count")) or 1
         name = _clean_name(raw.get("name")) or _DEFAULT_NAMES.get(room_type, "Room")
-        entries.append({"name": name, "room_type": room_type, "count": count})
+        preferred_area = _positive_float(raw.get("preferred_area"))
+        min_area = _positive_float(raw.get("min_area"))
+        max_area = _positive_float(raw.get("max_area"))
+        entry = {"name": name, "room_type": room_type, "count": count}
+        if preferred_area is not None:
+            entry["preferred_area"] = preferred_area
+        if min_area is not None:
+            entry["min_area"] = min_area
+        if max_area is not None:
+            entry["max_area"] = max_area
+        entries.append(entry)
     return entries
 
 
@@ -242,7 +267,11 @@ def _expand_room_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         base_name = _clean_name(entry.get("name")) or _DEFAULT_NAMES.get(str(entry.get("room_type")), "Room")
         for index in range(count):
             name = base_name if count == 1 else f"{base_name} {index + 1}"
-            expanded.append({"name": name, "room_type": entry["room_type"], "count": 1})
+            new_entry = {"name": name, "room_type": entry["room_type"], "count": 1}
+            for k in ("preferred_area", "min_area", "max_area"):
+                if k in entry:
+                    new_entry[k] = entry[k]
+            expanded.append(new_entry)
     return expanded
 
 
@@ -279,7 +308,10 @@ def _apply_structural_defaults(units: list[dict[str, Any]]) -> list[dict[str, An
         output.append({"name": "Living Room", "room_type": "living", "count": 1})
 
     bedroom_count = sum(1 for unit in output if unit.get("room_type") == "bedroom")
-    has_corridor = any(unit.get("room_type") == "corridor" for unit in output)
+    has_corridor = any(
+        unit.get("room_type") == "corridor" and "storage" not in str(unit.get("name", "")).lower()
+        for unit in output
+    )
     if bedroom_count >= 2 and not has_corridor:
         output.append({"name": "Main Corridor", "room_type": "corridor", "count": 1})
     return output
@@ -291,12 +323,39 @@ def _apply_area_distribution(
 ) -> list[dict[str, Any]]:
     total_area = boundary["width"] * boundary["height"]
     target_area = total_area * _TARGET_COVERAGE
-    floors = [_preferred_floor(str(unit["room_type"]), total_area) for unit in units]
-    caps = [_preferred_cap(str(unit["room_type"]), total_area) for unit in units]
-    preferred = [
-        min(max(total_area * _AREA_RATIOS.get(str(unit["room_type"]), 0.08), floors[index]), caps[index])
-        for index, unit in enumerate(units)
-    ]
+
+    floors = []
+    caps = []
+    preferred = []
+
+    for unit in units:
+        u_min = unit.get("min_area")
+        u_max = unit.get("max_area")
+        u_pref = unit.get("preferred_area")
+
+        if u_min is not None:
+            fl = u_min
+        else:
+            fl = _preferred_floor(str(unit["room_type"]), total_area)
+
+        if u_max is not None:
+            cp = u_max
+        else:
+            cp = _preferred_cap(str(unit["room_type"]), total_area)
+
+        if fl > cp:
+            cp = fl
+
+        if u_pref is not None:
+            pref = u_pref
+        else:
+            pref = total_area * _AREA_RATIOS.get(str(unit["room_type"]), 0.08)
+
+        pref = min(max(pref, fl), cp)
+
+        floors.append(fl)
+        caps.append(cp)
+        preferred.append(pref)
 
     preferred = _grow_to_target(preferred=preferred, caps=caps, target=target_area)
     preferred = _shrink_to_target(preferred=preferred, floors=floors, target=target_area)
@@ -305,14 +364,18 @@ def _apply_area_distribution(
     output: list[dict[str, Any]] = []
     for unit, preferred_area in zip(units, rounded, strict=False):
         preferred_area = max(preferred_area, 0.01)
+        u_min = unit.get("min_area")
+        u_max = unit.get("max_area")
+        min_a = round(u_min, 2) if u_min is not None else round(preferred_area * 0.85, 2)
+        max_a = round(u_max, 2) if u_max is not None else round(preferred_area * 1.15, 2)
         output.append(
             {
                 "name": str(unit["name"]),
                 "room_type": str(unit["room_type"]),
                 "count": 1,
                 "preferred_area": preferred_area,
-                "min_area": round(preferred_area * 0.85, 2),
-                "max_area": round(preferred_area * 1.15, 2),
+                "min_area": min_a,
+                "max_area": max_a,
             }
         )
     return output
@@ -385,10 +448,12 @@ def _resolve_boundary(
 ) -> dict[str, float]:
     if explicit_boundary is not None:
         width, height = explicit_boundary
-    elif has_prompt:
-        width, height = _boundary_for_count(boundary_count)
     else:
-        width, height = _coerce_boundary(raw_boundary) or _boundary_for_count(boundary_count)
+        coerced = _coerce_boundary(raw_boundary)
+        if coerced is not None:
+            width, height = coerced
+        else:
+            width, height = _boundary_for_count(boundary_count)
     width, height = max(width, height), min(width, height)
     return {"width": round(width, 2), "height": round(height, 2)}
 
@@ -541,7 +606,11 @@ def _dedupe_room_names(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
             candidate = f"{base_name} {suffix}"
             suffix += 1
         seen.add(candidate)
-        output.append({"name": candidate, "room_type": room_type, "count": 1})
+        new_unit = {"name": candidate, "room_type": room_type, "count": 1}
+        for k in ("preferred_area", "min_area", "max_area"):
+            if k in unit:
+                new_unit[k] = unit[k]
+        output.append(new_unit)
     return output
 
 
