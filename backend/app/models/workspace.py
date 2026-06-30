@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 from app.models.design_parser import (
+    DesignQualityReport,
     LayoutMetrics,
-    ParseDesignModel,
     ParsedDesignIntent,
+    ParseDesignModel,
     RecoveryMode,
 )
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProjectRecord(BaseModel):
@@ -23,6 +23,7 @@ class ProjectRecord(BaseModel):
     updated_at: str = Field(min_length=1)
     last_message_at: str | None = None
     message_count: int = Field(ge=0)
+    drawings_count: int = Field(ge=0)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -112,6 +113,8 @@ class ChatMessageRecord(BaseModel):
     dxf_name: str | None = None
     model_used: str | None = None
     provider_used: str | None = None
+    data: dict | None = None
+    quality_report: dict | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -182,5 +185,6 @@ class WorkspaceGenerateDxfSuccessResponse(BaseModel):
     dxf_name: str = Field(min_length=1)
     data: ParsedDesignIntent
     metrics: LayoutMetrics
+    quality_report: DesignQualityReport
 
     model_config = ConfigDict(extra="forbid")

@@ -33,6 +33,7 @@ class ParseDesignRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=12000)
     model: ParseDesignModel
     recovery_mode: RecoveryMode = RecoveryMode.STRICT
+    selection_offset: int = Field(default=0, ge=0)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -411,6 +412,21 @@ class LayoutMetrics(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class DesignQualityReport(BaseModel):
+    """Production quality gate result for generated architectural layouts."""
+
+    passed: bool
+    score: float = Field(ge=0, le=1)
+    grade: Literal["A", "B", "C", "D", "F"]
+    code_profile: str = Field(default="EBC_RESIDENTIAL_V1", min_length=1)
+    hard_failures: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    repairs_applied: list[str] = Field(default_factory=list)
+    selected_topology: str = Field(min_length=1)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ParseDesignSuccessResponse(BaseModel):
     """Successful parse-design response."""
 
@@ -422,6 +438,7 @@ class ParseDesignSuccessResponse(BaseModel):
     latency_ms: float = Field(ge=0)
     data: ParsedDesignIntent
     metrics: LayoutMetrics
+    quality_report: DesignQualityReport
 
     model_config = ConfigDict(extra="forbid")
 
@@ -438,6 +455,7 @@ class ParseDesignAndDxfSuccessResponse(BaseModel):
     dxf_path: str = Field(min_length=1)
     data: ParsedDesignIntent
     metrics: LayoutMetrics
+    quality_report: DesignQualityReport
 
     model_config = ConfigDict(extra="forbid")
 

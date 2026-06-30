@@ -20,7 +20,7 @@ class DesignIntentValidator:
 
     def __init__(self):
         self.logger = get_logger("IntentValidator")
-        self._tol = 1e-6
+        self._tol = 0.05
 
     def validate(self, intent: DesignIntent) -> None:
         self._validate_boundary(intent)

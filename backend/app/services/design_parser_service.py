@@ -50,6 +50,7 @@ async def _parse_with_cloud_provider_override(
     recovery_mode: RecoveryMode,
     request_id: str,
     model_id: str,
+    selection_offset: int = 0,
 ) -> ParseOrchestrationResult:
     """Temporarily swap the internal cloud provider so model ids stay request-scoped."""
 
@@ -71,6 +72,7 @@ async def _parse_with_cloud_provider_override(
                 model_choice=internal_choice,
                 recovery_mode=recovery_mode,
                 request_id=request_id,
+                selection_offset=selection_offset,
             )
         finally:
             providers[ParseDesignModel.QWEN_CLOUD] = original_provider
@@ -82,6 +84,7 @@ async def _parse_with_ollama_provider_override(
     recovery_mode: RecoveryMode,
     request_id: str,
     model_id: str,
+    selection_offset: int = 0,
 ) -> ParseOrchestrationResult:
     """Temporarily swap the local Ollama provider so request-scoped model ids work."""
 
@@ -98,6 +101,7 @@ async def _parse_with_ollama_provider_override(
                 model_choice=ParseDesignModel.OLLAMA,
                 recovery_mode=recovery_mode,
                 request_id=request_id,
+                selection_offset=selection_offset,
             )
         finally:
             providers[ParseDesignModel.OLLAMA] = original_provider
@@ -122,6 +126,7 @@ async def parse_design_prompt_with_metadata(
     model_id: str | None = None,
     recovery_mode: RecoveryMode = RecoveryMode.STRICT,
     request_id: str = "",
+    selection_offset: int = 0,
 ) -> ParseOrchestrationResult:
     """Parse user prompt and return provider metadata with validated payload."""
 
@@ -134,6 +139,7 @@ async def parse_design_prompt_with_metadata(
             recovery_mode=recovery_mode,
             request_id=request_id,
             model_id=resolved_cloud_model_id,
+            selection_offset=selection_offset,
         )
 
     resolved_local_ollama_model_id = _clean_model_id(model_id)
@@ -143,6 +149,7 @@ async def parse_design_prompt_with_metadata(
             recovery_mode=recovery_mode,
             request_id=request_id,
             model_id=resolved_local_ollama_model_id,
+            selection_offset=selection_offset,
         )
 
     return await _ORCHESTRATOR.parse(
@@ -150,6 +157,7 @@ async def parse_design_prompt_with_metadata(
         model_choice=model_choice,
         recovery_mode=recovery_mode,
         request_id=request_id,
+        selection_offset=selection_offset,
     )
 
 

@@ -17,6 +17,8 @@ from app.services.dxf_exporter import (
     export_dxf_file,
     get_media_type,
 )
+from app.services.dxf_render_data import extract_render_data
+from app.services.design_parser.quality_gate import ArchitecturalQualityGate
 from app.services.file_token_registry import issue_session_file_token, resolve_request_file_token
 
 router = APIRouter()
@@ -64,6 +66,16 @@ def generate_dxf(intent: DesignIntent, request: Request, response: Response):
     Raises:
         HTTPException: 400 if design intent is invalid or processing fails.
     """
+    quality_report = ArchitecturalQualityGate().evaluate_design_intent(intent)
+    if not quality_report.passed:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "LAYOUT_QUALITY_REJECTED",
+                "message": "Structured intent did not pass the EBC residential quality gate",
+                "quality_report": quality_report.model_dump(mode="json"),
+            },
+        )
     try:
         dxf_path = generate_dxf_from_intent(intent)
     except (RuntimeError, ValueError) as exc:
@@ -74,6 +86,7 @@ def generate_dxf(intent: DesignIntent, request: Request, response: Response):
         "status": "success",
         "file_token": file_token,
         "dxf_name": Path(dxf_path).name,
+        "quality_report": quality_report.model_dump(mode="json"),
     }
 
 
@@ -102,14 +115,34 @@ def download_dxf(
     )
 
 
+@router.get("/dxf/render-data")
+def render_data(request: Request, file_token: str = Query(..., min_length=1)):
+    """Return structured JSON render data for client-side canvas rendering."""
+    source_path = _resolve_dxf_source_path(request=request, file_token=file_token)
+    try:
+        data = extract_render_data(source_path)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to extract render data: {exc}") from exc
+    return data
+
+
 @router.get("/dxf/preview")
-def preview_dxf(request: Request, file_token: str = Query(..., min_length=1)):
+def preview_dxf(
+    request: Request,
+    file_token: str = Query(..., min_length=1),
+    layers: str | None = Query(default=None),
+):
     """Generate and return a PNG preview for a DXF file token."""
     source_path = _resolve_dxf_source_path(request=request, file_token=file_token)
+    visible_list = None
+    if layers is not None and layers.strip():
+        visible_list = [lay.strip() for lay in layers.split(",") if lay.strip()]
+
     try:
         preview_path, preview_filename = export_dxf_file(
             dxf_path=source_path,
             export_format=ExportFormat.IMAGE,
+            visible_layers=visible_list,
         )
     except DxfExportDependencyError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

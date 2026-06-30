@@ -57,10 +57,10 @@ class PlannerAgent:
         Raises:
             RuntimeError: If no valid placement is found after exhausting all candidates.
         """
-        step = 1.0
+        step = 0.5
         cols, rows = self._candidate_grid(room, step)
         total_candidates = cols * rows
-        total_attempts = max(MAX_PLACEMENT_TRIES, total_candidates)
+        total_attempts = min(MAX_PLACEMENT_TRIES, total_candidates)
 
         for attempt in range(total_attempts):
             # Ensure full search coverage even when MAX_PLACEMENT_TRIES < candidate count

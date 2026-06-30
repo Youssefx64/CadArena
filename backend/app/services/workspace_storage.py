@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.core.env_loader import load_backend_env
@@ -74,6 +74,11 @@ def init_workspace_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project_id, created_at);
             """
         )
+        for col in ["layout_data", "quality_report"]:
+            try:
+                connection.execute(f"ALTER TABLE messages ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
         connection.commit()
 
 
@@ -88,7 +93,8 @@ def list_projects(*, user_id: str) -> list[dict]:
                 p.created_at,
                 p.updated_at,
                 MAX(m.created_at) AS last_message_at,
-                COUNT(m.id) AS message_count
+                COUNT(m.id) AS message_count,
+                COALESCE(SUM(CASE WHEN m.dxf_path IS NOT NULL THEN 1 ELSE 0 END), 0) AS drawings_count
             FROM projects p
             LEFT JOIN messages m ON m.project_id = p.id
             WHERE p.user_id = ?
@@ -123,6 +129,7 @@ def create_project(*, user_id: str, name: str) -> dict:
         "updated_at": now,
         "last_message_at": None,
         "message_count": 0,
+        "drawings_count": 0,
     }
 
 
@@ -140,7 +147,8 @@ def _fetch_project_for_user(
             p.created_at,
             p.updated_at,
             COALESCE(MAX(m.created_at), p.updated_at) AS last_message_at,
-            COUNT(m.id) AS message_count
+            COUNT(m.id) AS message_count,
+            COALESCE(SUM(CASE WHEN m.dxf_path IS NOT NULL THEN 1 ELSE 0 END), 0) AS drawings_count
         FROM projects p
         LEFT JOIN messages m ON m.project_id = p.id
         WHERE p.id = ? AND p.user_id = ?
@@ -196,7 +204,9 @@ def delete_project(*, user_id: str, project_id: str) -> bool:
     return deleted > 0
 
 
-def list_project_messages(*, user_id: str, project_id: str) -> tuple[dict | None, list[dict]]:
+def list_project_messages(
+    *, user_id: str, project_id: str
+) -> tuple[dict | None, list[dict]]:
     normalized_user_id = _normalize_user_id(user_id)
     with _connect() as connection:
         project = _fetch_project_for_user(
@@ -216,24 +226,55 @@ def list_project_messages(*, user_id: str, project_id: str) -> tuple[dict | None
                 dxf_path,
                 dxf_name,
                 model_used,
-                provider_used
+                provider_used,
+                layout_data,
+                quality_report
             FROM messages
             WHERE project_id = ?
             ORDER BY created_at ASC
             """,
             (project_id,),
         ).fetchall()
-    return project, [_serialize_message_row(row, user_id=normalized_user_id) for row in rows]
+    return project, [
+        _serialize_message_row(row, user_id=normalized_user_id) for row in rows
+    ]
 
 
 def _serialize_message_row(row, *, user_id: str) -> dict:
     payload = dict(row)
+    import json
+
+    # Deserialize layout_data
+    layout_data_str = payload.pop("layout_data", None)
+    if layout_data_str:
+        try:
+            payload["data"] = json.loads(layout_data_str)
+        except Exception:
+            payload["data"] = None
+    else:
+        payload["data"] = None
+
+    # Deserialize quality_report
+    quality_report_str = payload.pop("quality_report", None)
+    if quality_report_str:
+        try:
+            payload["quality_report"] = json.loads(quality_report_str)
+        except Exception:
+            payload["quality_report"] = None
+    else:
+        payload["quality_report"] = None
+
     dxf_path = payload.pop("dxf_path", None)
     if dxf_path:
         try:
-            payload["file_token"] = issue_workspace_file_token(user_id=user_id, absolute_path=dxf_path)
+            payload["file_token"] = issue_workspace_file_token(
+                user_id=user_id, absolute_path=dxf_path
+            )
         except ValueError as e:
-            logger.warning(f"Failed to issue file token for {dxf_path}: {e}", extra={"user_id": user_id, "dxf_path": dxf_path})
+            logger.warning(
+                f"Failed to issue file token for {dxf_path}: {e}",
+                extra={"user_id": user_id, "dxf_path": dxf_path},
+            )
             payload["file_token"] = None
     else:
         payload["file_token"] = None
@@ -250,6 +291,8 @@ def add_message(
     dxf_name: str | None = None,
     model_used: str | None = None,
     provider_used: str | None = None,
+    layout_data: dict | None = None,
+    quality_report: dict | None = None,
 ) -> str:
     normalized_user_id = _normalize_user_id(user_id)
     cleaned_text = text.strip()
@@ -257,6 +300,13 @@ def add_message(
         raise ValueError("message text must not be empty")
     if role not in {"user", "assistant", "error", "system"}:
         raise ValueError("unsupported message role")
+
+    import json
+
+    layout_data_json = json.dumps(layout_data) if layout_data is not None else None
+    quality_report_json = (
+        json.dumps(quality_report) if quality_report is not None else None
+    )
 
     message_id = uuid4().hex
     now = _utc_now()
@@ -282,9 +332,11 @@ def add_message(
                     dxf_path,
                     dxf_name,
                     model_used,
-                    provider_used
+                    provider_used,
+                    layout_data,
+                    quality_report
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     message_id,
@@ -296,6 +348,8 @@ def add_message(
                     dxf_name,
                     model_used,
                     provider_used,
+                    layout_data_json,
+                    quality_report_json,
                 ),
             )
             connection.execute(

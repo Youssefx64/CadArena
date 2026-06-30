@@ -33,7 +33,7 @@ class IntentDefaultsResolver:
     ) -> tuple[DesignIntent, PlanningContext]:
         draft = payload
         if isinstance(payload, dict):
-            draft = DesignIntentDraft.parse_obj(payload)
+            draft = DesignIntentDraft.model_validate(payload)
 
         boundary = self._resolve_boundary(draft.boundary)
         rooms = self._resolve_rooms(draft.rooms, boundary)

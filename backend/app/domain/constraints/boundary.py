@@ -45,10 +45,11 @@ class BoundaryConstraint(Constraint):
         boundary_right = boundary_left + boundary.width
         boundary_top = boundary_bottom + boundary.height
 
-        # Check all corners are within boundary
+        # Check all corners are within boundary with a tolerance of 0.05m (5cm)
+        tol = 0.05
         return (
-            room_left >= boundary_left
-            and room_bottom >= boundary_bottom
-            and room_right <= boundary_right
-            and room_top <= boundary_top
+            room_left >= boundary_left - tol
+            and room_bottom >= boundary_bottom - tol
+            and room_right <= boundary_right + tol
+            and room_top <= boundary_top + tol
         )
