@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Github, Linkedin, Mail, Heart } from 'lucide-react';
+import { GitHub as Github, LinkedIn as Linkedin, Mail, Heart } from '../IconRegistry';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -16,10 +16,10 @@ const Footer = () => {
     {
       title: 'Product',
       links: [
-        { name: 'CAD Studio', href: '/studio', internal: true },
-        { name: 'ArchChat (RAG)', href: '/rag-chat', internal: true },
-        { name: 'Community', href: '/community', internal: true },
-        { name: 'Generate', href: '/generate', internal: true },
+        { name: 'CAD Studio (requires login)', href: '/studio', internal: true },
+        { name: 'ArchChat (requires login)', href: '/rag-chat', internal: true },
+        { name: 'Features', href: '/features', internal: true },
+        { name: 'Community (requires login)', href: '/community', internal: true },
       ],
     },
     {
@@ -55,7 +55,12 @@ const Footer = () => {
                 className="app-footer-logo"
               />
               <div className="flex flex-col leading-none">
-                <span className="text-xl font-bold text-white">CadArena</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-white">CadArena</span>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-medium text-slate-300 border border-white/5">
+                    v1.0.0-beta
+                  </span>
+                </div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
                   AI Layout Workspace
                 </span>

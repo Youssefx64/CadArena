@@ -3,21 +3,22 @@ import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Menu, X, Home, Zap, Info, Users,
+  Menu, Cancel as X, Home, Info, Users,
   MessageCircle, MessageSquare, LogIn, UserPlus, LogOut,
-  User, Settings, ChevronDown, BookOpen, Sun, Moon,
-} from 'lucide-react';
+  User, Settings, ChevronDown, BookOpen, Sun, Moon, Sliders, Lock, Sparkles
+} from '../IconRegistry';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDarkMode } from '../../hooks/useDarkMode';
 
 const NAV_LINKS = [
   { name: 'Home',       href: '/',           icon: Home },
-  { name: 'ArchVision', href: '/generate',   icon: Zap,            protected: true },
+  { name: 'Features',   href: '/features',   icon: Sliders },
   { name: 'ArchChat',   href: '/rag-chat',   icon: MessageSquare,  protected: true, badge: 'RAG' },
+  { name: 'CadStudio',  href: '/studio',     icon: Sparkles,       protected: true, badge: 'DXF' },
   { name: 'Community',  href: '/community',  icon: MessageCircle,  protected: true },
+  { name: 'Docs',       href: '/docs',       icon: BookOpen },
   { name: 'About',      href: '/about',      icon: Info },
   { name: 'Developers', href: '/developers', icon: Users },
-  { name: 'Docs',       href: '/docs',       icon: BookOpen },
 ];
 
 function NavLink({ item, active, isAuthenticated }) {
@@ -33,7 +34,7 @@ function NavLink({ item, active, isAuthenticated }) {
       aria-current={active ? 'page' : undefined}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`app-nav-link relative px-4 py-2 transition-colors ${active ? 'app-nav-link-active' : ''}`}
+      className={`app-nav-link relative px-2 xl:px-4 py-1.5 transition-colors ${active ? 'app-nav-link-active' : ''}`}
     >
       <AnimatePresence>
         {isHovered && (
@@ -49,8 +50,11 @@ function NavLink({ item, active, isAuthenticated }) {
       </AnimatePresence>
       <span className="relative z-10 inline-flex items-center gap-2">
         <span>{item.name}</span>
+        {!isAuthenticated && item.protected ? (
+          <Lock className="h-3 w-3 text-slate-400 dark:text-slate-500" aria-label="Authentication required" />
+        ) : null}
         {item.badge ? (
-          <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-700 dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
+          <span className="inline-flex items-center justify-center h-[18px] rounded-full border border-primary-200 bg-primary-50 px-2 text-[10px] font-bold uppercase tracking-wide text-primary-700 leading-none dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
             {item.badge}
           </span>
         ) : null}
@@ -215,13 +219,13 @@ export default function Navbar() {
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className="app-shell">
-        <div className="flex h-[68px] items-center gap-4">
-          <div className="flex shrink-0 items-center">
+      <div className="w-full px-8 lg:px-12">
+        <div className="flex h-[72px] items-center justify-between w-full gap-6 md:gap-10">
+          <div className="flex-1 flex items-center justify-start pr-6 lg:pr-10">
             <Link to="/" className="app-navbar-brand" aria-label="CadArena home">
               <img src={brandMarkSrc} alt="" aria-hidden="true" className="app-navbar-logo" />
               <div className="flex flex-col leading-none">
-                <span className="text-lg font-bold tracking-tight text-slate-950 dark:text-slate-50">CadArena</span>
+                <span className="text-lg font-bold tracking-tight text-slate-950 dark:text-slate-550">CadArena</span>
                 <span className="hidden text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500 sm:block">
                   AI Layout Workspace
                 </span>
@@ -229,13 +233,13 @@ export default function Navbar() {
             </Link>
           </div>
 
-          <div className="hidden flex-1 items-center justify-center gap-0 md:flex" role="list">
+          <div className="hidden md:flex flex-none items-center justify-center gap-1 xl:gap-2" role="list">
             {NAV_LINKS.map((item) => (
               <NavLink key={item.name} item={item} active={isActive(item.href)} isAuthenticated={isAuthenticated} />
             ))}
           </div>
 
-          <div className="hidden shrink-0 items-center justify-end gap-2 md:flex">
+          <div className="flex-1 hidden md:flex items-center justify-end gap-2 xl:gap-4">
             <motion.button
               onClick={toggleDark}
               className="dark-toggle"
@@ -261,14 +265,7 @@ export default function Navbar() {
 
             {!isLoading && (
               isAuthenticated ? (
-                <>
-                  <Link to="/studio" className="app-button-primary app-button-compact"
-                    aria-label="Launch CAD Studio">
-                    <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                    CAD Studio
-                  </Link>
-                  <UserMenu user={user} profile={profile} avatarTs={avatarTs} onLogout={handleLogout} />
-                </>
+                <UserMenu user={user} profile={profile} avatarTs={avatarTs} onLogout={handleLogout} />
               ) : (
                 <>
                   <Link to="/login" className="app-button-ghost app-button-compact">
@@ -287,7 +284,7 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center justify-end gap-2 md:hidden">
             <motion.button
               onClick={toggleDark}
               className="dark-toggle"
@@ -363,6 +360,9 @@ export default function Navbar() {
                       <Icon className="w-5 h-5" aria-hidden="true" />
                       <span className="inline-flex items-center gap-2">
                         <span>{item.name}</span>
+                        {!isAuthenticated && item.protected ? (
+                          <Lock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" aria-label="Authentication required" />
+                        ) : null}
                         {item.badge ? (
                           <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-700 dark:border-violet-700/60 dark:bg-violet-900/40 dark:text-violet-300">
                             {item.badge}
@@ -375,12 +375,6 @@ export default function Navbar() {
               })}
 
               <motion.div custom={NAV_LINKS.length} variants={itemVariants} initial="hidden" animate="visible" className="pt-2 space-y-2">
-                <Link to="/studio" className="app-button-primary w-full justify-center"
-                  aria-label="Launch CAD Studio">
-                  <MessageSquare className="h-5 w-5" aria-hidden="true" />
-                  Launch CAD Studio
-                </Link>
-
                 {isAuthenticated ? (
                   <div className="flex gap-2">
                     <Link to="/profile" className="app-button-secondary app-button-compact flex-1 justify-center">

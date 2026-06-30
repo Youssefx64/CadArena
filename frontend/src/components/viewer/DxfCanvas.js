@@ -109,7 +109,7 @@ const DxfCanvas = forwardRef(function DxfCanvas(
   if (showUpload) {
     return (
       <div
-        className="viewer-canvas-wrap"
+        className="viewer-canvas-wrap w-full h-full"
         style={{ cursor: 'default' }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -156,7 +156,7 @@ const DxfCanvas = forwardRef(function DxfCanvas(
   return (
     <div
       ref={containerRef}
-      className="viewer-canvas-wrap"
+      className="viewer-canvas-wrap w-full h-full"
       style={{ cursor: 'grab' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -179,8 +179,10 @@ const DxfCanvas = forwardRef(function DxfCanvas(
           >
             <AlertCircle className="h-7 w-7 text-red-500" />
           </span>
-          <p className="text-sm font-semibold text-slate-700 mt-1">Preview unavailable</p>
-          <p className="text-xs text-slate-400 max-w-xs text-center mt-1">{previewError}</p>
+          <p className="text-sm font-semibold text-slate-200 mt-1">Preview unavailable</p>
+          <p className="text-xs text-slate-400 max-w-xs text-center mt-1">
+            {typeof previewError === 'string' ? previewError : 'The DXF layout preview image could not be resolved.'}
+          </p>
         </div>
       )}
 
@@ -194,6 +196,7 @@ const DxfCanvas = forwardRef(function DxfCanvas(
           }}
         >
           <img
+            key={previewUrl}
             src={previewUrl}
             alt="DXF Preview"
             draggable={false}
@@ -216,7 +219,7 @@ DxfCanvas.propTypes = {
   onImgLoad:    PropTypes.func.isRequired,
   onImgError:   PropTypes.func.isRequired,
   imgLoading:   PropTypes.bool.isRequired,
-  previewError: PropTypes.bool.isRequired,
+  previewError: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
   showUpload:   PropTypes.bool.isRequired,
   uploading:    PropTypes.bool.isRequired,
   onFileSelect: PropTypes.func.isRequired,

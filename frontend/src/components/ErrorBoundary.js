@@ -1,4 +1,6 @@
+/* eslint-disable no-console */
 import React from 'react';
+import PropTypes from 'prop-types';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -23,17 +25,25 @@ class ErrorBoundary extends React.Component {
           <div className="max-w-md space-y-4">
             <h1 className="text-4xl font-black text-slate-900 dark:text-slate-50">Something went wrong</h1>
             <p className="text-slate-600 dark:text-slate-400">
-              An unexpected error has occurred. Our engineers have been notified.
+              An unexpected application error has occurred. Please reload the page or return to the dashboard.
             </p>
-            <div className="rounded-lg bg-red-50 p-4 text-left font-mono text-xs text-red-800 dark:bg-red-900/30 dark:text-red-400">
-              {this.state.error?.toString()}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="app-button-primary flex-1"
+              >
+                Reload Page
+              </button>
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null, errorInfo: null });
+                  window.location.href = '/';
+                }}
+                className="app-button-secondary flex-1"
+              >
+                Go to Home
+              </button>
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="app-button-primary w-full"
-            >
-              Reload Application
-            </button>
           </div>
         </div>
       );
@@ -42,5 +52,9 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+ErrorBoundary.propTypes = {
+  children: PropTypes.node,
+};
 
 export default ErrorBoundary;
