@@ -1,275 +1,374 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Brain, Zap, Target, Code2, ArrowRight, CheckCircle,
-  FileCode2, Layers, Cpu, Database,
-} from 'lucide-react';
+  Brain, Target, CheckCircle2, Layers, Cpu, Shield, MessageSquare, BookOpen, Zap
+} from '../components/IconRegistry';
+import AboutIllustration from '../components/illustrations/AboutIllustration';
 
-const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.09 } } };
-const fadeUp  = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } } };
+const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.02 } } };
+const fadeUp  = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } } };
 
-const AboutPage = () => {
-  const PILLARS = [
+export default function AboutPage() {
+  useEffect(() => { document.title = 'About — CadArena'; }, []);
+
+  const CORE_PRINCIPLES = [
     {
-      icon: Brain,
-      title: 'LLM-Driven Generation',
-      body: 'The core AI uses a large language model pipeline — built with LangChain and Ollama — that interprets your natural language description and generates a structured floor plan with correct room types, areas, and spatial adjacencies.',
+      icon: Shield,
+      title: 'Secure by Default',
+      desc: 'User sessions, auth tokens, and generated plans are stored in local SQLite databases. Session cookies are HTTP-only. No sensitive data is transmitted to third-party services.',
+    },
+    {
+      icon: Cpu,
+      title: 'Local-First AI Inference',
+      desc: 'CadArena supports Ollama-hosted models (Llama, Qwen, Gemma), allowing engineers to run the full retrieval and generation pipeline entirely offline without external API calls.',
     },
     {
       icon: Target,
-      title: 'EBC 2023 Compliance',
-      body: 'Generated layouts satisfy Egyptian Building Code 2023 standards for minimum room areas, ceiling heights, and spatial adjacency — making the output usable in real architectural practice, not just as visualisations.',
+      title: 'Geometry Over Guesswork',
+      desc: 'Spatial layout — topology scoring, corridor zoning, room origin placement — is computed by deterministic planners. LLMs handle intent extraction; they never generate raw coordinates.',
     },
     {
-      icon: FileCode2,
-      title: 'DXF-Ready Output',
-      body: 'Every generated floor plan is automatically exported as a DXF file with per-room layers, room labels, and linear dimension entities — ready to open in AutoCAD, Revit, or any DXF-compatible tool.',
-    },
-    {
-      icon: Zap,
-      title: 'Conversational Workflow',
-      body: 'The CAD Studio provides a natural-language interface. Describe what you need in plain English or Arabic, and the AI handles spatial reasoning, constraint satisfaction, and CAD formatting automatically.',
+      icon: CheckCircle2,
+      title: 'Compliance-Aware Output',
+      desc: 'Every generated layout passes through an automated EBC validation gate that checks setbacks, corridor clearances, and egress widths against the Egyptian Building Code before export.',
     },
   ];
 
-  const STACK = [
-    {
-      icon: Brain,
-      category: 'AI & Machine Learning',
-      items: [
-        { name: 'LangChain', note: 'LLM orchestration and chain composition' },
-        { name: 'Ollama + langchain-ollama', note: 'Local LLM inference backend' },
-        { name: 'Transformers (HuggingFace)', note: 'Tokenisation and model utilities' },
-        { name: 'EBC 2023 constraint encoding', note: 'Spatial rules built into the generation pipeline' },
-      ],
-    },
-    {
-      icon: Code2,
-      category: 'Backend & API',
-      items: [
-        { name: 'FastAPI + Uvicorn', note: 'High-performance async API server' },
-        { name: 'Pydantic v2', note: 'Request/response validation' },
-        { name: 'ezdxf', note: 'DXF generation and export pipeline' },
-        { name: 'bcrypt + JWT cookies', note: 'Secure authentication system' },
-      ],
-    },
-    {
-      icon: Layers,
-      category: 'Frontend & UI',
-      items: [
-        { name: 'React 18 + CRA', note: 'Code-split SPA with lazy loading' },
-        { name: 'Tailwind CSS 3.3', note: 'Design system and utility styling' },
-        { name: 'Framer Motion 10', note: 'Animations and micro-interactions' },
-        { name: 'Lucide React + Recharts', note: 'Icons and data visualisation' },
-      ],
-    },
-    {
-      icon: Database,
-      category: 'Data & Infrastructure',
-      items: [
-        { name: 'SQLite persistence', note: 'Workspace, profiles, and project storage' },
-        { name: 'JWT HTTP-only cookies', note: 'Secure, stateless session management' },
-        { name: 'Replit deployment', note: 'Containerised cloud hosting' },
-        { name: 'EBC 2023 ruleset', note: 'Embedded constraint library for compliance checks' },
-      ],
-    },
+  const TIMELINE_STEPS = [
+    { stage: 'Problem', title: 'The Coordinate Hallucination Problem', body: 'AI layout models that generate raw coordinates directly from LLM output produce physically impossible drawings. Walls overlap. Dimensions are wrong. The output cannot be used.' },
+    { stage: 'Research', title: 'Building Code Formalisation', body: 'Egyptian Building Code regulations were formalised into computable rule sets: setback distances, corridor widths, egress clearances. CubiCasa5K dataset structures were analysed for spatial priors.' },
+    { stage: 'Architecture', title: 'Dual-Engine Design', body: 'LLMs handle natural language parsing and design intent extraction. A separate deterministic spatial planner resolves room placement, topology scoring, and boundary constraints geometrically.' },
+    { stage: 'Development', title: 'FastAPI + React Integration', body: 'FastAPI endpoints, Qdrant vector retrieval, ezdxf rendering, and the interactive React CAD canvas were built and integrated into a single cohesive workspace.' },
+    { stage: 'Current', title: 'Integrated Engineering Workspace', body: 'CadArena is live with iterative floor plan prompting, visual compliance warnings, cProfile observability telemetry, and DXF / PNG / PDF export.' },
+    { stage: 'Roadmap', title: 'WebSockets & 3D Visualisation', body: 'Planned: real-time co-authoring via WebSockets, Three.js 3D walkthrough rendering, DWG import support, and AI-assisted cost estimation from material catalogs.' },
   ];
 
-  const METRICS = [
-    { label: 'Core Workflow',     value: 'Prompt → DXF', note: 'Natural language directly to CAD file' },
-    { label: 'Output Format',     value: 'DXF',           note: 'AutoCAD 2013+ and Revit compatible' },
-    { label: 'Language Support',  value: 'AR + EN',       note: 'Arabic and English prompt support' },
-    { label: 'Compliance',        value: 'EBC 2023',      note: 'Egyptian Building Code 2023 built-in' },
-    { label: 'DXF Layers',        value: '12+',           note: 'One layer per room type' },
-    { label: 'Generation Engine', value: 'LLM',           note: 'LangChain + Ollama inference pipeline' },
+  const TECH_STACK = [
+    {
+      category: 'Frontend Suite',
+      items: [
+        { name: 'React 18 & React Router 6', desc: 'SPA architecture with code-split lazy loading' },
+        { name: 'Framer Motion 10', desc: 'Premium micro-interactions and modal transitions' },
+        { name: 'Vanilla CSS System', desc: 'Curated dark/light variables and animations' }
+      ]
+    },
+    {
+      category: 'Backend Services',
+      items: [
+        { name: 'FastAPI & Uvicorn', desc: 'High-performance asynchronous API router' },
+        { name: 'ezdxf Library', desc: 'Generates CAD-compatible drawing sheets' },
+        { name: 'Pydantic v2', desc: 'Strict validation schemas for architectural payloads' }
+      ]
+    },
+    {
+      category: 'Cognitive & Vector Engines',
+      items: [
+        { name: 'Local Ollama & Cloud APIs', desc: 'Dynamic model switching for layout parsing' },
+        { name: 'Qdrant Vector Store', desc: 'Embedded collection matching for regulatory RAG queries' },
+        { name: 'PyMuPDF Parser', desc: 'In-memory text extraction for uploaded reference guides' }
+      ]
+    },
+    {
+      category: 'Infrastructure & Data',
+      items: [
+        { name: 'SQLite Persistence', desc: 'Isolates project directories and message threads' },
+        { name: 'JWT Secure Cookie Auth', desc: 'Stateless session authentication for user profiles' },
+        { name: 'Docker Orchestration', desc: 'Multi-container setups for backend and RAG services' }
+      ]
+    }
   ];
 
   return (
-    <div className="app-page">
-      <div className="app-shell">
-
-        {/* Header */}
-        <motion.div initial="hidden" animate="visible" variants={stagger} className="app-page-header mb-16">
-          <motion.div variants={fadeUp} className="mb-5">
-            <span className="app-pill">
-              <Brain className="h-4 w-4" aria-hidden="true" />
-              About the Project
-            </span>
-          </motion.div>
-          <motion.h1 variants={fadeUp} className="app-page-title mb-5">
-            About <span className="gradient-text">CadArena</span>
-          </motion.h1>
-          <motion.p variants={fadeUp} className="app-page-copy">
-            CadArena is an AI-powered conversational CAD platform that transforms natural language intent
-            into structured architectural layouts, EBC-compliant floor plans, and DXF-ready CAD exports.
-          </motion.p>
-        </motion.div>
-
-        {/* Mission panel */}
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="app-cta-panel relative mb-16 overflow-hidden px-10 py-16 text-center">
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-white opacity-[0.06] blur-3xl" />
-            <div className="absolute -bottom-16 -right-16 h-64 w-64 rounded-full bg-white opacity-[0.06] blur-3xl" />
-          </div>
-          <h2 className="mb-5 text-2xl font-black text-white">Mission</h2>
-          <p className="mx-auto max-w-3xl text-lg leading-relaxed text-primary-100">
-            To make architectural AI genuinely useful in practice — by combining conversational interfaces,
-            reliable CAD outputs, and spatially-aware generative models that help architects and designers
-            move faster from intent to execution, without sacrificing compliance or precision.
-          </p>
-        </motion.div>
-
-        {/* Core pillars */}
-        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16">
-          <motion.h2 variants={fadeUp} className="app-section-title mb-12 text-center">
-            How it works
-          </motion.h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {PILLARS.map((p) => {
-              const Icon = p.icon;
-              return (
-                <motion.div key={p.title} variants={fadeUp} className="app-card app-card-hover p-8">
-                  <div className="app-icon-badge-lg mb-5" aria-hidden="true">
-                    <Icon className="h-7 w-7" />
-                  </div>
-                  <h3 className="app-card-title mb-3">{p.title}</h3>
-                  <p className="app-body">{p.body}</p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* By the numbers */}
-        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
-          className="app-card mb-16 p-8 lg:p-12">
-          <motion.h2 variants={fadeUp} className="app-section-title mb-10 text-center">
-            By the numbers
-          </motion.h2>
-          <div className="grid grid-cols-2 gap-6 lg:grid-cols-3">
-            {METRICS.map((m) => (
-              <motion.div key={m.label} variants={fadeUp} className="text-center">
-                <div
-                  className="mb-1 text-4xl font-black tracking-tight lg:text-5xl"
-                  style={{ backgroundImage: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
-                >
-                  {m.value}
-                </div>
-                <div className="mb-1 font-semibold text-slate-950 dark:text-slate-100">{m.label}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">{m.note}</div>
+    <div className="min-h-screen relative pb-16 pt-10">
+      
+      {/* ═══ HERO SECTION ════════════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden pt-12 pb-16 md:pt-20 md:pb-24">
+        <div className="hero-grid-pattern" aria-hidden="true" />
+        <div className="app-shell relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <motion.div 
+              initial="hidden" 
+              animate="visible" 
+              variants={stagger} 
+              className="lg:col-span-7 text-center lg:text-left space-y-6"
+            >
+              <motion.div variants={fadeUp} className="flex justify-center lg:justify-start">
+                <span className="app-pill">
+                  <Brain className="h-3.5 w-3.5" aria-hidden="true" />
+                  Platform Overview
+                </span>
               </motion.div>
-            ))}
-          </div>
-        </motion.div>
+              
+              <motion.h1 variants={fadeUp} className="app-hero-title leading-tight text-4xl sm:text-5xl lg:text-6xl font-black mb-6">
+                Engineering-grade AI
+                <br />
+                <span className="gradient-text-animated">for architectural design</span>
+              </motion.h1>
 
-        {/* Key capabilities */}
-        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}
-          className="app-card-muted mb-16 p-8 lg:p-12">
-          <motion.h2 variants={fadeUp} className="app-section-title mb-8 text-center">
-            What the CAD Studio delivers
-          </motion.h2>
-          <div className="mx-auto max-w-2xl space-y-4">
-            {[
-              { metric: 'Natural Language Input', improvement: 'AR + EN', note: 'Describe your space in plain Arabic or English — no CAD knowledge needed' },
-              { metric: 'Structured DXF Output', improvement: '12+ layers', note: 'Per-room-type layers with labels and linear dimension entities' },
-              { metric: 'EBC 2023 Compliance', improvement: 'Built-in', note: 'Egyptian Building Code constraints enforced during generation' },
-              { metric: 'Conversational Workflow', improvement: 'Iterative', note: 'Refine your floor plan across multiple turns in the CAD Studio workspace' },
-            ].map(({ metric, improvement, note }) => (
-              <motion.div key={metric} variants={fadeUp} className="flex items-start gap-3">
-                <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" aria-hidden="true" />
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-950 dark:text-slate-100">{metric}</span>
-                    <span className="font-black text-primary-700 dark:text-violet-400">{improvement}</span>
-                  </div>
-                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{note}</p>
-                </div>
-              </motion.div>
-            ))}
+              <motion.p variants={fadeUp} className="app-page-copy mx-auto lg:mx-0 mb-10 max-w-2xl text-slate-500 dark:text-slate-400">
+                CadArena combines conversational AI with a deterministic spatial planner to produce
+                structurally valid floor plans — not approximations. Design intent goes in; compliant DXF comes out.
+              </motion.p>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="lg:col-span-5 flex justify-center w-full"
+            >
+              <AboutIllustration />
+            </motion.div>
           </div>
-        </motion.div>
+        </div>
+      </section>
 
-        {/* Technology stack */}
-        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16">
-          <motion.h2 variants={fadeUp} className="app-section-title mb-12 text-center">
-            Technology Stack
-          </motion.h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {STACK.map((s) => {
-              const Icon = s.icon;
-              return (
-                <motion.div key={s.category} variants={fadeUp} className="app-card p-7">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="app-icon-badge" aria-hidden="true"><Icon className="h-5 w-5" /></div>
-                    <h3 className="app-card-title">{s.category}</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {s.items.map((item) => (
-                      <div key={item.name} className="flex items-start gap-3">
-                        <div className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary-500" aria-hidden="true" />
-                        <div>
-                          <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">{item.name}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{item.note}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Team */}
-        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16">
-          <motion.h2 variants={fadeUp} className="app-section-title mb-8 text-center">
-            Project Leadership
-          </motion.h2>
-          <motion.div variants={fadeUp} className="mx-auto max-w-lg">
-            <div className="app-card app-card-hover p-8 text-center">
-              <div className="app-icon-badge-lg mx-auto mb-5" aria-hidden="true">
-                <Cpu className="h-8 w-8" />
-              </div>
-              <h3 className="mb-1 text-xl font-black text-slate-950 dark:text-slate-50">Youssef Taha Badawi</h3>
-              <p className="mb-4 font-semibold text-primary-700 dark:text-violet-400">Founder · AI Engineer · Systems Architect</p>
-              <p className="mb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                AI Engineer specialising in GenAI, LLM systems, and agentic architectures. Built CadArena
-                end-to-end — from dataset curation and model training to the frontend product and DXF export pipeline.
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['Conversational CAD', 'LLM & RAG Systems', 'Diffusion Models', 'FastAPI', 'React'].map((tag) => (
-                  <span key={tag} className="app-pill-muted py-1 text-xs">{tag}</span>
-                ))}
-              </div>
+      {/* ═══ PLATFORM OVERVIEW (ARCHCHAT vs CADSTUDIO) ═══════════════════════ */}
+      <section className="app-shell mb-20 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          
+          {/* ArchChat Card */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+            className="app-card border border-slate-200/60 dark:border-white/5 p-8 flex flex-col hover:shadow-medium"
+          >
+            <div className="app-icon-badge mb-6" aria-hidden="true">
+              <MessageSquare className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3">
+              ArchChat
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed flex-1 mb-6">
+              A conversational AI interface backed by Qdrant vector retrieval. Upload PDF or CSV reference
+              documents and query them with natural language. Responses include inline citations that
+              deep-link to the relevant passage in the source document.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {['Qdrant RAG', 'PDF Ingestion', 'Citation Links', 'Multi-turn Context'].map((t) => (
+                <span key={t} className="text-[10px] font-bold bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400">
+                  {t}
+                </span>
+              ))}
             </div>
           </motion.div>
-        </motion.div>
 
-        {/* CTA */}
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="mb-8 flex flex-col items-center gap-4 text-center">
-          <h2 className="app-section-title">Ready to try it?</h2>
-          <p className="app-section-copy max-w-xl">
-            Open the CAD Studio and describe your first floor plan in plain language.
+          {/* CadStudio Card */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+            className="app-card border border-slate-200/60 dark:border-white/5 p-8 flex flex-col hover:shadow-medium"
+          >
+            <div className="app-icon-badge mb-6" aria-hidden="true">
+              <Layers className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3">
+              CadStudio
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed flex-1 mb-6">
+              A DXF generation workspace. Accepts natural language design parameters, computes room
+              placement and boundary constraints with a deterministic spatial planner, and renders
+              the result on an interactive multi-layer canvas. Exports to DXF, PNG, and PDF.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {['Deterministic Planner', 'EBC Validation', 'ezdxf Export', 'Layer Controls'].map((t) => (
+                <span key={t} className="text-[10px] font-bold bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400">
+                  {t}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ═══ PRODUCT JOURNEY TIMELINE ═══════════════════════════════════════ */}
+      <section className="app-shell border-t border-slate-100 dark:border-white/5 pt-16 mb-20" aria-label="Project story timeline">
+        <div className="text-center mb-12">
+          <p className="app-eyebrow mb-3">Development History</p>
+          <h2 className="app-section-title mb-4">How it was built</h2>
+          <p className="app-section-copy mx-auto max-w-xl">
+            From problem definition through architecture decisions to a deployed engineering workspace.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link to="/studio" className="app-button-primary">
-              Launch CAD Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
+          {TIMELINE_STEPS.map((step, idx) => (
+            <div 
+              key={idx}
+              className="app-card border border-slate-100 dark:border-white/5 p-6 rounded-2xl flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-white/5 pb-3">
+                  <span className="text-[10px] font-black uppercase text-primary-600 dark:text-violet-400 tracking-wider">
+                    {step.stage}
+                  </span>
+                  <span className="text-xs font-bold text-slate-400">
+                    Step {String(idx + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">
+                  {step.title}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {step.body}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ CORE PRINCIPLES ════════════════════════════════════════════════ */}
+      <section className="app-shell border-t border-slate-100 dark:border-white/5 pt-16 mb-20" aria-labelledby="principles-heading">
+        <div className="text-center mb-12">
+          <p className="app-eyebrow mb-3">Engineering Philosophy</p>
+          <h2 id="principles-heading" className="app-section-title mb-4">Design Decisions</h2>
+          <p className="app-section-copy mx-auto max-w-xl">
+            Every architectural decision in CadArena is a consequence of one constraint: produced drawings must be geometrically correct and code-compliant.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {CORE_PRINCIPLES.map((pr, idx) => {
+            const Icon = pr.icon;
+            return (
+              <div 
+                key={idx}
+                className="app-card border border-slate-100 dark:border-white/5 p-6 rounded-2xl flex items-start gap-4"
+              >
+                <div className="app-icon-badge flex-shrink-0" aria-hidden="true">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-2">
+                    {pr.title}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {pr.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ═══ ARCHITECTURE DIAGRAM ═══════════════════════════════════════════ */}
+      <section className="app-shell border-t border-slate-100 dark:border-white/5 pt-16 mb-20" aria-labelledby="arch-heading">
+        <div className="text-center mb-12">
+          <p className="app-eyebrow mb-3">System Architecture</p>
+          <h2 id="arch-heading" className="app-section-title mb-4">Component Map</h2>
+          <p className="app-section-copy mx-auto max-w-xl">
+            A high-level view of how the FastAPI gateway, retrieval engine, spatial planner, and rendering pipeline are connected.
+          </p>
+        </div>
+
+        <div className="max-w-3xl mx-auto border border-slate-850 bg-slate-950 p-6 rounded-3xl font-mono text-xs text-slate-300 overflow-x-auto shadow-medium">
+          <div className="border-b border-slate-800 pb-3 mb-4 flex items-center gap-1.5" aria-hidden="true">
+            <span className="h-3 w-3 rounded-full bg-red-500/70" />
+            <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
+            <span className="h-3 w-3 rounded-full bg-green-500/70" />
+            <span className="ml-2 text-[10px] text-slate-500">cadarena_system_tree</span>
+          </div>
+          <pre className="leading-relaxed">
+{`CadArena (FastAPI Gateway)
+├── ArchChat (AI + RAG Controller)
+│   ├── RAG Engine
+│   │   ├── Vector Store (Local Qdrant Collection)
+│   │   └── Document Loader (PDF / CSV / JSON Text Parser)
+│   ├── Conversational Storage (SQLite Memory)
+│   └── AI reasoner (Inference router to Ollama/Cohere/OpenAI)
+│
+└── CadStudio (DXF Generation Studio)
+    ├── Deterministic spatial Planner
+    │   ├── Boundary setbacks solver
+    │   └── Corridor & openings zoning
+    ├── Compliance Gate (EBC 2023 Ruleset Validator)
+    ├── ezdxf Canvas Rendering Pipeline
+    └── Export Exporter (DXF / PNG / PDF plots)`}
+          </pre>
+        </div>
+      </section>
+
+      {/* ═══ DYNAMIC TECH STACK ═════════════════════════════════════════════ */}
+      <section className="app-shell border-t border-slate-100 dark:border-white/5 pt-16 mb-20" aria-labelledby="tech-heading">
+        <div className="text-center mb-12">
+          <p className="app-eyebrow mb-3">Implementation</p>
+          <h2 id="tech-heading" className="app-section-title mb-4">Technology Stack</h2>
+          <p className="app-section-copy mx-auto max-w-xl">
+            Every library and framework listed here is actively used in the production codebase. Nothing is aspirational.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {TECH_STACK.map((group, idx) => (
+            <div 
+              key={idx}
+              className="app-card border border-slate-100 dark:border-white/5 p-6 rounded-2xl flex flex-col justify-between"
+            >
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-white/5 pb-2 mb-4">
+                  {group.category}
+                </h4>
+                <div className="space-y-4">
+                  {group.items.map((item, idy) => (
+                    <div key={idy}>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        {item.name}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed block mt-0.5">
+                        {item.desc}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ CTA SECTION ════════════════════════════════════════════════════ */}
+      <section className="app-shell" aria-label="Get started CTA">
+        <div className="app-cta-panel relative overflow-hidden px-8 py-16 text-center sm:px-14 sm:py-20 rounded-3xl">
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            <div className="absolute -left-20 -top-20 h-80 w-80 bg-white opacity-[0.05] blur-3xl" />
+            <div className="absolute -bottom-20 -right-20 h-80 w-80 bg-white opacity-[0.05] blur-3xl" />
+          </div>
+
+          <h2 className="mb-4 text-2xl font-black text-white">
+            Start working with the platform
+          </h2>
+          <p className="mx-auto mb-10 max-w-lg text-sm text-primary-100">
+            Generate a DXF floor plan, query the Egyptian Building Code with ArchChat,
+            or read the full system documentation — no installation required.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link to="/studio" className="app-button-primary bg-white text-slate-950 hover:bg-slate-100 flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Open CAD Studio
             </Link>
-            <Link to="/docs" className="app-button-secondary">
-              Read the Docs
+            <Link to="/rag-chat" className="app-button-secondary border-white/20 text-white hover:bg-white/10 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Open ArchChat
             </Link>
-            <Link to="/developers" className="app-button-ghost">
-              Meet the Builder
+            <Link to="/docs" className="app-button-secondary border-white/20 text-white hover:bg-white/10 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Read System Docs
+            </Link>
+            <Link to="/features" className="app-button-ghost text-white">
+              Explore Features
             </Link>
           </div>
-        </motion.div>
+        </div>
+      </section>
 
-      </div>
     </div>
   );
-};
-
-export default AboutPage;
+}

@@ -3,9 +3,9 @@ import PropTypes from 'prop-types';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowRight, Zap, Brain, BarChart3, Sparkles, CheckCircle,
+  ArrowRight, Zap, Brain, BarChart as BarChart3, Sparkles, CheckCircle,
   Download, Edit3, ChevronRight, MessageSquare, Users, BookOpen,
-} from 'lucide-react';
+} from '../components/IconRegistry';
 
 const PROMPT_EXAMPLES = [
   '3-bedroom apartment with open kitchen and living room',
@@ -132,27 +132,27 @@ function HeroPromptBar({ onDark = false }) {
 
 // ─── Page data ────────────────────────────────────────────────────────────────
 const HOW_IT_WORKS = [
-  { step: '01', icon: Edit3, title: 'Describe your space', body: 'Write your requirements in natural language — room count, style, adjacencies, or specific constraints. No CAD knowledge needed.' },
-  { step: '02', icon: Brain, title: 'AI generates the plan', body: 'An LLM-based generation pipeline interprets your description and produces a structured, EBC 2023-compliant floor plan with labelled rooms and spatial relationships.' },
-  { step: '03', icon: Download, title: 'Export and refine', body: 'Download a DXF file ready for AutoCAD or Revit, or continue iterating inside the full CAD Studio workspace.' },
+  { step: '01', icon: Edit3, title: 'Define Spatial Constraints', body: 'Specify your room quantities, desired adjacencies, and layout bounds using natural language prompts within the ArchChat interface.' },
+  { step: '02', icon: Brain, title: 'Synthesize Layout Coordinates', body: 'The hybrid generation pipeline extracts design intents, runs them through geometric planners, and maps compliant room coordinates.' },
+  { step: '03', icon: Download, title: 'Export CAD Drawing Sheets', body: 'Download structured DXF assets directly compatible with industry-standard CAD software, or continue editing within the CadStudio workspace.' },
 ];
 
 const FEATURES = [
-  { icon: Brain, title: 'AI-Powered Generation', body: 'An LLM-based pipeline converts your natural language description into a structured, EBC-compliant floor plan with labelled rooms and correct spatial adjacencies.' },
-  { icon: Zap, title: 'Constraint-Aware Design', body: 'Automatically enforces spatial consistency, structural adjacencies, and flow relationships — so you don\'t have to.' },
-  { icon: BarChart3, title: 'Structured Output', body: 'Every generated plan includes labelled rooms, spatial adjacency relationships, and EBC 2023 compliance — structured for real architectural use.' },
-  { icon: Download, title: 'DXF Export', body: 'Every generated plan exports as a CAD-compatible DXF file, ready to open in AutoCAD, Revit, or any DXF-compatible tool.' },
-  { icon: MessageSquare, title: 'ArchChat Threads', body: 'ChatGPT-style persistent engineering chat with per-user history and contextual retrieval answers.' },
-  { icon: Users, title: 'Engineering Community', body: 'Post design questions, discuss technical issues, and get feedback from civil and architectural peers.' },
-  { icon: BookOpen, title: 'Living Docs', body: 'Updated docs aligned with the latest backend architecture, RAG setup, and production deployment guidance.' },
+  { icon: Brain, title: 'Hybrid Generation Engine', body: 'Combines Large Language Models for prompt intent parsing with deterministic geometric planners to prevent layout coordinate hallucinations.' },
+  { icon: Zap, title: 'Constraint Solving System', body: 'Enforces room adjacencies, wall alignments, and structural clearances programmatically according to geometric rules.' },
+  { icon: BarChart3, title: 'Structured Layer Hierarchies', body: 'Every generated drawing partitions elements into standard CAD layers (walls, doors, dimensions) ready for CAD workspace filtering.' },
+  { icon: Download, title: 'Native DXF Generation', body: 'Integrates with a backend ezdxf plotting pipeline to write native, multi-layered CAD drawings compatible with desktop drawing tools.' },
+  { icon: MessageSquare, title: 'Persistent ArchChat Threads', body: 'Maintains per-user prompt history and context logs backed by an SQLite database for seamless layout iterations.' },
+  { icon: Users, title: 'Engineering Cooperation', body: 'Share design projects, request code compliance audits, and collaborate on structural layouts with peer builders.' },
+  { icon: BookOpen, title: 'Developer Reference Docs', body: 'Detailed setup references detailing local LLM execution, vector retrieval indexing, and ezdxf plotting pipeline configuration.' },
 ];
 
 const TRUST_ITEMS = [
-  { value: 'Prompt → DXF', label: 'Core Workflow' },
-  { value: 'EBC 2023',     label: 'Compliant' },
-  { value: 'DXF',          label: 'Export-Ready' },
-  { value: 'AR + EN',      label: 'Language Support' },
-  { value: '12+ Layers',   label: 'CAD Output' },
+  { value: 'Prompt → DXF', label: 'Layered Vectors' },
+  { value: 'EBC 2023',     label: 'Building Code Compliant' },
+  { value: 'ezdxf Pipeline',label: 'CAD Native Output' },
+  { value: 'RAG Search',   label: 'Knowledge Retrieval' },
+  { value: '12+ Layers',   label: 'Structured Drawings' },
 ];
 
 const DEMO_PROMPTS = [
@@ -165,6 +165,10 @@ const DEMO_PROMPTS = [
 // ─── Main component ───────────────────────────────────────────────────────────
 const HomePage = () => {
   const [demoIdx, setDemoIdx] = useState(0);
+
+  useEffect(() => {
+    document.title = "CadArena | Conversational CAD & Compliance Platform";
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setDemoIdx((i) => (i + 1) % DEMO_PROMPTS.length), 4200);
@@ -199,19 +203,19 @@ const HomePage = () => {
             <motion.div variants={fadeUp} className="mb-8 flex justify-center">
               <motion.span className="app-pill" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                 <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                AI-Powered Architecture · Live Demo Available
+                Conversational CAD Platform · Live Preview Available
               </motion.span>
             </motion.div>
 
             <motion.h1 variants={fadeUp} className="app-hero-title mb-6 mx-auto max-w-5xl">
-              Design floor plans
+              Convert design intent
               <br />
-              <span className="gradient-text-animated">with natural language</span>
+              <span className="gradient-text-animated">into compliant CAD files</span>
             </motion.h1>
 
-            <motion.p variants={fadeUp} className="app-page-copy mx-auto mb-10">
-              Describe your space and get a precise, constraint-aware floor plan —
-              EBC 2023-compliant and DXF-ready — straight from the CAD Studio.
+            <motion.p variants={fadeUp} className="app-page-copy mx-auto mb-10 max-w-3xl">
+              Generate editable, layered DXF drawing sheets directly from conversational prompt constraints.
+              Engineered with automatic compliance checking against building codes.
             </motion.p>
 
             <motion.div variants={fadeUp} className="mb-7 flex w-full justify-center">
@@ -238,11 +242,11 @@ const HomePage = () => {
                       <div className="h-3 w-3 rounded-full bg-yellow-400" />
                       <div className="h-3 w-3 rounded-full bg-green-400" />
                     </div>
-                    <span className="hidden text-xs font-semibold text-slate-400 dark:text-slate-500 sm:block">CAD Studio</span>
+                    <span className="hidden text-xs font-semibold text-slate-400 dark:text-slate-500 sm:block">CadStudio Workspace</span>
                   </div>
                   <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-300">
                     <span className="glow-dot h-1.5 w-1.5 rounded-full bg-primary-500 dark:bg-violet-400" aria-hidden="true" />
-                    Live Preview
+                    CadStudio Canvas
                   </div>
                 </div>
                 <div className="app-card-muted rounded-xl p-3 text-left">
@@ -286,12 +290,12 @@ const HomePage = () => {
       <section className="py-28" aria-labelledby="how-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
-            <motion.p variants={fadeUp} className="app-eyebrow mb-4">How It Works</motion.p>
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Workflow</motion.p>
             <motion.h2 id="how-heading" variants={fadeUp} className="app-section-title mb-5">
-              From description to floor plan in seconds
+              From natural language to structured layout coordinates
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
-              No CAD experience needed. Just describe your space the way you'd explain it to an architect.
+              Describe your spatial boundaries, room constraints, and structural adjacencies. ArchChat compiles your description into structured vector assets.
             </motion.p>
           </motion.div>
 
@@ -329,13 +333,12 @@ const HomePage = () => {
       <section className="section-tinted-bg py-28" aria-labelledby="features-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-16 text-center">
-            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Capabilities</motion.p>
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Architecture</motion.p>
             <motion.h2 id="features-heading" variants={fadeUp} className="app-section-title mb-5">
-              Built for precision. Designed for speed.
+              Deterministic spatial geometry solvers
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
-              Every part of CadArena is engineered around one goal: turning your intent into
-              production-ready architectural output.
+              Every system in CadArena is engineered to isolate linguistic parsing from drawing generation, ensuring compliant, structured architectural data.
             </motion.p>
           </motion.div>
 
@@ -355,7 +358,7 @@ const HomePage = () => {
                   <h3 className="app-card-title mb-3">{f.title}</h3>
                   <p className="app-body flex-1">{f.body}</p>
                   <div className="mt-5 flex items-center gap-1 text-xs font-bold text-primary-600 dark:text-violet-400">
-                    Learn more <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    Read Documentation <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </div>
                 </motion.div>
               );
@@ -368,13 +371,12 @@ const HomePage = () => {
       <section className="py-28" aria-labelledby="demo-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
-            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Live Demo</motion.p>
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Interactive Demo</motion.p>
             <motion.h2 id="demo-heading" variants={fadeUp} className="app-section-title mb-5">
-              See it in action
+              Interactive Layout Synthesis
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
-              Select an example prompt and watch the AI generate a structured, labelled floor plan
-              with room adjacencies, dimensions, and EBC compliance markers.
+              Select a test design intent below to view the synthesized coordinate boundaries, automated text label placements, and building code compliance flags.
             </motion.p>
           </motion.div>
 
@@ -405,7 +407,7 @@ const HomePage = () => {
               <div className="pt-4">
                 <Link to="/studio" className="app-button-primary app-button-compact w-full justify-center">
                   <Zap className="h-4 w-4" aria-hidden="true" />
-                  Try it yourself
+                  Open CAD Studio
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
@@ -462,13 +464,12 @@ const HomePage = () => {
       <section className="section-tinted-bg py-28" aria-labelledby="perf-heading">
         <div className="app-shell">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="mb-14 text-center">
-            <motion.p variants={fadeUp} className="app-eyebrow mb-4">What you get</motion.p>
+            <motion.p variants={fadeUp} className="app-eyebrow mb-4">Outputs & Layers</motion.p>
             <motion.h2 id="perf-heading" variants={fadeUp} className="app-section-title mb-5">
-              From a single prompt to a complete CAD file
+              Structured vector exports for drawing editors
             </motion.h2>
             <motion.p variants={fadeUp} className="app-section-copy mx-auto max-w-2xl">
-              The CAD Studio&apos;s LLM pipeline handles spatial reasoning, constraint enforcement, and
-              DXF formatting — so you can focus on the design intent.
+              The generation pipeline plots wall geometries, adds text descriptions, validates egress dimensions, and compiles standard CAD formats.
             </motion.p>
           </motion.div>
 
@@ -477,13 +478,13 @@ const HomePage = () => {
             className="app-card-muted p-8 lg:p-12">
             <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
               <motion.div variants={fadeUp}>
-                <h3 className="app-card-title mb-6 text-xl">What the CAD Studio produces</h3>
+                <h3 className="app-card-title mb-6 text-xl">Calculated Layout Parameters</h3>
                 <div className="space-y-5" role="list">
                   {[
-                    { metric: 'Labelled room polygons', value: 'Per room',   desc: 'Living, bedroom, kitchen, bath — each correctly placed and sized' },
-                    { metric: 'DXF layer assignment',   value: '12+ layers', desc: 'One layer per room type, ready for AutoCAD or Revit filtering' },
-                    { metric: 'Linear dimensions',      value: 'Built-in',   desc: 'Width and height entities added automatically to each room' },
-                    { metric: 'EBC 2023 compliance',    value: 'Enforced',   desc: 'Minimum room areas and adjacency rules applied during generation' },
+                    { metric: 'Closed Room Polygons',   value: 'Geometric Loops', desc: 'Spatially coordinated coordinates representing exterior boundaries and room bounds.' },
+                    { metric: 'Multi-Layer Partitioning',value: '12+ DXF Layers',  desc: 'Distinct layered separation of walls, doors, and labels, compatible with AutoCAD or Revit.' },
+                    { metric: 'Dimensioning Lines',     value: 'Automated Vectors',desc: 'Auto-plotted linear measurement annotations mapped to every calculated room boundary.' },
+                    { metric: 'Building Code Audits',   value: 'Compliance Checked',desc: 'Real-time validation against codified regulations for setback offsets and door clearances.' },
                   ].map(({ metric, value, desc }) => (
                     <div key={metric} className="flex items-start gap-3" role="listitem">
                       <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600 dark:text-violet-400" aria-hidden="true" />
@@ -528,6 +529,39 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* ═══ BUILT WITH TECH STACK ════════════════════════════════════════════ */}
+      <section className="py-20 border-t border-slate-100 dark:border-white/5" aria-labelledby="tech-heading">
+        <div className="app-shell">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center max-w-3xl mx-auto">
+            <motion.p variants={fadeUp} className="app-eyebrow mb-3">Tech Stack</motion.p>
+            <motion.h2 id="tech-heading" variants={fadeUp} className="text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight mb-4">
+              Built on verified open technologies
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-xs text-slate-500 dark:text-slate-400 max-w-xl mx-auto mb-8">
+              CadArena combines open-source frameworks, offline-first vector indexing, and deterministic geometric algorithms to deliver reproducible architectural layouts.
+            </motion.p>
+            
+            <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto">
+              {[
+                { name: 'React 18', type: 'Frontend' },
+                { name: 'FastAPI', type: 'Backend API' },
+                { name: 'Ollama', type: 'Local Inference' },
+                { name: 'Qdrant', type: 'Vector Search' },
+                { name: 'ezdxf', type: 'DXF Compilation' },
+                { name: 'Docker', type: 'Deployment' },
+                { name: 'EBC 2023 Ruleset', type: 'Compliance Gate' }
+              ].map((tech) => (
+                <div key={tech.name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/40 dark:border-white/5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary-500 dark:bg-violet-400" />
+                  <span>{tech.name}</span>
+                  <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">{tech.type}</span>
+                </div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ═══ CTA ══════════════════════════════════════════════════════════════ */}
       <section className="py-28" aria-labelledby="cta-heading">
         <div className="app-shell">
@@ -542,16 +576,16 @@ const HomePage = () => {
               </div>
 
               <motion.p variants={fadeUp} className="mb-4 text-xs font-bold uppercase tracking-widest text-primary-200">
-                Start building today
+                Unified CAD Generation Workspace
               </motion.p>
               <motion.h2 id="cta-heading" variants={fadeUp}
                 className="mb-5 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
-                Design your first floor plan.
+                Generate Compliant Drawings.
                 <br />
-                <span className="opacity-75">No CAD experience needed.</span>
+                <span className="opacity-75">Ready to export to standard CAD editors.</span>
               </motion.h2>
-              <motion.p variants={fadeUp} className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-primary-100">
-                Type what you want to build. CadArena handles constraints, adjacencies, compliance, and export automatically.
+              <motion.p variants={fadeUp} className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-primary-100">
+                Translate prompt constraints into layered drawings. Experience the hybrid engine that combines language parsing with deterministic boundary planners.
               </motion.p>
 
               <motion.div variants={fadeUp} className="flex justify-center">
@@ -559,10 +593,10 @@ const HomePage = () => {
               </motion.div>
 
               <motion.p variants={fadeUp} className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-primary-200">
-                <span>Or open the full workspace:</span>
+                <span>Or access development files:</span>
                 <Link to="/studio" className="inline-flex items-center gap-1.5 font-bold text-white underline underline-offset-4 hover:text-primary-100">
                   <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                  Launch CAD Studio
+                  Open CAD Studio
                 </Link>
               </motion.p>
             </motion.div>

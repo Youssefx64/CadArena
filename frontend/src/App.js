@@ -20,10 +20,9 @@ function RequireAuth({ children }) {
 RequireAuth.propTypes = { children: PropTypes.node.isRequired };
 
 const HomePage       = lazy(() => import('./pages/HomePage'));
-const ArchVisionPage = lazy(() => import('./pages/ArchVisionPage'));
 const AboutPage      = lazy(() => import('./pages/AboutPage'));
 const DevelopersPage = lazy(() => import('./pages/DevelopersPage'));
-const StudioPage     = lazy(() => import('./pages/StudioPage'));
+const StudioNextPage = lazy(() => import('./pages/StudioNextPage'));
 const CommunityPage  = lazy(() => import('./pages/CommunityPage'));
 const RAGChatPage    = lazy(() => import('./pages/RAGChatPage'));
 const LoginPage      = lazy(() => import('./pages/LoginPage'));
@@ -32,6 +31,8 @@ const ProfilePage    = lazy(() => import('./pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
 const DocsPage        = lazy(() => import('./pages/DocsPage'));
 const ViewerPage      = lazy(() => import('./pages/ViewerPage'));
+const FeaturesPage    = lazy(() => import('./pages/FeaturesPage'));
+const NotFoundPage    = lazy(() => import('./pages/NotFoundPage'));
 
 function PageLoader() {
   return (
@@ -85,10 +86,12 @@ function MainLayout() {
     <>
       <GlobalAmbientBg />
       <div className="min-h-screen flex flex-col relative z-[1]">
+        <a href="#main-content" className="skip-link">Skip to main content</a>
         <Navbar />
         <AnimatePresence>
           <motion.main
             key={location.pathname}
+            id="main-content"
             className="flex-1"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -124,7 +127,7 @@ function App() {
               element={
                 <RequireAuth>
                   <FullscreenBackdrop>
-                    <StudioPage />
+                    <StudioNextPage />
                   </FullscreenBackdrop>
                 </RequireAuth>
               }
@@ -152,7 +155,6 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/"              element={<HomePage />} />
               <Route path="/community"     element={protectedElement(<CommunityPage />)} />
-              <Route path="/generate"      element={protectedElement(<ArchVisionPage />)} />
               <Route path="/about"         element={<AboutPage />} />
               <Route path="/developers"    element={<DevelopersPage />} />
               <Route path="/login"         element={<LoginPage />} />
@@ -160,6 +162,8 @@ function App() {
               <Route path="/profile"       element={protectedElement(<ProfilePage />)} />
               <Route path="/profile/edit"  element={protectedElement(<EditProfilePage />)} />
               <Route path="/docs"          element={<DocsPage />} />
+              <Route path="/features"      element={<FeaturesPage />} />
+              <Route path="*"             element={<NotFoundPage />} />
             </Route>
           </Routes>
           <Toaster
