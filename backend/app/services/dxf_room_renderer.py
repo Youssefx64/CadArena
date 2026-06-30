@@ -39,9 +39,9 @@ ROOM_BOUND_FALLBACK_SPAN: Final[float] = 4.0
 # Keep wall and annotation sizing aligned with the requested professional architectural presentation.
 WALL_THICKNESS: Final[float] = 0.20
 PLAN_BORDER_WIDTH: Final[float] = 0.08
-TEXT_SCALE_FACTOR: Final[float] = 0.08
-TEXT_HEIGHT_MIN: Final[float] = 0.20
-TEXT_HEIGHT_MAX: Final[float] = 0.45
+TEXT_SCALE_FACTOR: Final[float] = 0.05
+TEXT_HEIGHT_MIN: Final[float] = 0.12
+TEXT_HEIGHT_MAX: Final[float] = 0.35
 DIMENSION_OFFSET: Final[float] = 0.8
 BATHROOM_HATCH_INSET: Final[float] = 0.1
 # Minimum furniture clearance from walls.
@@ -60,6 +60,144 @@ BLOCK_BOUNDS: Final[dict[str, tuple[float, float]]] = {
     "SOFA_3SEAT": (2.20, 0.92),
     "COFFEE_TABLE": (1.20, 0.60),
 }
+
+
+# Arabic text shaping forms mapping
+ARABIC_FORMS = {
+    '\u0621': ('\u0621', '\u0621', '\u0621', '\u0621'),  # ء
+    '\u0622': ('\ufe81', '\ufe82', '\ufe82', '\ufe81'),  # آ
+    '\u0623': ('\ufe83', '\ufe84', '\ufe84', '\ufe83'),  # أ
+    '\u0624': ('\ufe85', '\ufe86', '\ufe86', '\ufe85'),  # ؤ
+    '\u0625': ('\ufe87', '\ufe88', '\ufe88', '\ufe87'),  # إ
+    '\u0626': ('\ufe89', '\ufe8a', '\ufe8c', '\ufe8b'),  # ئ
+    '\u0627': ('\ufe8d', '\ufe8e', '\ufe8e', '\ufe8d'),  # ا
+    '\u0628': ('\ufe8f', '\ufe90', '\ufe92', '\ufe91'),  # ب
+    '\u0629': ('\ufe93', '\ufe94', '\ufe94', '\ufe93'),  # ة
+    '\u062a': ('\ufe95', '\ufe96', '\ufe98', '\ufe97'),  # ت
+    '\u062b': ('\ufe99', '\ufe9a', '\ufe9c', '\ufe9b'),  # ث
+    '\u062c': ('\ufe9d', '\ufe9e', '\ufea0', '\ufe9f'),  # ج
+    '\u062d': ('\ufea1', '\ufea2', '\ufea4', '\ufea3'),  # ح
+    '\u062e': ('\ufea5', '\ufea6', '\ufea8', '\ufea7'),  # خ
+    '\u062f': ('\ufea9', '\ufeaa', '\ufeaa', '\ufea9'),  # د
+    '\u0630': ('\ufeab', '\ufeac', '\ufeac', '\ufeab'),  # ذ
+    '\u0631': ('\ufead', '\ufeae', '\ufeae', '\ufead'),  # ر
+    '\u0632': ('\ufeaf', '\ufeb0', '\ufeb0', '\ufeaf'),  # ز
+    '\u0633': ('\ufeb1', '\ufeb2', '\ufeb4', '\ufeb3'),  # س
+    '\u0634': ('\ufeb5', '\ufeb6', '\ufeb8', '\ufeb7'),  # ش
+    '\u0635': ('\ufeb9', '\ufeba', '\ufebc', '\ufebb'),  # ص
+    '\u0636': ('\ufebd', '\ufebe', '\ufec0', '\ufebf'),  # ض
+    '\u0637': ('\ufec1', '\ufec2', '\ufec4', '\ufec3'),  # ط
+    '\u0638': ('\ufec5', '\ufec6', '\ufec8', '\ufec7'),  # ظ
+    '\u0639': ('\ufec9', '\ufeca', '\ufecc', '\ufecb'),  # ع
+    '\u063a': ('\ufecd', '\ufece', '\ufed0', '\ufecf'),  # غ
+    '\u0641': ('\ufed1', '\ufed2', '\ufed4', '\ufed3'),  # ف
+    '\u0642': ('\ufed5', '\ufed6', '\ufed8', '\ufed7'),  # ق
+    '\u0643': ('\ufed9', '\ufeda', '\ufedc', '\ufedb'),  # ك
+    '\u0644': ('\ufedd', '\ufede', '\ufee0', '\ufedf'),  # ل
+    '\u0645': ('\ufee1', '\ufee2', '\ufee4', '\ufee3'),  # م
+    '\u0646': ('\ufee5', '\ufee6', '\ufee8', '\ufee7'),  # ن
+    '\u0647': ('\ufee9', '\ufeea', '\ufeec', '\ufeeb'),  # ه
+    '\u0648': ('\ufeed', '\ufeee', '\ufeee', '\ufeed'),  # و
+    '\u0649': ('\ufeef', '\ufef0', '\ufef0', '\ufeef'),  # ى
+    '\u064a': ('\ufef1', '\ufef2', '\ufef4', '\ufef3'),  # ي
+}
+
+DUAL_CONNECTING = {
+    '\u0628', '\u062a', '\u062b', '\u062c', '\u062d', '\u062e',
+    '\u0633', '\u0634', '\u0635', '\u0636', '\u0637', '\u0638',
+    '\u0639', '\u063a', '\u0641', '\u0642', '\u0643', '\u0644',
+    '\u0645', '\u0646', '\u0647', '\u064a', '\u0626'
+}
+
+RIGHT_CONNECTING = {
+    '\u0622', '\u0623', '\u0624', '\u0625', '\u0627', '\u0629',
+    '\u062f', '\u0630', '\u0631', '\u0632', '\u0648', '\u0649',
+    '\u0621'
+}
+
+def is_arabic_char(c: str) -> bool:
+    if not c:
+        return False
+    val = ord(c)
+    return (
+        (0x0600 <= val <= 0x06FF) or
+        (0x0750 <= val <= 0x077F) or
+        (0xFB50 <= val <= 0xFDFF) or
+        (0xFE70 <= val <= 0xFEFF)
+    )
+
+def shape_arabic_string(text: str) -> str:
+    n = len(text)
+    shaped = []
+    for i, c in enumerate(text):
+        if c not in ARABIC_FORMS:
+            shaped.append(c)
+            continue
+        
+        connect_right = False
+        if i > 0:
+            prev_c = text[i-1]
+            if prev_c in DUAL_CONNECTING and (c in DUAL_CONNECTING or c in RIGHT_CONNECTING):
+                connect_right = True
+                
+        connect_left = False
+        if i < n - 1:
+            next_c = text[i+1]
+            if c in DUAL_CONNECTING and (next_c in DUAL_CONNECTING or next_c in RIGHT_CONNECTING):
+                connect_left = True
+                
+        forms = ARABIC_FORMS[c]
+        if connect_right and connect_left:
+            shaped.append(forms[2])  # Medial
+        elif connect_right:
+            shaped.append(forms[1])  # Final
+        elif connect_left:
+            shaped.append(forms[3])  # Initial
+        else:
+            shaped.append(forms[0])  # Isolated
+            
+    return "".join(shaped)
+
+def reshape_and_reverse_bidi(text: str) -> str:
+    if not text:
+        return text
+        
+    arabic_indices = [i for i, c in enumerate(text) if is_arabic_char(c)]
+    if not arabic_indices:
+        return text
+        
+    blocks = []
+    current_start = arabic_indices[0]
+    current_end = arabic_indices[0]
+    
+    for idx in arabic_indices[1:]:
+        in_between = text[current_end + 1 : idx]
+        all_ok = True
+        for char in in_between:
+            if not (is_arabic_char(char) or char.isspace() or char in "—-_()[]{}.,;:!?/\\*+=&%#@$<>\"'"):
+                all_ok = False
+                break
+        if all_ok:
+            current_end = idx
+        else:
+            blocks.append((current_start, current_end))
+            current_start = idx
+            current_end = idx
+    blocks.append((current_start, current_end))
+    
+    result_parts = []
+    last_idx = 0
+    for start, end in blocks:
+        result_parts.append(text[last_idx:start])
+        block_text = text[start : end + 1]
+        shaped = shape_arabic_string(block_text)
+        reversed_shaped = shaped[::-1]
+        result_parts.append(reversed_shaped)
+        last_idx = end + 1
+    result_parts.append(text[last_idx:])
+    
+    return "".join(result_parts)
+
 
 
 # Keep the lightweight room view so furniture placement can run without changing external schemas.
@@ -104,10 +242,49 @@ def _ensure_layer(doc, name: str, color: int, lineweight: int | None = None) -> 
 
 
 # Compute the professional room-name height from the shorter room dimension with the requested floor and ceiling.
-def compute_text_height(room_w: float, room_h: float) -> float:
+def compute_text_height(
+    room_w: float,
+    room_h: float,
+    room_name: str = "",
+    dims_text: str = "",
+    boundary_w: float | None = None,
+    boundary_h: float | None = None,
+) -> float:
     shorter = min(room_w, room_h)
-    h = shorter * TEXT_SCALE_FACTOR
-    return max(TEXT_HEIGHT_MIN, min(TEXT_HEIGHT_MAX, h))
+    
+    if boundary_w is not None and boundary_h is not None and boundary_w > 0 and boundary_h > 0:
+        diag = (boundary_w**2 + boundary_h**2) ** 0.5
+        layout_scale = max(0.45, min(1.25, diag / 20.0))
+    else:
+        layout_scale = 1.0
+
+    h_min = TEXT_HEIGHT_MIN * layout_scale
+    h_max = TEXT_HEIGHT_MAX * layout_scale
+    scale_factor = TEXT_SCALE_FACTOR * layout_scale
+
+    h = shorter * scale_factor
+    h = max(h_min, min(h_max, h))
+    
+    # Dynamic adjustment based on text lengths to prevent wall overlap
+    if room_name:
+        max_allowed_w = room_w * 0.85
+        # Standard character width in standard DXF font is roughly 0.75 * height
+        height_limit_w = max_allowed_w / (len(room_name) * 0.75)
+        h = min(h, height_limit_w)
+        
+    if dims_text:
+        max_allowed_w = room_w * 0.85
+        # Since dims_text is rendered at height h * 0.65, its width is len(dims_text) * (h * 0.65) * 0.7
+        height_limit_dims = max_allowed_w / (len(dims_text) * 0.65 * 0.7)
+        h = min(h, height_limit_dims)
+        
+    # Vertical space limit (total block height is approx 1.8 * h)
+    max_allowed_h = room_h * 0.75
+    height_limit_h = max_allowed_h / 1.8
+    h = min(h, height_limit_h)
+    
+    # Legibility floor
+    return max(0.06 * layout_scale, h)
 
 
 # Convert metric lengths to architectural feet-inch strings for room labels.
@@ -182,29 +359,54 @@ def _passes_bounds(
     rw: float,
     rh: float,
     rotation: float = 0.0,
+    block_name: str | None = None,
 ) -> bool:
-    # QUALITY FIX: enforce room bounds using the actual block orientation.
+    # QUALITY FIX: enforce room bounds using the actual block orientation and symmetry.
     rotation = int(rotation) % 360
-    if rotation == 0:
-        min_x = insert_x
-        max_x = insert_x + piece_w
-        min_y = insert_y
-        max_y = insert_y + piece_h
-    elif rotation == 90:
-        min_x = insert_x - piece_w
-        max_x = insert_x
-        min_y = insert_y
-        max_y = insert_y + piece_h
-    elif rotation == 180:
-        min_x = insert_x - piece_w
-        max_x = insert_x
-        min_y = insert_y - piece_h
-        max_y = insert_y
-    else:  # rotation == 270
-        min_x = insert_x
-        max_x = insert_x + piece_w
-        min_y = insert_y - piece_h
-        max_y = insert_y
+    is_symmetric = block_name in {"TOILET_WC", "SINK_WALL"}
+
+    if is_symmetric:
+        if rotation == 0:
+            min_x = insert_x - piece_w
+            max_x = insert_x + piece_w
+            min_y = insert_y
+            max_y = insert_y + piece_h
+        elif rotation == 90:
+            min_x = insert_x - piece_h
+            max_x = insert_x
+            min_y = insert_y - piece_w
+            max_y = insert_y + piece_w
+        elif rotation == 180:
+            min_x = insert_x - piece_w
+            max_x = insert_x + piece_w
+            min_y = insert_y - piece_h
+            max_y = insert_y
+        else:  # rotation == 270
+            min_x = insert_x
+            max_x = insert_x + piece_h
+            min_y = insert_y - piece_w
+            max_y = insert_y + piece_w
+    else:
+        if rotation == 0:
+            min_x = insert_x
+            max_x = insert_x + piece_w
+            min_y = insert_y
+            max_y = insert_y + piece_h
+        elif rotation == 90:
+            min_x = insert_x - piece_h
+            max_x = insert_x
+            min_y = insert_y
+            max_y = insert_y + piece_w
+        elif rotation == 180:
+            min_x = insert_x - piece_w
+            max_x = insert_x
+            min_y = insert_y - piece_h
+            max_y = insert_y
+        else:  # rotation == 270
+            min_x = insert_x
+            max_x = insert_x + piece_h
+            min_y = insert_y - piece_w
+            max_y = insert_y
 
     if min_x < rx + WALL_CLR - AXIS_TOLERANCE:
         return False
@@ -229,6 +431,7 @@ def _insert_with_bounds(msp, room_name: str, placement: _BlockPlacement, rx: flo
         rw=rw,
         rh=rh,
         rotation=placement.rotation,
+        block_name=placement.block_name,
     ):
         logger.warning(
             "Skipping furniture block=%s room=%s insert=(%.2f, %.2f) size=(%.2f, %.2f)",
@@ -836,20 +1039,48 @@ class DXFRoomRenderer:
             },
         )
 
-    def draw_room_label(self, text: str, position: Point, room_type: str | None = None):
-        # Infer the actual room box from drawn walls so room labels reflect the final rendered geometry.
-        room_left, room_right, room_bottom, room_top = self._resolve_room_bounds(position)
-        room_w = max(room_right - room_left, AXIS_TOLERANCE)
-        room_h = max(room_top - room_bottom, AXIS_TOLERANCE)
+    def draw_room_label(self, text: str, position: Point, room_type: str | None = None, room_width: float | None = None, room_height: float | None = None, room_origin: Point | None = None):
+        if room_width is not None and room_height is not None and room_origin is not None:
+            room_left = room_origin.x
+            room_bottom = room_origin.y
+            room_w = room_width
+            room_h = room_height
+            room_right = room_left + room_w
+            room_top = room_bottom + room_h
+        else:
+            room_left, room_right, room_bottom, room_top = self._resolve_room_bounds(position)
+            room_w = max(room_right - room_left, AXIS_TOLERANCE)
+            room_h = max(room_top - room_bottom, AXIS_TOLERANCE)
         center_x = room_left + room_w / 2
         center_y = room_bottom + room_h / 2
-        text_height = compute_text_height(room_w, room_h)
+        room_area = room_w * room_h
+        metric_dims = f"{room_w:.2f} × {room_h:.2f} m"
+        area_text = f"{room_area:.1f} m²"
+        dims_display = f"{metric_dims}  ({area_text})"
+        room_name = (text or "Room").upper()
+
+        boundary_w = None
+        boundary_h = None
+        if self._boundary_extents is not None:
+            left, right, bottom, top = self._boundary_extents
+            boundary_w = right - left
+            boundary_h = top - bottom
+
+        text_height = compute_text_height(
+            room_w,
+            room_h,
+            room_name,
+            dims_display,
+            boundary_w=boundary_w,
+            boundary_h=boundary_h,
+        )
 
         # Reuse the room-label pass as the room loop hook for bathroom hatches and furniture insertion.
         room_key = f"{text}|{room_type}" if room_type is not None else text
-        if room_type == "bathroom" and room_key not in self._hatched_room_keys:
-            # Add the requested tiled hatch once per bathroom so wet rooms read differently from other spaces.
-            self._draw_bathroom_hatch(room_left, room_bottom, room_w, room_h)
+        is_wet_bathroom = room_type == "bathroom" and "laundry" not in text.lower()
+        if is_wet_bathroom and room_key not in self._hatched_room_keys:
+            # QUALITY FIX: Bathroom floor hatching is removed completely to clean up density as requested.
+            # self._draw_bathroom_hatch(room_left, room_bottom, room_w, room_h)
             self._hatched_room_keys.add(room_key)
         if room_key not in self._furniture_drawn_names:
             renderable_room = self._build_renderable_furniture_room(
@@ -875,11 +1106,11 @@ class DXFRoomRenderer:
                 )
             self._furniture_drawn_names.add(room_key)
 
-        name_insert = (center_x, center_y + text_height * 0.8)
-        dim_insert = (center_x, center_y - text_height * 0.4)
+        name_insert = (center_x, center_y + text_height * 0.5)
+        dim_insert = (center_x, center_y - text_height * 0.6)
         # Use centered TEXT entities so the room name matches the requested professional plan annotation style.
         name_entity = self.msp.add_text(
-            (text or "Room").upper(),
+            room_name,
             dxfattribs={
                 "layer": "ROOM_LABELS",
                 "color": ARCHITECTURAL_LAYERS["ROOM_LABELS"]["color"],
@@ -890,14 +1121,9 @@ class DXFRoomRenderer:
         )
         _set_middle_center(name_entity, name_insert)
 
-        # DXF-FIX: Show metric dimensions (meters) and room area in m² instead of feet-inches
-        # Format: "3.50 × 4.00 m" with area "14.0 m²" below
-        room_area = room_w * room_h
-        metric_dims = f"{room_w:.2f} × {room_h:.2f} m"
-        area_text = f"{room_area:.1f} m²"
-
+        # Draw combined dimensions and area on a single line to prevent vertical overlap/newlines in TEXT entity
         dim_entity = self.msp.add_text(
-            f"{metric_dims}\n{area_text}",
+            dims_display,
             dxfattribs={
                 "layer": "ROOM_LABELS",
                 "color": ARCHITECTURAL_LAYERS["ROOM_LABELS"]["color"],
@@ -993,7 +1219,7 @@ class DXFRoomRenderer:
             color=ARCHITECTURAL_LAYERS["HATCH"]["color"],
             dxfattribs={"layer": "HATCH"},
         )
-        hatch.set_pattern_fill("ANSI31", scale=0.08, angle=45)
+        hatch.set_pattern_fill("NET", scale=0.25, angle=0.0)
         hatch.paths.add_polyline_path(
             [
                 (room_left + BATHROOM_HATCH_INSET, room_bottom + BATHROOM_HATCH_INSET),
@@ -1055,27 +1281,31 @@ class DXFRoomRenderer:
             return
         left, right, bottom, _top = self._boundary_extents
         center_x = left + (right - left) / 2.0
-        title_y = bottom - 1.2
+        # Scale title text height dynamically based on boundary width
+        title_height = max(0.15, min(0.6, (right - left) * 0.025))
+        title_y = bottom - (title_height * 2.0)
 
-        # DXF-FIX: Bilingual title with area and scale notation
-        total_area = (right - left) * (_top - bottom) if hasattr(self, '_top') else 0
-        # If we can't compute area, just use the title
-        title_text = "FLOOR PLAN — مسقط أفقي"
+        total_area = (right - left) * (_top - bottom)
+        title_text = f"FLOOR PLAN — مسقط أفقي  ({total_area:.1f} m²)"
+        processed_title = reshape_and_reverse_bidi(title_text)
 
         title_entity = self.msp.add_text(
-            title_text,
+            processed_title,
             dxfattribs={
                 "layer": "ROOM_LABELS",
                 "color": ARCHITECTURAL_LAYERS["ROOM_LABELS"]["color"],
-                "height": 0.6,
+                "height": title_height,
                 "style": "Standard",
                 "insert": (center_x, title_y),
             },
         )
         _set_middle_center(title_entity, (center_x, title_y))
+        
+        underline_half_len = max(1.5, min(4.0, (right - left) * 0.1))
+        underline_offset = title_height * 0.5
         self.msp.add_line(
-            (center_x - 2.0, title_y - 0.3),
-            (center_x + 2.0, title_y - 0.3),
+            (center_x - underline_half_len, title_y - underline_offset),
+            (center_x + underline_half_len, title_y - underline_offset),
             dxfattribs={"layer": "ROOM_LABELS", "color": 0, "lineweight": 35},
         )
 
@@ -1207,6 +1437,9 @@ class DXFRoomRenderer:
     # Honor request-scoped parser furniture presets while preserving fallback name heuristics.
     @staticmethod
     def _resolve_furniture_preset(room_name: str, room_type: str | None = None) -> str | None:
+        if room_type == "bathroom" and "laundry" in room_name.lower():
+            return None
+
         try:
             from app.services.design_parser.orchestrator import get_render_furniture_preset
         except Exception:

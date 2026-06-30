@@ -70,6 +70,4 @@ def _register_shower_tray(doc: Any) -> None:
     blk.add_circle(center=(0.45, 0.45), radius=0.04, dxfattribs=attrs)  # Draw drain circle.
     blk.add_line((0.0, 0.0), (0.0, 0.90), dxfattribs=attrs)  # Draw glass door indicator line.
     blk.add_lwpolyline([(0.0, 0.0), (0.0, 0.90)], close=False, dxfattribs={**attrs, "const_width": 0.025})  # Draw thick glass edge indicator.
-    tray_hatch = blk.add_hatch(dxfattribs=attrs)  # Create hatch for tray tiling pattern.
-    tray_hatch.set_pattern_fill(name="LINE", scale=0.15, angle=45)  # Apply line hatch pattern settings.
-    tray_hatch.paths.add_polyline_path(tray_boundary, is_closed=True)  # Attach hatch boundary to tray extents.
+

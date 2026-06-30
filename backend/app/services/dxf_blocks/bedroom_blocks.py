@@ -71,5 +71,3 @@ def _register_wardrobe(doc: Any) -> None:
     blk.add_line((0.90, 0.0), (0.90, 0.60), dxfattribs=attrs)  # Draw door split line.
     blk.add_circle((0.82, 0.30), radius=0.03, dxfattribs=attrs)  # Draw left handle.
     blk.add_circle((0.98, 0.30), radius=0.03, dxfattribs=attrs)  # Draw right handle.
-    blk.add_arc(center=(0.0, 0.60), radius=0.90, start_angle=-90, end_angle=0, dxfattribs=attrs)  # Draw left door swing arc.
-    blk.add_arc(center=(1.80, 0.60), radius=0.90, start_angle=180, end_angle=270, dxfattribs=attrs)  # Draw right door swing arc.

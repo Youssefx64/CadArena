@@ -5,23 +5,27 @@ This module provides functionality to export DXF files to various formats
 (DXF, PDF, PNG) using matplotlib for rendering.
 """
 
+import hashlib
+import os
+import tempfile
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 
 import ezdxf
-
 from app.core.file_utils import resolve_output_path
 
 
 class ExportFormat(str, Enum):
     """
     Supported export formats for DXF files.
-    
+
     Values:
         DXF: Native DXF format (no conversion).
         PDF: PDF export via matplotlib.
         IMAGE: PNG image export via matplotlib.
     """
+
     DXF = "dxf"
     PDF = "pdf"
     IMAGE = "image"
@@ -31,15 +35,17 @@ class DxfExportError(RuntimeError):
     """
     Base exception for DXF export errors.
     """
+
     pass
 
 
 class DxfExportDependencyError(DxfExportError):
     """
     Exception raised when required dependencies for export are missing.
-    
+
     Typically raised when matplotlib is not installed for PDF/IMAGE export.
     """
+
     pass
 
 
@@ -57,14 +63,17 @@ _EXPORT_MEDIA_TYPES: dict[ExportFormat, str] = {
     ExportFormat.IMAGE: "image/png",
 }
 
+_EXPORT_LOCKS: dict[str, Lock] = {}
+_EXPORT_LOCKS_GUARD = Lock()
+
 
 def get_media_type(export_format: ExportFormat) -> str:
     """
     Get HTTP media type for an export format.
-    
+
     Args:
         export_format: Export format.
-    
+
     Returns:
         Media type string (e.g., "application/pdf").
     """
@@ -74,17 +83,19 @@ def get_media_type(export_format: ExportFormat) -> str:
 def export_dxf_file(
     dxf_path: str | Path,
     export_format: ExportFormat,
+    visible_layers: list[str] | None = None,
 ) -> tuple[Path, str]:
     """
     Export a DXF file to the specified format.
-    
+
     Args:
         dxf_path: Path to the source DXF file.
         export_format: Target export format.
-    
+        visible_layers: Optional list of visible layer names.
+
     Returns:
         Tuple of (export_path, filename) for the exported file.
-    
+
     Raises:
         DxfExportError: If path resolution fails, file not found, or export fails.
         DxfExportDependencyError: If matplotlib is required but not installed.
@@ -103,20 +114,38 @@ def export_dxf_file(
     if export_format == ExportFormat.DXF:
         return source_path, source_path.name
 
-    # PDF/IMAGE: convert using matplotlib
-    export_path = source_path.with_suffix(_EXPORT_SUFFIXES[export_format])
-    _render_dxf_with_matplotlib(source_path, export_path)
+    export_path = _build_export_cache_path(
+        source_path=source_path,
+        export_format=export_format,
+        visible_layers=visible_layers,
+    )
+    export_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if export_path.exists():
+        return export_path, export_path.name
+
+    export_lock = _export_lock_for_path(export_path)
+    with export_lock:
+        if not source_path.exists():
+            raise DxfExportError(f"DXF file not found: {source_path.name}")
+        if export_path.exists():
+            return export_path, export_path.name
+        _render_dxf_with_matplotlib(source_path, export_path, visible_layers)
+
     return export_path, export_path.name
 
 
-def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
+def _render_dxf_with_matplotlib(
+    source_path: Path, export_path: Path, visible_layers: list[str] | None = None
+):
     """
     Render DXF file to PDF or PNG using matplotlib.
-    
+
     Args:
         source_path: Path to source DXF file.
         export_path: Path for exported file (PDF or PNG).
-    
+        visible_layers: Optional list of visible layer names.
+
     Raises:
         DxfExportDependencyError: If matplotlib is not installed.
         DxfExportError: If rendering or file I/O fails.
@@ -134,8 +163,20 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
         ) from exc
 
     fig = None
+    temp_export_path: Path | None = None
     try:
         doc = ezdxf.readfile(source_path)
+
+        # Apply layer visibility if specified
+        if visible_layers is not None:
+            visible_set = {lay.upper() for lay in visible_layers}
+            for layer in doc.layers:
+                layer_name_upper = layer.dxf.name.upper()
+                if layer_name_upper not in visible_set and layer.dxf.name != "0":
+                    layer.off()
+                else:
+                    layer.on()
+
         modelspace = doc.modelspace()
 
         # Create figure with the requested white-sheet presentation and minimum 200 DPI output.
@@ -167,7 +208,9 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
 
         # Apply per-layer preview overrides so sheet exports stay close to the intended CAD print hierarchy.
         def _apply_layer_override(override):
-            for key, value in layer_overrides.get(getattr(override, "layer", ""), {}).items():
+            for key, value in layer_overrides.get(
+                getattr(override, "layer", ""), {}
+            ).items():
                 setattr(override, key, value)
 
         render_context.set_layer_properties_override(_apply_layer_override)
@@ -175,7 +218,11 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
 
         frontend_kwargs = {}
         try:
-            from ezdxf.addons.drawing.config import BackgroundPolicy, ColorPolicy, Configuration
+            from ezdxf.addons.drawing.config import (
+                BackgroundPolicy,
+                ColorPolicy,
+                Configuration,
+            )
 
             config = Configuration.defaults()
             if hasattr(config, "with_changes"):
@@ -221,12 +268,22 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
             pass
 
         export_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=export_path.parent,
+            suffix=export_path.suffix,
+            prefix=f"{export_path.stem}.",
+            delete=False,
+        ) as temp_file:
+            temp_export_path = Path(temp_file.name)
+
         fig.savefig(
-            export_path,
+            temp_export_path,
             format=export_path.suffix.lstrip("."),
             bbox_inches="tight",
             pad_inches=0.01,
         )
+        os.replace(temp_export_path, export_path)
+        temp_export_path = None
     except DxfExportError:
         raise
     except Exception as exc:
@@ -236,3 +293,45 @@ def _render_dxf_with_matplotlib(source_path: Path, export_path: Path):
     finally:
         if fig is not None:
             plt.close(fig)
+        if temp_export_path is not None:
+            try:
+                temp_export_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _build_export_cache_path(
+    *,
+    source_path: Path,
+    export_format: ExportFormat,
+    visible_layers: list[str] | None,
+) -> Path:
+    suffix = _EXPORT_SUFFIXES[export_format]
+    source_stat = source_path.stat()
+    layers_key = ",".join(
+        sorted(
+            {layer.strip().upper() for layer in visible_layers or [] if layer.strip()}
+        )
+    )
+    fingerprint = hashlib.sha1(
+        "|".join(
+            [
+                str(source_path.resolve()),
+                str(source_stat.st_mtime_ns),
+                str(source_stat.st_size),
+                export_format.value,
+                layers_key,
+            ]
+        ).encode("utf-8")
+    ).hexdigest()[:12]
+    return source_path.with_name(f"{source_path.stem}_{fingerprint}{suffix}")
+
+
+def _export_lock_for_path(export_path: Path) -> Lock:
+    lock_key = str(export_path.resolve())
+    with _EXPORT_LOCKS_GUARD:
+        export_lock = _EXPORT_LOCKS.get(lock_key)
+        if export_lock is None:
+            export_lock = Lock()
+            _EXPORT_LOCKS[lock_key] = export_lock
+        return export_lock
