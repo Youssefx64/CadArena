@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from time import perf_counter
 from uuid import uuid4
-
-from fastapi import APIRouter, HTTPException, Query, Response
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
 from app.models.design_parser import ParseDesignErrorResponse, ParseErrorBody
@@ -24,12 +20,21 @@ from app.models.workspace import (
 )
 from app.pipeline.intent_to_agent import generate_dxf_from_intent
 from app.schemas.design_intent import DesignIntent
-from app.services.design_parser.config import OLLAMA_MODEL_ID  # MODEL-FIX: preserve the configured Ollama default when the caller does not supply a local model override
+from app.services.chat_assistant import get_assistant_reply
+from app.services.design_parser.config import (
+    OLLAMA_MODEL_ID,  # MODEL-FIX: preserve the configured Ollama default when the caller does not supply a local model override
+)
+from app.services.design_parser.quality_gate import ArchitecturalQualityGate
 from app.services.design_parser_service import (
     ParseDesignServiceError,
     parse_design_prompt_with_metadata,
 )
-from app.services.file_token_registry import bind_workspace_guest_cookie, issue_workspace_file_token
+from app.services.design_suggestions import generate_suggestions
+from app.services.file_token_registry import (
+    bind_workspace_guest_cookie,
+    issue_workspace_file_token,
+)
+from app.services.intent_router import MessageIntent, classify_intent
 from app.services.workspace_storage import (
     add_message,
     create_project,
@@ -39,10 +44,10 @@ from app.services.workspace_storage import (
     list_projects,
     rename_project,
 )
-from app.services.chat_assistant import get_assistant_reply
-from app.services.design_suggestions import generate_suggestions
-from app.services.intent_router import MessageIntent, classify_intent
 from app.utils.parse_output_storage import save_parse_design_output
+from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -158,10 +163,52 @@ async def _parse_with_layout_retry(
                     recovery_mode=recovery_mode,
                     request_id=hard_retry_request_id,
                 )
-                return hard_retry_result, hard_retry_prompt, True, True
             except ParseDesignServiceError as hard_retry_exc:
                 hard_retry_exc.details = accumulated_details + hard_retry_exc.details
                 raise hard_retry_exc from hard_retry_exc
+            quality_report = getattr(hard_retry_result, "quality_report", None)
+            report_details = []
+            if quality_report is not None:
+                report_details = list(quality_report.hard_failures) + list(
+                    quality_report.warnings
+                )
+            raise ParseDesignServiceError(
+                code="LAYOUT_QUALITY_REJECTED",
+                message="Emergency fallback mode is not accepted for production DXF generation",
+                status_code=422,
+                model_used=hard_retry_result.model_used,
+                provider_used=hard_retry_result.provider_used,
+                failover_triggered=hard_retry_result.failover_triggered,
+                details=accumulated_details
+                + [
+                    "hard emergency fallback produced a layout but was rejected by policy"
+                ]
+                + report_details,
+            )
+
+
+def _finalize_json_response(
+    json_response: JSONResponse,
+    passthrough_response: Response | None,
+) -> JSONResponse:
+    if passthrough_response is None:
+        return json_response
+
+    for header_name, header_value in passthrough_response.headers.items():
+        lowered = header_name.lower()
+        if lowered == "set-cookie":
+            continue
+        if lowered == "cache-control" or header_name not in json_response.headers:
+            json_response.headers[header_name] = header_value
+
+    set_cookie_headers = [
+        header
+        for header in passthrough_response.raw_headers
+        if header[0].lower() == b"set-cookie"
+    ]
+    if set_cookie_headers:
+        json_response.raw_headers.extend(set_cookie_headers)
+    return json_response
 
 
 def _error_payload(
@@ -177,6 +224,7 @@ def _error_payload(
     violated_rule: str | None = None,
     room: str | None = None,
     details: list[str] | None = None,
+    passthrough_response: Response | None = None,
 ) -> JSONResponse:
     payload = ParseDesignErrorResponse(
         success=False,
@@ -193,7 +241,10 @@ def _error_payload(
             details=details or [],
         ),
     )
-    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"))
+    return _finalize_json_response(
+        JSONResponse(status_code=status_code, content=payload.model_dump(mode="json")),
+        passthrough_response,
+    )
 
 
 @router.get("/workspace/projects", response_model=ProjectListResponse)
@@ -220,10 +271,14 @@ def workspace_create_project(request: CreateProjectRequest, response: Response =
 
 
 @router.patch("/workspace/projects/{project_id}", response_model=ProjectRecord)
-def workspace_rename_project(project_id: str, request: RenameProjectRequest, response: Response = None):
+def workspace_rename_project(
+    project_id: str, request: RenameProjectRequest, response: Response = None
+):
     bind_workspace_guest_cookie(response, request.user_id)
     try:
-        project = rename_project(user_id=request.user_id, project_id=project_id, name=request.name)
+        project = rename_project(
+            user_id=request.user_id, project_id=project_id, name=request.name
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -248,7 +303,9 @@ def workspace_delete_project(
     return {"success": True}
 
 
-@router.get("/workspace/projects/{project_id}/messages", response_model=ProjectMessagesResponse)
+@router.get(
+    "/workspace/projects/{project_id}/messages", response_model=ProjectMessagesResponse
+)
 def workspace_project_messages(
     project_id: str,
     user_id: str = Query(..., min_length=1, max_length=128),
@@ -256,7 +313,9 @@ def workspace_project_messages(
 ):
     bind_workspace_guest_cookie(response, user_id)
     try:
-        project, messages = list_project_messages(user_id=user_id, project_id=project_id)
+        project, messages = list_project_messages(
+            user_id=user_id, project_id=project_id
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -301,6 +360,7 @@ async def workspace_generate_dxf(
             latency_ms=latency_ms,
             code="PROJECT_NOT_FOUND",
             message="Project not found",
+            passthrough_response=response,
         )
 
     try:
@@ -320,6 +380,7 @@ async def workspace_generate_dxf(
             latency_ms=latency_ms,
             code="INVALID_WORKSPACE_INPUT",
             message=str(exc),
+            passthrough_response=response,
         )
     except KeyError:
         latency_ms = (perf_counter() - started_at) * 1000
@@ -331,6 +392,7 @@ async def workspace_generate_dxf(
             latency_ms=latency_ms,
             code="PROJECT_NOT_FOUND",
             message="Project not found",
+            passthrough_response=response,
         )
 
     # ── Intent routing: short-circuit conversational messages before LLM pipeline ──
@@ -343,19 +405,33 @@ async def workspace_generate_dxf(
             role="assistant",
             text=chat_reply,
         )
-        return JSONResponse(content={
-            "type": "chat",
-            "message": chat_reply,
-            "project_id": project_id,
-            "user_message_id": user_message_id,
-            "assistant_message_id": assistant_msg_id,
-        })
+        return _finalize_json_response(
+            JSONResponse(
+                content={
+                    "type": "chat",
+                    "message": chat_reply,
+                    "project_id": project_id,
+                    "user_message_id": user_message_id,
+                    "assistant_message_id": assistant_msg_id,
+                }
+            ),
+            response,
+        )
 
     try:
         effective_model_id = request.model_id  # MODEL-FIX: preserve any caller-supplied model_id before provider-specific normalization
-        if request.model.value == "ollama":  # MODEL-FIX: resolve local Ollama model selection at the router boundary for generate-dxf
-            effective_model_id = request.model_id or OLLAMA_MODEL_ID  # MODEL-FIX: use caller-supplied model_id when provided
-        result, effective_prompt, used_layout_retry, used_hard_retry = await _parse_with_layout_retry(
+        if (
+            request.model.value == "ollama"
+        ):  # MODEL-FIX: resolve local Ollama model selection at the router boundary for generate-dxf
+            effective_model_id = (
+                request.model_id or OLLAMA_MODEL_ID
+            )  # MODEL-FIX: use caller-supplied model_id when provided
+        (
+            result,
+            effective_prompt,
+            used_layout_retry,
+            used_hard_retry,
+        ) = await _parse_with_layout_retry(
             prompt=request.prompt,
             model_choice=request.model,
             model_id=effective_model_id,
@@ -408,16 +484,30 @@ async def workspace_generate_dxf(
                 details=[str(exc)],
             ) from exc
 
-        file_token = issue_workspace_file_token(user_id=request.user_id, absolute_path=dxf_path)
+        file_token = issue_workspace_file_token(
+            user_id=request.user_id, absolute_path=dxf_path
+        )
         dxf_name = _project_dxf_name(project["name"])
+        quality_report = getattr(result, "quality_report", None)
+        if quality_report is None:
+            quality_report = ArchitecturalQualityGate().evaluate(
+                planned_payload=parsed_data,
+                metrics_payload=result.metrics,
+                strict_openings=False,
+                enforce_score=True,
+            )
         assistant_text = (
             f"DXF generated successfully using {model_used}."
             if not used_layout_retry
             else (
                 f"DXF generated successfully using {model_used} (recovered with feasibility fallback)."
-                if not used_hard_retry
-                else f"DXF generated successfully using {model_used} (recovered with emergency fallback)."
             )
+        )
+        _ = used_hard_retry
+        quality_report_dict = (
+            quality_report.model_dump(mode="json")
+            if hasattr(quality_report, "model_dump")
+            else (quality_report if isinstance(quality_report, dict) else None)
         )
         assistant_message_id = add_message(
             user_id=request.user_id,
@@ -428,6 +518,8 @@ async def workspace_generate_dxf(
             dxf_name=dxf_name,
             model_used=model_used,
             provider_used=result.provider_used,
+            layout_data=parsed_data if isinstance(parsed_data, dict) else None,
+            quality_report=quality_report_dict,
         )
 
         latency_ms = (perf_counter() - started_at) * 1000
@@ -445,6 +537,7 @@ async def workspace_generate_dxf(
             dxf_name=dxf_name,
             data=parsed_data,
             metrics=result.metrics,
+            quality_report=quality_report,
         )
         # ITERATIVE-FIX: include the parsed layout at the top level so generate responses can seed iterative edits.
         response_payload = success_payload.model_dump(mode="json")
@@ -454,18 +547,24 @@ async def workspace_generate_dxf(
             "rooms": parsed_data.get("rooms", []),
             "openings": parsed_data.get("openings", []),
         }
-        response_payload["suggestions"] = generate_suggestions(parsed_data, request.prompt)
-        return JSONResponse(content=response_payload)
+        response_payload["suggestions"] = generate_suggestions(
+            parsed_data, request.prompt
+        )
+        return _finalize_json_response(JSONResponse(content=response_payload), response)
 
     except ParseDesignServiceError as exc:
         latency_ms = (perf_counter() - started_at) * 1000
         detail_line = ""
         if exc.details:
-            compact_details = [detail for detail in dict.fromkeys(exc.details) if detail]
+            compact_details = [
+                detail for detail in dict.fromkeys(exc.details) if detail
+            ]
             if compact_details:
                 detail_preview = " | ".join(compact_details[:3])
                 if len(compact_details) > 3:
-                    detail_preview = f"{detail_preview} | ...(+{len(compact_details) - 3} more)"
+                    detail_preview = (
+                        f"{detail_preview} | ...(+{len(compact_details) - 3} more)"
+                    )
                 detail_line = f" | {detail_preview}"
         try:
             add_message(
@@ -491,6 +590,7 @@ async def workspace_generate_dxf(
             violated_rule=exc.violated_rule,
             room=exc.room,
             details=exc.details,
+            passthrough_response=response,
         )
 
     except Exception as exc:  # pragma: no cover - safety net
@@ -516,14 +616,14 @@ async def workspace_generate_dxf(
             code="INTERNAL_ERROR",
             message="Unexpected server error",
             details=[str(exc)],
+            passthrough_response=response,
         )
 
 
 # Import the iterative endpoint types and service locally so the existing import section stays untouched.
-from fastapi import Request
-
 from app.models.iterative_design import IterateRequest, IterateResponse
 from app.services.design_parser.diff_orchestrator import run_iterative_design
+from fastapi import Request
 
 
 @router.post(
@@ -535,6 +635,7 @@ async def iterate_design(
     project_id: str,
     body: IterateRequest,
     request: Request,
+    response: Response = None,
 ) -> IterateResponse:
     """
     Accept a natural-language instruction and return an updated layout plus optional DXF preview token.
@@ -546,20 +647,46 @@ async def iterate_design(
     # Resolve the user scope from the request body first, then fall back to the workspace guest cookie.
     cookie_user_id = request.cookies.get("cadarena_workspace_guest", "guest")
     resolved_user_id = (body.user_id or cookie_user_id or "guest").strip() or "guest"
+    bind_workspace_guest_cookie(response, resolved_user_id)
+    selected_model_label = body.model_id or body.model.value
 
     # ── Intent routing: short-circuit conversational messages ──
-    intent = classify_intent(body.prompt, has_existing_layout=body.current_layout is not None)
+    intent = classify_intent(
+        body.prompt, has_existing_layout=body.current_layout is not None
+    )
     if intent == MessageIntent.CONVERSATION:
         chat_reply = await get_assistant_reply(body.prompt)
-        return JSONResponse(content={
-            "type": "chat",
-            "message": chat_reply,
-            "layout": None,
-            "preview_token": None,
-            "intent": "CONVERSATION",
-            "is_new_design": False,
-            "changed_rooms": [],
-        })
+        user_message_id = add_message(
+            user_id=resolved_user_id,
+            project_id=project_id,
+            role="user",
+            text=body.prompt,
+        )
+        assistant_msg_id = add_message(
+            user_id=resolved_user_id,
+            project_id=project_id,
+            role="assistant",
+            text=chat_reply,
+        )
+        return _finalize_json_response(
+            JSONResponse(
+                content={
+                    "type": "chat",
+                    "message": chat_reply,
+                    "project_id": project_id,
+                    "user_message_id": user_message_id,
+                    "assistant_message_id": assistant_msg_id,
+                }
+            ),
+            response,
+        )
+
+    user_message_id = add_message(
+        user_id=resolved_user_id,
+        project_id=project_id,
+        role="user",
+        text=body.prompt,
+    )
 
     # Run the iterative layout pipeline with the project id as the memory and context scope.
     try:
@@ -569,11 +696,22 @@ async def iterate_design(
             current_layout=body.current_layout,
             project_id=project_id,
             model_choice=body.model,
+            model_id=body.model_id,
             recovery_mode=body.recovery_mode,
+            selection_offset=body.selection_offset,
         )
     except ParseDesignServiceError as exc:
         details = [detail for detail in exc.details if detail]
         detail_suffix = f" | {' | '.join(details[:3])}" if details else ""
+        error_msg = f"[{exc.code}] {exc.message}{detail_suffix}"
+        add_message(
+            user_id=resolved_user_id,
+            project_id=project_id,
+            role="error",
+            text=error_msg,
+            model_used=selected_model_label,
+            provider_used=body.model.value,
+        )
         return IterateResponse(
             layout=body.current_layout or {},
             dxf_path=None,
@@ -582,10 +720,19 @@ async def iterate_design(
             is_new_design=body.current_layout is None,
             changed_rooms=[],
             self_review_triggered=False,
-            error=[f"[{exc.code}] {exc.message}{detail_suffix}"],
+            error=[error_msg],
         )
     except Exception as exc:  # pragma: no cover - safety net
         logger.exception("[iterate_design] iterative pipeline failed")
+        error_msg = f"[INTERNAL_ERROR] {exc}"
+        add_message(
+            user_id=resolved_user_id,
+            project_id=project_id,
+            role="error",
+            text=error_msg,
+            model_used=selected_model_label,
+            provider_used=body.model.value,
+        )
         return IterateResponse(
             layout=body.current_layout or {},
             dxf_path=None,
@@ -594,11 +741,20 @@ async def iterate_design(
             is_new_design=body.current_layout is None,
             changed_rooms=[],
             self_review_triggered=False,
-            error=[f"[INTERNAL_ERROR] {exc}"],
+            error=[error_msg],
         )
 
     # Return iterative failures directly without attempting DXF conversion or token issuance.
     if result.get("error"):
+        error_msg = result["error"][0] if result["error"] else "Refinement failed"
+        add_message(
+            user_id=resolved_user_id,
+            project_id=project_id,
+            role="error",
+            text=error_msg,
+            model_used=selected_model_label,
+            provider_used=body.model.value,
+        )
         return IterateResponse(
             layout=result["layout"],
             dxf_path=None,
@@ -613,6 +769,8 @@ async def iterate_design(
     # Convert the updated layout to a DXF intent, generate the DXF, and register a preview token when possible.
     layout = result["layout"]
     preview_token: str | None = None
+    dxf_name: str | None = None
+    dxf_path = None
     try:
         dxf_intent = DesignIntent.model_validate(
             {
@@ -626,8 +784,39 @@ async def iterate_design(
             user_id=resolved_user_id,
             absolute_path=dxf_path,
         )
-    except Exception as exc:  # pragma: no cover - safety net for optional DXF generation
+        project = get_project(user_id=resolved_user_id, project_id=project_id)
+        dxf_name = _project_dxf_name(project["name"] if project else "refined_layout")
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - safety net for optional DXF generation
         logger.warning("[iterate_design] DXF generation failed: %s", exc)
+
+    quality_report = ArchitecturalQualityGate().evaluate(
+        planned_payload=layout,
+        metrics_payload=None,
+        strict_openings=False,
+        enforce_score=True,
+    )
+    quality_report_dict = (
+        quality_report.model_dump(mode="json")
+        if hasattr(quality_report, "model_dump")
+        else (quality_report if isinstance(quality_report, dict) else None)
+    )
+
+    assistant_text = f"DXF layout refined successfully using {body.model.value}."
+
+    assistant_message_id = add_message(
+        user_id=resolved_user_id,
+        project_id=project_id,
+        role="assistant",
+        text=assistant_text,
+        dxf_path=str(dxf_path) if dxf_path else None,
+        dxf_name=dxf_name,
+        model_used=body.model.value,
+        provider_used=body.model.value,
+        layout_data=layout,
+        quality_report=quality_report_dict,
+    )
 
     # Return the updated layout metadata while never exposing the raw DXF file system path.
     iterate_payload = IterateResponse(
@@ -639,13 +828,15 @@ async def iterate_design(
         changed_rooms=result["changed_rooms"],
         self_review_triggered=result.get("self_review_triggered", False),
     ).model_dump(mode="json")
+    iterate_payload["file_token"] = preview_token
+    iterate_payload["assistant_message_id"] = assistant_message_id
+    iterate_payload["user_message_id"] = user_message_id
     iterate_payload["suggestions"] = generate_suggestions(layout, body.prompt)
     return JSONResponse(content=iterate_payload)
 
 
-from fastapi import Depends
-
 from app.core.auth import AuthenticatedUser, get_current_user
+from fastapi import Depends
 
 
 @router.post(
@@ -666,26 +857,59 @@ async def iterate_design_authenticated(
     from app.services.design_parser.diff_orchestrator import run_iterative_design
 
     # ── Intent routing: short-circuit conversational messages ──
-    intent = classify_intent(body.prompt, has_existing_layout=body.current_layout is not None)
+    intent = classify_intent(
+        body.prompt, has_existing_layout=body.current_layout is not None
+    )
     if intent == MessageIntent.CONVERSATION:
         chat_reply = await get_assistant_reply(body.prompt)
-        return JSONResponse(content={
-            "type": "chat",
-            "message": chat_reply,
-            "layout": None,
-            "preview_token": None,
-            "intent": "CONVERSATION",
-            "is_new_design": False,
-            "changed_rooms": [],
-        })
+        user_message_id = add_message(
+            user_id=current_user.id,
+            project_id=project_id,
+            role="user",
+            text=body.prompt,
+        )
+        assistant_msg_id = add_message(
+            user_id=current_user.id,
+            project_id=project_id,
+            role="assistant",
+            text=chat_reply,
+        )
+        return JSONResponse(
+            content={
+                "type": "chat",
+                "message": chat_reply,
+                "project_id": project_id,
+                "user_message_id": user_message_id,
+                "assistant_message_id": assistant_msg_id,
+            }
+        )
+
+    user_message_id = add_message(
+        user_id=current_user.id,
+        project_id=project_id,
+        role="user",
+        text=body.prompt,
+    )
 
     result = await run_iterative_design(
         user_prompt=body.prompt,
         current_layout=body.current_layout,
         project_id=project_id,
+        model_choice=body.model,
+        recovery_mode=body.recovery_mode,
+        selection_offset=body.selection_offset,
     )
 
     if result.get("error"):
+        error_msg = result["error"][0] if result["error"] else "Refinement failed"
+        add_message(
+            user_id=current_user.id,
+            project_id=project_id,
+            role="error",
+            text=error_msg,
+            model_used=body.model.value,
+            provider_used=body.model.value,
+        )
         return IterateResponse(
             layout=result["layout"],
             dxf_path=None,
@@ -698,6 +922,8 @@ async def iterate_design_authenticated(
 
     layout = result["layout"]
     preview_token: str | None = None
+    dxf_name: str | None = None
+    dxf_path = None
     try:
         dxf_intent = DesignIntent.model_validate(
             {
@@ -711,8 +937,37 @@ async def iterate_design_authenticated(
             user_id=current_user.id,
             absolute_path=dxf_path,
         )
+        project = get_project(user_id=current_user.id, project_id=project_id)
+        dxf_name = _project_dxf_name(project["name"] if project else "refined_layout")
     except Exception as exc:
         logger.warning("[iterate_auth] DXF failed: %s", exc)
+
+    quality_report = ArchitecturalQualityGate().evaluate(
+        planned_payload=layout,
+        metrics_payload=None,
+        strict_openings=False,
+        enforce_score=True,
+    )
+    quality_report_dict = (
+        quality_report.model_dump(mode="json")
+        if hasattr(quality_report, "model_dump")
+        else (quality_report if isinstance(quality_report, dict) else None)
+    )
+
+    assistant_text = f"DXF layout refined successfully using {body.model.value}."
+
+    assistant_message_id = add_message(
+        user_id=current_user.id,
+        project_id=project_id,
+        role="assistant",
+        text=assistant_text,
+        dxf_path=str(dxf_path) if dxf_path else None,
+        dxf_name=dxf_name,
+        model_used=body.model.value,
+        provider_used=body.model.value,
+        layout_data=layout,
+        quality_report=quality_report_dict,
+    )
 
     iterate_payload = IterateResponse(
         layout=layout,
@@ -723,5 +978,8 @@ async def iterate_design_authenticated(
         changed_rooms=result["changed_rooms"],
         self_review_triggered=result.get("self_review_triggered", False),
     ).model_dump(mode="json")
+    iterate_payload["file_token"] = preview_token
+    iterate_payload["assistant_message_id"] = assistant_message_id
+    iterate_payload["user_message_id"] = user_message_id
     iterate_payload["suggestions"] = generate_suggestions(layout, body.prompt)
     return JSONResponse(content=iterate_payload)

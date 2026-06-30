@@ -3,8 +3,9 @@ Lenient design intent schema for default resolution.
 """
 
 from typing import List, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from app.schemas.geometry import Point
+
 
 
 class BoundaryDraft(BaseModel):
@@ -53,5 +54,6 @@ class DesignIntentDraft(BaseModel):
     openings: List[OpeningDraft] | None = None
     planning: dict | None = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
+
+

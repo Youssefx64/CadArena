@@ -30,6 +30,7 @@ from app.services.design_parser_service import (
     ParseDesignServiceError,
     parse_design_prompt_with_metadata,
 )
+from app.services.design_parser.quality_gate import ArchitecturalQualityGate
 from app.utils.parse_output_storage import save_parse_design_output
 
 logger = get_logger(__name__)
@@ -120,9 +121,15 @@ async def parse_design(request: ParseDesignRequest):
             model_choice=request.model,
             recovery_mode=request.recovery_mode,
             request_id=request_id,
+            selection_offset=request.selection_offset,
         )
         model_used = result.model_used
         parsed_data = result.data
+        quality_report = result.quality_report or ArchitecturalQualityGate().evaluate(
+            planned_payload=parsed_data,
+            metrics_payload=result.metrics,
+            strict_openings=False,
+        )
 
         try:
             saved_output_path = save_parse_design_output(
@@ -153,6 +160,7 @@ async def parse_design(request: ParseDesignRequest):
             latency_ms=round(latency_ms, 3),
             data=parsed_data,
             metrics=result.metrics,
+            quality_report=quality_report,
         )
 
     except ParseDesignServiceError as exc:
@@ -235,9 +243,15 @@ async def parse_design_generate_dxf(request: ParseDesignRequest):
             model_choice=request.model,
             recovery_mode=request.recovery_mode,
             request_id=request_id,
+            selection_offset=request.selection_offset,
         )
         model_used = result.model_used
         parsed_data = result.data
+        quality_report = result.quality_report or ArchitecturalQualityGate().evaluate(
+            planned_payload=parsed_data,
+            metrics_payload=result.metrics,
+            strict_openings=False,
+        )
 
         try:
             saved_output_path = save_parse_design_output(
@@ -304,6 +318,7 @@ async def parse_design_generate_dxf(request: ParseDesignRequest):
             dxf_path=str(dxf_path),
             data=parsed_data,
             metrics=result.metrics,
+            quality_report=quality_report,
         )
 
     except ParseDesignServiceError as exc:
