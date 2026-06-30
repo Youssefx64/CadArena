@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * CadArena API Service v2.0
  * Enhanced API service with better error handling and integration
@@ -10,9 +11,7 @@ function resolveApiBaseUrl() {
   if (process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
-  if (typeof window !== 'undefined' && window.location?.port === '3000') {
-    return 'http://localhost:8000';
-  }
+  // Use relative URLs so requests go through the dev server proxy, preserving cookies.
   return '';
 }
 
@@ -21,7 +20,7 @@ function resolveRagApiBaseUrl() {
     return process.env.REACT_APP_RAG_API_URL;
   }
   if (typeof window !== 'undefined' && window.location?.port === '3000') {
-    return 'http://localhost:8001';
+    return 'http://127.0.0.1:8001';
   }
   return '';
 }
@@ -475,12 +474,62 @@ class CadArenaAPI {
     return response.data;
   }
 
-  dxfPreviewUrl(fileToken) {
-    return `${API_BASE_URL}/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}&v=${Date.now()}`;
+  async listWorkspaceMeProjects() {
+    const response = await api.get('/api/v1/workspace/me/projects');
+    return response.data;
+  }
+
+  async createWorkspaceMeProject(name) {
+    const response = await api.post('/api/v1/workspace/me/projects', { name });
+    return response.data;
+  }
+
+  async renameWorkspaceMeProject(projectId, name) {
+    const response = await api.patch(`/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}`, { name });
+    return response.data;
+  }
+
+  async deleteWorkspaceMeProject(projectId) {
+    const response = await api.delete(`/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}`);
+    return response.data;
+  }
+
+  async getWorkspaceMeMessages(projectId) {
+    const response = await api.get(`/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}/messages`);
+    return response.data;
+  }
+
+  async generateWorkspaceMeDxf(projectId, payload) {
+    const response = await api.post(
+      `/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}/generate-dxf`,
+      payload
+    );
+    return response.data;
+  }
+
+  async iterateWorkspaceMeDxf(projectId, payload) {
+    const response = await api.post(
+      `/api/v1/workspace/me/projects/${encodeURIComponent(projectId)}/iterate`,
+      payload
+    );
+    return response.data;
+  }
+
+  dxfPreviewUrl(fileToken, visibleLayers = '') {
+    const layersParam = visibleLayers ? `&layers=${encodeURIComponent(visibleLayers)}` : '';
+    return `${API_BASE_URL}/api/v1/dxf/preview?file_token=${encodeURIComponent(fileToken)}${layersParam}&v=${Date.now()}`;
   }
 
   dxfDownloadUrl(fileToken, filename = 'cadarena_layout.dxf') {
     return `${API_BASE_URL}/api/v1/dxf/download?file_token=${encodeURIComponent(fileToken)}&filename=${encodeURIComponent(filename)}`;
+  }
+
+  dxfPdfUrl(fileToken, filename = 'cadarena_layout.pdf') {
+    return `${API_BASE_URL}/api/v1/dxf/export?file_token=${encodeURIComponent(fileToken)}&format=pdf&filename=${encodeURIComponent(filename)}`;
+  }
+
+  dxfPngUrl(fileToken, filename = 'cadarena_layout.png') {
+    return `${API_BASE_URL}/api/v1/dxf/export?file_token=${encodeURIComponent(fileToken)}&format=image&filename=${encodeURIComponent(filename)}`;
   }
 
   async listCommunityQuestions(params = {}) {
@@ -556,8 +605,8 @@ class CadArenaAPI {
     return response.data;
   }
 
-  async sendArchChatMessage({ threadId, content, topK = 5, collection = 'default', filters = {}, llmProvider = null, llmModel = null }) {
-    const body = { content, top_k: topK, collection, filters };
+  async sendArchChatMessage({ threadId, content, topK = 5, collection = 'default', filters = {}, hasProjectFiles = false, llmProvider = null, llmModel = null }) {
+    const body = { content, top_k: topK, collection, filters, has_project_files: hasProjectFiles };
     if (llmProvider) body.llm_provider = llmProvider;
     if (llmModel) body.llm_model = llmModel;
     const response = await api.post(
@@ -596,14 +645,26 @@ class CadArenaAPI {
     return response.data;
   }
 
-  async ingestRagFiles({ files, collection = 'default', source = '' }) {
+  async ingestRagFiles({ files, collection = 'default', source = '', documentIds = [], projectId = '', threadId = '', userId = '' }) {
     const formData = new FormData();
-    Array.from(files || []).forEach((file) => {
+    Array.from(files || []).forEach((file, index) => {
       formData.append('files', file);
+      if (documentIds[index]) {
+        formData.append('document_ids', documentIds[index]);
+      }
     });
     formData.append('collection', collection);
     if (source.trim()) {
       formData.append('source', source.trim());
+    }
+    if (projectId) {
+      formData.append('project_id', projectId);
+    }
+    if (threadId) {
+      formData.append('thread_id', threadId);
+    }
+    if (userId) {
+      formData.append('user_id', userId);
     }
 
     const response = await ragApi.post('/rag/ingest/files', formData);
@@ -612,6 +673,11 @@ class CadArenaAPI {
 
   async clearRagCollection(collectionName) {
     const response = await ragApi.delete(`/rag/collection/${encodeURIComponent(collectionName)}`);
+    return response.data;
+  }
+
+  async deleteRagDocument(collectionName, documentId) {
+    const response = await ragApi.delete(`/rag/collection/${encodeURIComponent(collectionName)}/document/${encodeURIComponent(documentId)}`);
     return response.data;
   }
 
@@ -680,6 +746,13 @@ export const {
   createWorkspaceProject,
   getWorkspaceMessages,
   generateWorkspaceDxf,
+  listWorkspaceMeProjects,
+  createWorkspaceMeProject,
+  renameWorkspaceMeProject,
+  deleteWorkspaceMeProject,
+  getWorkspaceMeMessages,
+  generateWorkspaceMeDxf,
+  iterateWorkspaceMeDxf,
   listArchChatThreads,
   createArchChatThread,
   renameArchChatThread,
@@ -696,5 +769,6 @@ export const {
   queryRag,
   ingestRagDocuments,
   ingestRagFiles,
-  clearRagCollection
+  clearRagCollection,
+  deleteRagDocument
 } = cadArenaAPI;
