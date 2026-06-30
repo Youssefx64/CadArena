@@ -372,3 +372,43 @@ def test_layout_planner_normalizer_caps_living_room_and_recovers_minimum_room_ar
         assert room["origin"]["y"] + room["height"] <= 10.0 + 1e-6
         for other in rooms[idx + 1 :]:
             assert _rooms_overlap(room, other) is False
+
+
+def test_layout_planner_private_room_adjacency() -> None:
+    """The layout planner should pair master bedroom with private bathroom and children bedrooms with shared bathroom."""
+    planner = DeterministicLayoutPlanner()
+    extracted_payload = {
+        "boundary": {"width": 24.0, "height": 16.0},
+        "room_program": [
+            {"name": "Master Bedroom", "room_type": "bedroom", "count": 1},
+            {"name": "Private Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Children Bedroom 1", "room_type": "bedroom", "count": 1},
+            {"name": "Children Bedroom 2", "room_type": "bedroom", "count": 1},
+            {"name": "Shared Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Guest Bathroom", "room_type": "bathroom", "count": 1},
+            {"name": "Living Room", "room_type": "living", "count": 1},
+            {"name": "Dining Room", "room_type": "living", "count": 1},
+            {"name": "Kitchen", "room_type": "kitchen", "count": 1},
+            {"name": "Laundry", "room_type": "bathroom", "count": 1},
+            {"name": "Storage Room", "room_type": "corridor", "count": 1}
+        ]
+    }
+    payload = planner.plan(extracted_payload)
+    rooms = payload["rooms"]
+    
+    master_bed = next(r for r in rooms if r["name"] == "Master Bedroom")
+    private_bath = next(r for r in rooms if r["name"] == "Private Bathroom")
+    shared_bath = next(r for r in rooms if r["name"] == "Shared Bathroom")
+    child_bed1 = next(r for r in rooms if r["name"] == "Children Bedroom 1")
+    child_bed2 = next(r for r in rooms if r["name"] == "Children Bedroom 2")
+    
+    # Check that Private Bathroom is next to Master Bedroom (they share a vertical boundary)
+    assert abs(master_bed["origin"]["x"] + master_bed["width"] - private_bath["origin"]["x"]) < 1e-4 or \
+           abs(private_bath["origin"]["x"] + private_bath["width"] - master_bed["origin"]["x"]) < 1e-4
+           
+    # Check that Shared Bathroom is next to at least one children bedroom
+    shares_with_child1 = abs(child_bed1["origin"]["x"] + child_bed1["width"] - shared_bath["origin"]["x"]) < 1e-4 or \
+                         abs(shared_bath["origin"]["x"] + shared_bath["width"] - child_bed1["origin"]["x"]) < 1e-4
+    shares_with_child2 = abs(child_bed2["origin"]["x"] + child_bed2["width"] - shared_bath["origin"]["x"]) < 1e-4 or \
+                         abs(shared_bath["origin"]["x"] + shared_bath["width"] - child_bed2["origin"]["x"]) < 1e-4
+    assert shares_with_child1 or shares_with_child2

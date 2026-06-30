@@ -1,11 +1,44 @@
 from pathlib import Path
-
+import sqlite3
 from app.services import community_storage
+from app.services.postgres_compat import CursorCompat
 
 
 def _use_temp_db(monkeypatch, tmp_path: Path) -> None:
     db_path = tmp_path / "community.db"
-    monkeypatch.setattr(community_storage, "workspace_db_path", lambda: db_path)
+
+    class SQLiteConnectionCompat:
+        def __init__(self, conn):
+            self._conn = conn
+            self._conn.row_factory = sqlite3.Row
+
+        def execute(self, sql, params=()):
+            cur = self._conn.cursor()
+            cur.execute(sql, params)
+            return CursorCompat(cur)
+
+        def executescript(self, script):
+            self._conn.executescript(script)
+
+        def commit(self):
+            self._conn.commit()
+
+        def rollback(self):
+            self._conn.rollback()
+
+        def close(self):
+            self._conn.close()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            if exc_type:
+                self.rollback()
+            self.close()
+            return False
+
+    monkeypatch.setattr(community_storage, "_connect", lambda: SQLiteConnectionCompat(sqlite3.connect(db_path)))
     community_storage.init_community_db()
 
 

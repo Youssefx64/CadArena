@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch, MagicMock
 from app.main import app
 from app.core.auth import get_current_user
-from app.routers.archchat import _session_dep
+from app.routers.archchat import _direct_reply, _is_greeting, _session_dep
 
 client = TestClient(app)
 
@@ -36,6 +36,20 @@ def create_mock_thread():
     thread.updated_at = None
     thread.last_message_at = None
     return thread
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["السلام عليكم", "السلام عليكم ورحمة الله وبركاته", "مرحبا كيف حالك", "hello", "hi there"],
+)
+def test_archchat_recognizes_standalone_greetings(message):
+    assert _is_greeting(message) is True
+    assert _direct_reply(message, has_project_files=False)
+
+
+def test_archchat_requires_project_file_for_engineering_questions():
+    assert "أحتاج ملف المشروع" in _direct_reply("ما نوع السلم؟", has_project_files=False)
+    assert _direct_reply("What stair type is shown?", has_project_files=True) is None
 
 @patch("httpx.AsyncClient.post")
 def test_archchat_send_message_success(mock_post, mock_rag_response, mock_user, mock_session):
@@ -76,7 +90,7 @@ def test_archchat_send_message_success(mock_post, mock_rag_response, mock_user, 
             
             resp_api = client.post(
                 f"/api/v1/archchat/threads/{thread_id}/messages",
-                json={"content": "What are the rules for stairs?"}
+                json={"content": "What are the rules for stairs?", "has_project_files": True}
             )
             
             assert resp_api.status_code == 200
@@ -103,7 +117,7 @@ def test_archchat_rag_failure_handling(mock_post, mock_user, mock_session):
         
         resp = client.post(
             f"/api/v1/archchat/threads/{thread_id}/messages",
-            json={"content": "Should fail"}
+            json={"content": "Should fail", "has_project_files": True}
         )
         
         assert resp.status_code == 502

@@ -97,10 +97,10 @@ def test_run_iterative_design_uses_full_parse_for_new_design(
     assert captured["model_choice"] == ParseDesignModel.HUGGINGFACE
 
 
-def test_run_iterative_design_falls_back_to_full_parse_after_diff_error(
+def test_run_iterative_design_returns_edit_failed_after_diff_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Diff extraction failures should full-parse when heuristics cannot derive an edit."""
+    """Diff extraction failures should return EDIT_FAILED when heuristics cannot derive an edit."""
 
     class FailingDiffEngine:
         def __init__(self) -> None:
@@ -113,37 +113,24 @@ def test_run_iterative_design_falls_back_to_full_parse_after_diff_error(
             self.cleared.append(project_id)
 
     fake_engine = FailingDiffEngine()
-    parsed_layout = {
-        "boundary": {"width": 14.0, "height": 10.0},
-        "rooms": [],
-        "walls": [],
-        "openings": [],
-    }
-
-    async def _fake_parse_design_prompt_with_metadata(**kwargs):
-        return SimpleNamespace(data=parsed_layout, self_review_triggered=False)
+    current_layout = _sample_layout()
 
     monkeypatch.setattr(diff_orchestrator, "_resolve_langchain_engine", lambda _model: fake_engine)
-    monkeypatch.setattr(
-        diff_orchestrator,
-        "parse_design_prompt_with_metadata",
-        _fake_parse_design_prompt_with_metadata,
-    )
 
     result = asyncio.run(
         diff_orchestrator.run_iterative_design(
             user_prompt="Please rethink this layout from scratch",
-            current_layout=_sample_layout(),
+            current_layout=current_layout,
             project_id="project-2",
             model_choice=ParseDesignModel.HUGGINGFACE,
             recovery_mode=RecoveryMode.REPAIR,
         )
     )
 
-    assert result["layout"] == parsed_layout
-    assert result["intent"] == "FULL_PARSE_FALLBACK"
-    assert result["is_new_design"] is True
-    assert fake_engine.cleared == ["project-2"]
+    assert result["layout"] == current_layout
+    assert result["intent"] == "EDIT_FAILED"
+    assert result["is_new_design"] is False
+    assert result["error"] == ["Could not interpret edit request. Please check your spelling or try a different command."]
 
 
 def test_run_iterative_design_returns_original_layout_when_patch_fails(
@@ -225,7 +212,7 @@ def test_run_iterative_design_returns_original_layout_when_validation_fails(
             return patched_layout
 
     class BrokenValidator:
-        def validate(self, *, extracted_payload: dict, planned_payload: dict, selected_topology: str = "unknown") -> None:
+        def validate(self, *, extracted_payload: dict, planned_payload: dict, selected_topology: str = "unknown", tolerant: bool = False) -> None:
             raise ValueError("validation failed")
 
     monkeypatch.setattr(diff_orchestrator, "_resolve_langchain_engine", lambda _model: FakeEngine())
@@ -293,7 +280,7 @@ def test_run_iterative_design_returns_changed_rooms_for_successful_patch(
             return patched_layout
 
     class PassingValidator:
-        def validate(self, *, extracted_payload: dict, planned_payload: dict, selected_topology: str = "unknown") -> None:
+        def validate(self, *, extracted_payload: dict, planned_payload: dict, selected_topology: str = "unknown", tolerant: bool = False) -> None:
             return None
 
     monkeypatch.setattr(diff_orchestrator, "_resolve_langchain_engine", lambda _model: FakeEngine())
@@ -331,3 +318,70 @@ def test_heuristic_diff_handles_add_room_and_relative_resize() -> None:
     assert resize_diff["changes"]["rooms_to_modify"][0]["name"] == "Kitchen"
     assert resize_diff["changes"]["rooms_to_modify"][0]["width"] > 3.0
     assert resize_diff["changes"]["rooms_to_modify"][0]["height"] > 2.5
+
+
+def test_heuristic_diff_handles_plural_deletion() -> None:
+    """Heuristic extraction should support category deletion for plural targets."""
+
+    current_layout = {
+        "boundary": {"width": 24.0, "height": 16.0},
+        "rooms": [
+            {"name": "Private Bathroom", "room_type": "bathroom", "width": 3.0, "height": 2.5, "origin": {"x": 0.0, "y": 0.0}},
+            {"name": "Shared Bathroom", "room_type": "bathroom", "width": 3.0, "height": 2.5, "origin": {"x": 3.0, "y": 0.0}},
+            {"name": "Laundry", "room_type": "bathroom", "width": 3.0, "height": 2.5, "origin": {"x": 6.0, "y": 0.0}},
+            {"name": "Master Bedroom", "room_type": "bedroom", "width": 4.0, "height": 4.0, "origin": {"x": 0.0, "y": 3.0}},
+        ]
+    }
+
+    diff = diff_orchestrator._heuristic_diff_from_prompt("delete all the bathrooms", current_layout)
+
+    assert diff["operation"] == "remove"
+    removed = diff["changes"]["rooms_to_remove"]
+    assert "Private Bathroom" in removed
+    assert "Shared Bathroom" in removed
+    assert "Laundry" not in removed
+
+
+def test_layout_redistribution_on_remove() -> None:
+    """Verifies that removing a room via the patcher triggers DeterministicLayoutPlanner to redistribute the layout."""
+
+    # Set up a layout where removing rooms would trigger redistribution
+    layout = {
+        "boundary": {"width": 24.0, "height": 16.0},
+        "rooms": [
+            {"name": "Master Bedroom", "room_type": "bedroom", "width": 5.73, "height": 8.01, "origin": {"x": 0.0, "y": 7.99}},
+            {"name": "Children Bedroom 1", "room_type": "bedroom", "width": 5.73, "height": 8.01, "origin": {"x": 5.73, "y": 7.99}},
+            {"name": "Children Bedroom 2", "room_type": "bedroom", "width": 5.73, "height": 8.01, "origin": {"x": 11.46, "y": 7.99}},
+            {"name": "Private Bathroom", "room_type": "bathroom", "width": 3.41, "height": 8.01, "origin": {"x": 17.19, "y": 7.99}},
+            {"name": "Shared Bathroom", "room_type": "bathroom", "width": 3.41, "height": 8.01, "origin": {"x": 20.59, "y": 7.99}},
+            {"name": "Main Corridor", "room_type": "corridor", "width": 24.0, "height": 1.20, "origin": {"x": 0.0, "y": 6.79}},
+            {"name": "Living Room", "room_type": "living", "width": 7.09, "height": 6.79, "origin": {"x": 0.0, "y": 0.0}},
+            {"name": "Dining Room", "room_type": "living", "width": 6.89, "height": 2.82, "origin": {"x": 7.09, "y": 3.97}},
+            {"name": "Guest Bathroom", "room_type": "bathroom", "width": 6.89, "height": 3.97, "origin": {"x": 7.09, "y": 0.0}},
+            {"name": "Kitchen", "room_type": "kitchen", "width": 5.15, "height": 6.79, "origin": {"x": 13.98, "y": 0.0}},
+            {"name": "Laundry", "room_type": "bathroom", "width": 4.88, "height": 5.59, "origin": {"x": 19.13, "y": 0.0}},
+            {"name": "Storage", "room_type": "corridor", "width": 4.88, "height": 1.20, "origin": {"x": 19.13, "y": 5.59}},
+        ]
+    }
+
+    diff = {
+        "operation": "remove",
+        "changes": {
+            "rooms_to_remove": ["Private Bathroom", "Shared Bathroom", "Guest Bathroom"]
+        }
+    }
+
+    from app.services.design_parser.layout_patcher import LayoutPatcher
+    patcher = LayoutPatcher()
+    patched_layout = patcher.apply(layout, diff)
+
+    # The bathrooms should be removed
+    remaining_names = [r["name"] for r in patched_layout["rooms"]]
+    assert "Private Bathroom" not in remaining_names
+    assert "Shared Bathroom" not in remaining_names
+    assert "Guest Bathroom" not in remaining_names
+
+    # The master bedroom should have expanded to fill the top side void
+    master = next(r for r in patched_layout["rooms"] if r["name"] == "Master Bedroom")
+    assert master["width"] > 6.0
+

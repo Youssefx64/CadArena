@@ -30,7 +30,7 @@ def test_extracted_validator_normalizes_two_bedroom_apartment_program() -> None:
         prompt="Design a 2 bedroom apartment with kitchen and bathroom",
     )
 
-    assert normalized["boundary"] == {"width": 12.0, "height": 9.0}
+    assert normalized["boundary"] == {"width": 20.0, "height": 12.0}
     room_program = normalized["room_program"]
     assert [room["name"] for room in room_program] == [
         "Bedroom 1",
@@ -46,7 +46,7 @@ def test_extracted_validator_normalizes_two_bedroom_apartment_program() -> None:
     assert all(room["count"] == 1 for room in room_program)
     assert all({"preferred_area", "min_area", "max_area"} <= set(room) for room in room_program)
 
-    boundary_area = 12.0 * 9.0
+    boundary_area = 20.0 * 12.0
     assert boundary_area * 0.80 <= _preferred_sum(normalized) <= boundary_area * 0.95
     for room in room_program:
         assert room["preferred_area"] <= boundary_area * 0.35 + 1e-6

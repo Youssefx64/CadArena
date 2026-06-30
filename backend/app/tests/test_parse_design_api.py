@@ -6,6 +6,7 @@ import pytest
 from app.models.design_parser import ParseDesignModel, ParseDesignRequest, RecoveryMode
 from app.routers.design_parser import parse_design, router as design_parser_router
 from app.services.design_parser.layout_planner import LayoutPlanningError
+from app.services.design_parser.prompt_program_deriver import PromptProgramDeriver
 from app.services.design_parser_service import (
     ParseDesignServiceError,
     _ORCHESTRATOR,
@@ -57,6 +58,8 @@ def test_parse_design_endpoint_accepts_arabic_prompt(monkeypatch: pytest.MonkeyP
     assert response.data.boundary.model_dump() == {"width": 20.0, "height": 12.0}
     assert response.provider_used == "llama3.1:8b"
     assert response.failover_triggered is False
+    assert response.quality_report.passed is True
+    assert response.quality_report.code_profile == "EBC_RESIDENTIAL_V1"
 
 
 def test_parse_design_json_validation_path(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -194,7 +197,7 @@ def test_parse_design_uses_prompt_fallback_when_json_and_repair_both_fail(
     assert "Living Room" in names
 
 
-def test_parse_design_uses_layout_emergency_fallback_on_planner_failures(
+def test_parse_design_rejects_emergency_grid_fallback_on_planner_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     extracted = {
@@ -225,30 +228,23 @@ def test_parse_design_uses_layout_emergency_fallback_on_planner_failures(
         selection_offset: int = 0,
         relax_kitchen_slack: bool = True,
     ):
-        notes = (payload.get("constraints") or {}).get("notes") if isinstance(payload, dict) else []
-        if isinstance(notes, list) and any("Emergency fallback program" in str(note) for note in notes):
-            return real_plan_with_metadata(
-                payload,
-                optimize_efficiency=optimize_efficiency,
-                selection_offset=selection_offset,
-                relax_kitchen_slack=relax_kitchen_slack,
-            )
         raise LayoutPlanningError("Mock topology failure for primary planning pass")
 
     provider = _ORCHESTRATOR._providers[ParseDesignModel.OLLAMA]  # type: ignore[attr-defined]
     monkeypatch.setattr(provider, "generate", _fake_generate)
     monkeypatch.setattr(_ORCHESTRATOR._layout_planner, "plan_with_metadata", _fake_plan_with_metadata)
 
-    result = asyncio.run(
-        parse_design_prompt_with_metadata(
-            prompt="Design a 20x12 house for a family with practical layout.",
-            model_choice=ParseDesignModel.OLLAMA,
-            recovery_mode=RecoveryMode.REPAIR,
+    with pytest.raises(ParseDesignServiceError) as exc_info:
+        asyncio.run(
+            parse_design_prompt_with_metadata(
+                prompt="Design a 20x12 house for a family with practical layout.",
+                model_choice=ParseDesignModel.OLLAMA,
+                recovery_mode=RecoveryMode.REPAIR,
+            )
         )
-    )
 
-    assert result.metrics["selected_topology"] != "unknown"
-    assert len(result.data["rooms"]) >= 5
+    assert exc_info.value.code == "LAYOUT_QUALITY_REJECTED"
+    assert "emergency_layout_fallback_used" in exc_info.value.details
 
 
 def test_parse_design_small_house_program_is_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -308,6 +304,7 @@ def test_parse_design_complex_program_contains_all_requested_elements(monkeypatc
         "room_program": [
             {"name": "Master Bedroom", "room_type": "bedroom", "count": 1},
             {"name": "Children Bedroom", "room_type": "bedroom", "count": 2},
+            {"name": "Private Bathroom", "room_type": "bathroom", "count": 1},
             {"name": "Shared Bathroom", "room_type": "bathroom", "count": 1},
             {"name": "Guest Bathroom", "room_type": "bathroom", "count": 1},
             {"name": "Living Room", "room_type": "living", "count": 1},
@@ -345,6 +342,7 @@ def test_parse_design_complex_program_contains_all_requested_elements(monkeypatc
     assert "Master Bedroom" in names
     assert "Children Bedroom 1" in names
     assert "Children Bedroom 2" in names
+    assert "Private Bathroom" in names
     assert "Shared Bathroom" in names
     assert "Guest Bathroom" in names
     assert "Laundry" in names
@@ -638,3 +636,25 @@ def test_enforce_room_counts_prefers_increasing_existing_entry_count() -> None:
     ]
     assert len(bedroom_entries) == 1
     assert bedroom_entries[0]["count"] == 3
+
+
+def test_prompt_program_deriver_expands_bedroom_apartment_shorthand() -> None:
+    derived = PromptProgramDeriver().derive(
+        prompt="Design a 3BR apartment",
+        extracted_payload={
+            "boundary": {"width": 20.0, "height": 12.0},
+            "room_program": [],
+            "constraints": {"notes": [], "adjacency_preferences": []},
+        },
+    )
+
+    counts = {
+        item["room_type"]: item["count"]
+        for item in derived["room_program"]
+    }
+
+    assert counts["bedroom"] == 3
+    assert counts["bathroom"] == 2
+    assert counts["kitchen"] == 1
+    assert counts["living"] == 1
+    assert counts["corridor"] == 1

@@ -61,3 +61,31 @@ def test_extract_expected_room_counts_handles_normalized_arabic_prompt() -> None
     normalized = _normalize_prompt_for_extraction("عاوز شقة فيها غرفتين نوم ومطبخ وحمام")
     counts = _extract_expected_room_counts(normalized)
     assert counts == {"bedroom": 2, "kitchen": 1, "bathroom": 1}
+
+
+def test_arabic_boundary_matching() -> None:
+    from app.services.design_parser.room_program_normalizer import extract_prompt_boundary
+    
+    # Test typical Arabic boundary phrases with different numerals/operators
+    b1 = extract_prompt_boundary("شقة ١٠ في ١٢ متر")
+    assert b1 == (12.0, 10.0)
+    
+    b2 = extract_prompt_boundary("تصميم شقة 10م في 8م")
+    assert b2 == (10.0, 8.0)
+    
+    b3 = extract_prompt_boundary("شقة مساحتها 12 * 9")
+    assert b3 == (12.0, 9.0)
+
+
+def test_arabic_room_name_resolution_iterative() -> None:
+    from app.services.design_parser.diff_orchestrator import _resolve_room_name
+    
+    room_names = ["Bathroom", "Bedroom 1", "Bedroom 2", "Kitchen", "Living Room"]
+    lowered_names = {name.lower(): name for name in room_names}
+    
+    # Test that Arabic room names resolve to their English equivalents in layout
+    assert _resolve_room_name("حمام", room_names, lowered_names) == "Bathroom"
+    assert _resolve_room_name("غرفة نوم ١", room_names, lowered_names) == "Bedroom 1"
+    assert _resolve_room_name("مطبخ", room_names, lowered_names) == "Kitchen"
+    assert _resolve_room_name("صاله", room_names, lowered_names) == "Living Room"
+

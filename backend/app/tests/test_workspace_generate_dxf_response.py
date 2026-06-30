@@ -179,6 +179,8 @@ def test_workspace_generate_dxf_returns_top_level_layout(
     assert payload["file_token"] == "workspace-token-guest-1"
     assert payload["dxf_name"] == "unit_test_project.dxf"
     assert payload["data"]["walls"] == fixtures["parsed_layout"]["walls"]
+    assert payload["quality_report"]["passed"] is True
+    assert payload["quality_report"]["code_profile"] == "EBC_RESIDENTIAL_V1"
     assert payload["layout"] == {
         "boundary": fixtures["parsed_layout"]["boundary"],
         "rooms": fixtures["parsed_layout"]["rooms"],
@@ -214,6 +216,7 @@ def test_me_generate_dxf_inherits_top_level_layout_from_shared_handler(
     assert isinstance(response, JSONResponse)
     assert response.status_code == 200
     assert payload["file_token"] == "workspace-token-auth-1"
+    assert payload["quality_report"]["passed"] is True
     assert payload["layout"]["rooms"] == fixtures["parsed_layout"]["rooms"]
     assert payload["layout"]["openings"] == fixtures["parsed_layout"]["openings"]
     assert "walls" not in payload["layout"]

@@ -9,6 +9,7 @@ from app.services.design_parser.opening_planner import (
     _RoomBox,
     _SharedBoundary,
 )
+from app.services.design_parser.rule_violation import RuleViolationError
 
 
 def _door_openings_for_pair(room_a: _RoomBox, room_b: _RoomBox) -> list[dict]:
@@ -69,6 +70,30 @@ def test_bathroom_door_uses_bathroom_hinge_rule_and_inward_swing() -> None:
     assert by_room["Bathroom"]["hinge"] == "right"
     assert by_room["Bathroom"]["swing"] == "in"
     assert by_room["Main Corridor"]["swing"] == "out"
+
+
+def test_opening_planner_rejects_shared_bathroom_to_bedroom_door() -> None:
+    planner = DeterministicOpeningPlanner()
+    rooms = [
+        _RoomBox(name="Bathroom", room_type="bathroom", x0=0.0, y0=0.0, x1=3.0, y1=3.0),
+        _RoomBox(name="Bedroom 1", room_type="bedroom", x0=3.0, y0=0.0, x1=7.0, y1=3.0),
+    ]
+    by_name = {room.name: room for room in rooms}
+
+    with pytest.raises(RuleViolationError) as exc_info:
+        planner._add_door_between(
+            room_a="Bathroom",
+            room_b="Bedroom 1",
+            by_name=by_name,
+            shared_boundaries=planner._build_shared_boundaries(rooms),
+            columns=[],
+            occupied={},
+            openings=[],
+            door_pairs_done=set(),
+            reason_rule="unit-test",
+        )
+
+    assert exc_info.value.violated_rule == "bathroom-door-forbidden-bedroom"
 
 
 def test_non_corridor_non_bathroom_doors_default_to_left_hinge_and_inward_swing() -> None:
@@ -302,3 +327,93 @@ def test_ensure_room_connectivity_logs_warning_when_no_shared_wall_exists(caplog
     assert result == []
     assert "unreachable rooms remain after connectivity pass" in caplog.text
     assert "rooms still lack door openings after connectivity pass" in caplog.text
+
+
+def test_opening_planner_adds_exterior_main_entry_door() -> None:
+    planner = DeterministicOpeningPlanner()
+    layout = {
+        "boundary": {"width": 20.0, "height": 12.0},
+        "rooms": [
+            {"name": "Living Room", "room_type": "living", "width": 6.0, "height": 5.0, "origin": {"x": 0.0, "y": 0.0}},
+            {"name": "Kitchen", "room_type": "kitchen", "width": 5.0, "height": 5.0, "origin": {"x": 6.0, "y": 0.0}},
+            {"name": "Main Corridor", "room_type": "corridor", "width": 20.0, "height": 1.2, "origin": {"x": 0.0, "y": 5.0}},
+            {"name": "Bedroom", "room_type": "bedroom", "width": 10.0, "height": 5.8, "origin": {"x": 0.0, "y": 6.2}},
+            {"name": "Bathroom", "room_type": "bathroom", "width": 9.0, "height": 5.8, "origin": {"x": 11.0, "y": 6.2}},
+        ],
+        "walls": [],
+        "openings": [],
+    }
+    result = planner.plan(extracted_payload={"constraints": {"notes": []}}, layout_payload=layout)
+
+    exterior_doors = [
+        opening
+        for opening in result["openings"]
+        if opening["type"] == "door"
+        and (
+            (opening["wall"] == "bottom" and opening["cut_start"]["y"] == 0.0)
+            or (opening["wall"] == "top" and opening["cut_start"]["y"] == 12.0)
+            or (opening["wall"] == "left" and opening["cut_start"]["x"] == 0.0)
+            or (opening["wall"] == "right" and opening["cut_start"]["x"] == 20.0)
+        )
+    ]
+
+    assert exterior_doors
+    assert max(abs(door["cut_end"]["x"] - door["cut_start"]["x"]) + abs(door["cut_end"]["y"] - door["cut_start"]["y"]) for door in exterior_doors) >= 1.0
+
+
+def test_opening_planner_rejects_bedroom_that_can_only_pass_through_bathroom() -> None:
+    planner = DeterministicOpeningPlanner()
+    layout = {
+        "boundary": {"width": 16.0, "height": 10.0},
+        "rooms": [
+            {
+                "name": "Kitchen",
+                "room_type": "kitchen",
+                "width": 6.03,
+                "height": 4.25,
+                "origin": {"x": 0.0, "y": 5.75},
+            },
+            {
+                "name": "Bathroom",
+                "room_type": "bathroom",
+                "width": 8.77,
+                "height": 2.30,
+                "origin": {"x": 7.23, "y": 7.70},
+            },
+            {
+                "name": "Bedroom 1",
+                "room_type": "bedroom",
+                "width": 4.39,
+                "height": 7.70,
+                "origin": {"x": 7.23, "y": 0.0},
+            },
+            {
+                "name": "Bedroom 2",
+                "room_type": "bedroom",
+                "width": 4.39,
+                "height": 7.70,
+                "origin": {"x": 11.61, "y": 0.0},
+            },
+            {
+                "name": "Main Corridor",
+                "room_type": "corridor",
+                "width": 1.2,
+                "height": 10.0,
+                "origin": {"x": 6.03, "y": 0.0},
+            },
+            {
+                "name": "Living Room",
+                "room_type": "living",
+                "width": 6.03,
+                "height": 5.75,
+                "origin": {"x": 0.0, "y": 0.0},
+            },
+        ],
+        "walls": [],
+        "openings": [],
+    }
+
+    with pytest.raises(RuleViolationError) as exc_info:
+        planner.plan(extracted_payload={"constraints": {"notes": []}}, layout_payload=layout)
+
+    assert exc_info.value.violated_rule == "bedroom-door-policy"

@@ -128,7 +128,7 @@ def test_wall_segments_render_as_const_width_wall_polylines() -> None:
     assert abs(wall_polylines[0].dxf.const_width - 0.20) < 1e-6
 
 
-def test_draw_room_label_adds_centered_text_and_bathroom_hatch() -> None:
+def test_draw_room_label_adds_centered_text_and_no_bathroom_hatch() -> None:
     renderer = DXFRoomRenderer()
     renderer.draw_boundary_segments(_rectangle_segment_pairs(4.0, 3.0))
 
@@ -138,7 +138,8 @@ def test_draw_room_label_adds_centered_text_and_bathroom_hatch() -> None:
     assert "BATHROOM" in texts
     # DXF-FIX: Now showing metric dimensions (4.00 × 3.00 m) and area (12.0 m²) instead of feet-inches
     assert any("4.00" in str(t) and "3.00" in str(t) and "m" in str(t) for t in texts), f"Dimension text should show meters, got: {texts}"
-    assert any(entity.dxftype() == "HATCH" and entity.dxf.layer == "HATCH" for entity in renderer.msp)
+    # Verify no bathroom floor hatch is added
+    assert not any(entity.dxftype() == "HATCH" and entity.dxf.layer == "HATCH" for entity in renderer.msp)
 
 
 def test_draw_room_dimensions_is_a_compatibility_no_op() -> None:
@@ -164,3 +165,46 @@ def test_save_adds_exterior_dimensions_border_and_title(monkeypatch, tmp_path) -
     assert any(entity.dxftype() == "LWPOLYLINE" and entity.dxf.layer == "BORDER" for entity in renderer.msp)
     # DXF-FIX: Title is now bilingual "FLOOR PLAN — مسقط أفقي"
     assert any(entity.dxftype() == "TEXT" and "FLOOR PLAN" in entity.dxf.text for entity in renderer.msp)
+
+
+def test_arabic_text_shaping_and_reversing() -> None:
+    from app.services.dxf_room_renderer import reshape_and_reverse_bidi
+    
+    input_text = "FLOOR PLAN — مسقط أفقي  (24.0 m²)"
+    result = reshape_and_reverse_bidi(input_text)
+    
+    assert "FLOOR PLAN — " in result
+    assert "  (24.0 m²)" in result
+    # "مسقط" -> م (initial: \ufee3) + س (medial: \ufeb4) + ق (medial: \ufed8) + ط (final: \ufec2)
+    # "أفقي" -> أ (isolated: \ufe83) + ف (initial: \ufed3) + ق (medial: \ufed8) + ي (final: \ufef2)
+    # The Arabic part is "مسقط أفقي" -> shaped "ﻣﺴﻘﻂ أﻓﻘﻲ" -> reversed "ﻲﻘﻓأ ﻂﻘﺴﻣ" (\ufef2\ufed8\ufed3\ufe83\u0020\ufec2\ufed8\ufeb4\ufee3)
+    expected_arabic_reversed = "\ufef2\ufed8\ufed3\ufe83\u0020\ufec2\ufed8\ufeb4\ufee3"
+    assert expected_arabic_reversed in result
+
+
+def test_laundry_room_excludes_hatch_and_bathroom_furniture() -> None:
+    renderer = DXFRoomRenderer()
+    renderer.draw_boundary_segments(_rectangle_segment_pairs(4.0, 3.0))
+
+    renderer.draw_room_label("Laundry Room", Point(x=2.0, y=1.5), room_type="bathroom")
+
+    # Verify no hatch is drawn on the HATCH layer (laundry rooms should not get bathroom hatch)
+    assert not any(entity.dxftype() == "HATCH" and entity.dxf.layer == "HATCH" for entity in renderer.msp)
+
+    # Verify no bathroom blocks (TOILET_WC, SINK_WALL, SHOWER_TRAY) are inserted
+    assert not any(entity.dxftype() == "INSERT" and entity.dxf.name in {"TOILET_WC", "SINK_WALL", "SHOWER_TRAY"} for entity in renderer.msp)
+
+
+def test_shower_tray_block_has_no_hatch() -> None:
+    renderer = DXFRoomRenderer()
+    assert "SHOWER_TRAY" in renderer.doc.blocks
+    block = renderer.doc.blocks.get("SHOWER_TRAY")
+    assert not any(entity.dxftype() == "HATCH" for entity in block)
+
+
+def test_wardrobe_block_has_no_swing_arcs() -> None:
+    renderer = DXFRoomRenderer()
+    assert "WARDROBE" in renderer.doc.blocks
+    block = renderer.doc.blocks.get("WARDROBE")
+    assert not any(entity.dxftype() == "ARC" for entity in block)
+
