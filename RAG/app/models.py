@@ -77,3 +77,28 @@ class HealthResponse(BaseModel):
     embedding_model: str
     document_count: int | None = None
 
+
+class EngineeringFindings(BaseModel):
+    """Specific key points, warnings, and recommendations from the agents."""
+    key_points: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class EngineeringResponse(BaseModel):
+    """Unified standard response schema returned by all ArchChat query endpoints."""
+    answer: str
+    confidence: float
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    agents_used: list[str] = Field(default_factory=list)
+    reasoning: str
+    findings: EngineeringFindings
+    limitations: list[str] = Field(default_factory=list)
+    follow_up_questions: list[str] = Field(default_factory=list)
+
+
+class VectorStoreResponse(BaseModel):
+    """Statistics about vector store collections."""
+    collections: dict[str, int]
+
+

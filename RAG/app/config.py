@@ -122,6 +122,17 @@ class RAGSettings(BaseSettings):
         cleaned = "/" + cleaned.strip("/")
         return cleaned
 
+    @field_validator("RAG_VECTOR_STORE_PATH", mode="before")
+    @classmethod
+    def _resolve_vector_store_path(cls, value: Any) -> str:
+        """Resolve relative vector store paths to RAG package root directory instead of CWD."""
+        path_str = str(value).strip()
+        path = Path(path_str)
+        if not path.is_absolute():
+            rag_root = Path(__file__).resolve().parents[1]
+            return str((rag_root / path).resolve())
+        return path_str
+
     @property
     def cors_origins(self) -> list[str]:
         """Return CORS origins from a comma-separated string setting."""

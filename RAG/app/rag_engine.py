@@ -137,6 +137,10 @@ class RAGEngine:
         """Delete a vector collection."""
         self.vector_store.clear_collection(collection_name)
 
+    def delete_document(self, collection_name: str, document_id: str) -> str | None:
+        """Delete a document's chunks from a collection."""
+        return self.vector_store.delete_document(collection_name, document_id)
+
     def _chunk_documents(
         self,
         *,
