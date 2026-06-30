@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.core.logging import get_logger
-from app.models.design_parser import ParseDesignModel, RecoveryMode
+from app.models.design_parser import DesignQualityReport, ParseDesignModel, RecoveryMode
 from app.services.design_parser.config import (
     ENABLE_OLLAMA_TO_HF_FAILOVER,
     ENABLE_QWEN_QUALITY_GUARD,
@@ -39,6 +39,7 @@ from app.services.design_parser.provider_client import (
     ProviderClient,
     QwenCloudProviderClient,
 )
+from app.services.design_parser.quality_gate import ArchitecturalQualityGate
 from app.services.design_parser.room_program_normalizer import (
     extract_requested_room_counts as _extract_room_counts_from_prompt,
 )
@@ -194,12 +195,9 @@ def _normalize_prompt_for_extraction(prompt: str) -> str:
     Normalize an architectural prompt for LLM extraction.
 
     If the prompt contains Arabic characters:
-      1. Replace known architectural keywords with English
-      2. Replace Arabic-Indic numerals with ASCII digits
-      3. Remove remaining Arabic characters (keep English parts)
-      4. Add a structured English context wrapper
-
-    If the prompt is already in English: return as-is.
+      1. Translate known architectural keywords with English
+      2. Normalize Arabic letters and digits
+      3. Add a structured English context wrapper with the original prompt
     """
 
     normalized_prompt = unicodedata.normalize("NFKC", str(prompt or "")).strip()
@@ -207,25 +205,20 @@ def _normalize_prompt_for_extraction(prompt: str) -> str:
     if not has_arabic:
         return normalized_prompt
 
-    translated = normalized_prompt
-    sorted_keywords = sorted(
-        _ARABIC_ARCH_KEYWORDS.items(),
-        key=lambda item: len(item[0]),
-        reverse=True,
-    )
-    for arabic, english in sorted_keywords:
-        translated = translated.replace(arabic, f" {english} ")
+    from app.utils.design_prompt import translate_arabic_to_english
+    translated = translate_arabic_to_english(normalized_prompt)
 
-    translated = re.sub(r"[\u0600-\u06ff\u0750-\u077f]+", " ", translated)
-    translated = re.sub(r"\s+", " ", translated).strip()
-
-    if not translated:
+    # Strip remaining Arabic characters to check if we have any translated English text/digits
+    only_ascii = re.sub(r"[\u0600-\u06ff\u0750-\u077f]+", "", translated).strip()
+    if not only_ascii:
         return "Design a standard apartment with living room, bedroom, kitchen, and bathroom"
 
     return (
         f"Design an architectural floor plan with: {translated}. "
-        "Generate a complete room layout with all rooms."
+        "Generate a complete room layout with all rooms. "
+        f"Original User Request: {normalized_prompt}"
     )
+
 
 
 _ROOM_COUNT_PATTERNS: list[tuple[re.Pattern[str], str, int | None]] = [
@@ -287,6 +280,7 @@ class ParseOrchestrationResult:
     self_review_triggered: bool
     data: dict[str, Any]
     metrics: dict[str, Any]
+    quality_report: DesignQualityReport | None = None
 
 
 @dataclass
@@ -316,6 +310,7 @@ class DesignParseOrchestrator:
         self._opening_planner = DeterministicOpeningPlanner()
         self._layout_validator = LayoutValidator()
         self._intent_validator = IntentValidator()
+        self._quality_gate = ArchitecturalQualityGate()
 
         self._providers: dict[ParseDesignModel, ProviderClient] = {
             ParseDesignModel.OLLAMA: OllamaProviderClient(),
@@ -350,6 +345,7 @@ class DesignParseOrchestrator:
         request_id: str,
         _quality_guard_retry: bool = False,
         _quality_guard_origin_model: ParseDesignModel | None = None,
+        selection_offset: int = 0,
     ) -> ParseOrchestrationResult:
         requested_provider = self._providers[model_choice]
         original_prompt = prompt
@@ -358,6 +354,7 @@ class DesignParseOrchestrator:
         self._validate_prompt_language(prompt, requested_provider.model_id)
         compiled_prompt = self._prompt_compiler.compile(prompt)
         quality_guard_model = _quality_guard_origin_model or model_choice
+        repairs_applied: list[str] = []
 
         failover_triggered = False
         provider = requested_provider
@@ -411,11 +408,14 @@ class DesignParseOrchestrator:
             request_id=request_id,
             failover_triggered=failover_triggered,
         )
+        if self_review_triggered:
+            repairs_applied.append("self_review_correction")
         if expected_counts:
             reviewed_payload = self._enforce_room_counts_from_prompt(
                 reviewed_payload,
                 expected_counts,
             )
+            repairs_applied.append("prompt_room_count_enforcement")
         # Keep furniture directives for DXF rendering, but strip them before strict schema validation because the public contract is unchanged.
         reviewed_payload_with_furniture = self._apply_default_furniture_markers(reviewed_payload)
         parsed_payload = self._strip_room_program_furniture(reviewed_payload_with_furniture)
@@ -462,6 +462,7 @@ class DesignParseOrchestrator:
                 expected_counts=expected_counts,
             )
             self_review_triggered = self_review_triggered or correction_self_review_triggered
+            repairs_applied.append("quality_correction_retry")
 
         prompt_derived_payload = self._derive_validated_prompt_program(
             prompt=prompt,
@@ -474,6 +475,7 @@ class DesignParseOrchestrator:
                 provider.model_id,
             )
             validated_extracted_payload = prompt_derived_payload
+            repairs_applied.append("prompt_program_normalization")
             reviewed_payload_with_furniture = self._project_furniture_preferences(
                 source_payload=reviewed_payload_with_furniture,
                 target_payload=validated_extracted_payload,
@@ -487,7 +489,7 @@ class DesignParseOrchestrator:
             effective_extracted_payload = validated_extracted_payload
             candidate_payload: dict[str, Any] | None = None
             planner_meta: dict[str, Any] = {}
-            planner_selection_offset = 0
+            planner_selection_offset = selection_offset
             planner_candidate_count = 1
             planner_optimize_efficiency = False
             planner_relax_kitchen_slack = True
@@ -562,6 +564,7 @@ class DesignParseOrchestrator:
                         provider.model_id,
                         str(primary_layout_exc),
                     )
+                    repairs_applied.append("program_derivation_retry")
                     effective_extracted_payload = derived_extracted_payload
                     # Reproject any self-review furniture directives onto the retried program so the renderer still sees `"default"`/`"none"` hints.
                     reviewed_payload_with_furniture = self._project_furniture_preferences(
@@ -584,6 +587,7 @@ class DesignParseOrchestrator:
                         provider.model_id,
                         " | ".join(layout_failures),
                     )
+                    repairs_applied.append("layout_emergency_program_retry")
                     try:
                         emergency_extracted_payload = self._build_layout_emergency_payload(
                             prompt=prompt,
@@ -631,6 +635,7 @@ class DesignParseOrchestrator:
                     candidate_payload = self._build_emergency_layout_payload(effective_extracted_payload)
                     planner_meta = {"selected_topology": "emergency_grid_fallback"}
                     used_emergency_layout = True
+                    repairs_applied.append("emergency_grid_geometry_fallback")
 
                 if candidate_payload is None:
                     raise LayoutPlanningError(" | ".join(layout_failures))
@@ -693,6 +698,7 @@ class DesignParseOrchestrator:
                         candidate_payload = self._build_emergency_layout_payload(effective_extracted_payload)
                         selected_topology = "emergency_grid_fallback"
                         used_emergency_layout = True
+                        repairs_applied.append("opening_emergency_grid_fallback")
                         break
             validated_extracted_payload = effective_extracted_payload
         except LayoutPlanningError as exc:
@@ -740,6 +746,7 @@ class DesignParseOrchestrator:
                     candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
                     selected_topology = "emergency_grid_fallback"
                     used_emergency_layout = True
+                    repairs_applied.append("intent_emergency_grid_fallback")
                     try:
                         validated_payload = self._intent_validator.validate(candidate_payload)
                         break
@@ -776,12 +783,20 @@ class DesignParseOrchestrator:
                         )
                         break
                     except RuleViolationError as exc:
-                        if not used_emergency_layout and _try_next_layout_candidate():
-                            candidate_payload = self._opening_planner.plan(
-                                extracted_payload=validated_extracted_payload,
-                                layout_payload=candidate_payload,
-                            )
-                            validated_payload = self._intent_validator.validate(candidate_payload)
+                        retry_success = False
+                        while not used_emergency_layout and _try_next_layout_candidate():
+                            try:
+                                candidate_payload = self._opening_planner.plan(
+                                    extracted_payload=validated_extracted_payload,
+                                    layout_payload=candidate_payload,
+                                )
+                                validated_payload = self._intent_validator.validate(candidate_payload)
+                                retry_success = True
+                                break
+                            except RuleViolationError as retry_exc:
+                                exc = retry_exc
+                                continue
+                        if retry_success:
                             continue
                         if exc.code == "LAYOUT_EFFICIENCY_FAILED":
                             try:
@@ -793,6 +808,7 @@ class DesignParseOrchestrator:
                                 planner_selection_offset = int(planner_meta.get("selection_offset", 0))
                                 planner_candidate_count = max(1, int(planner_meta.get("candidate_count", 1)))
                                 selected_topology = str(planner_meta.get("selected_topology", selected_topology))
+                                repairs_applied.append("efficiency_rebalance_retry")
                                 candidate_payload = self._opening_planner.plan(
                                     extracted_payload=validated_extracted_payload,
                                     layout_payload=candidate_payload,
@@ -823,6 +839,7 @@ class DesignParseOrchestrator:
                             candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
                             selected_topology = "emergency_grid_fallback"
                             used_emergency_layout = True
+                            repairs_applied.append("validation_emergency_grid_fallback")
                             validated_payload = self._intent_validator.validate(candidate_payload)
                             metrics_payload = self._build_emergency_metrics(selected_topology)
                             break
@@ -851,6 +868,7 @@ class DesignParseOrchestrator:
                     candidate_payload = self._build_emergency_layout_payload(validated_extracted_payload)
                     selected_topology = "emergency_grid_fallback"
                     used_emergency_layout = True
+                    repairs_applied.append("validator_emergency_grid_fallback")
                     validated_payload = self._intent_validator.validate(candidate_payload)
                     metrics_payload = self._build_emergency_metrics(selected_topology)
                 else:
@@ -876,6 +894,25 @@ class DesignParseOrchestrator:
                     "total_score": metrics.total_score,
                     "selected_topology": metrics.selected_topology,
                 }
+
+        quality_report = self._quality_gate.evaluate(
+            planned_payload=validated_payload,
+            metrics_payload=metrics_payload,
+            used_emergency_layout=used_emergency_layout,
+            repairs_applied=repairs_applied,
+            strict_openings=True,
+            enforce_score=True,
+        )
+        if not quality_report.passed:
+            raise ParseDesignServiceError(
+                code="LAYOUT_QUALITY_REJECTED",
+                message="Generated layout did not pass the EBC residential quality gate",
+                status_code=422,
+                model_used=provider.model_id,
+                provider_used=provider.model_id,
+                failover_triggered=failover_triggered,
+                details=quality_report.hard_failures + quality_report.warnings,
+            )
 
         quality_guard_issues = self._collect_quality_guard_issues(
             quality_guard_model=quality_guard_model,
@@ -916,6 +953,7 @@ class DesignParseOrchestrator:
                 self_review_triggered=quality_retry_result.self_review_triggered or self_review_triggered,
                 data=quality_retry_result.data,
                 metrics=quality_retry_result.metrics,
+                quality_report=quality_retry_result.quality_report,
             )
         if (
             quality_guard_issues
@@ -963,6 +1001,7 @@ class DesignParseOrchestrator:
             self_review_triggered=self_review_triggered,
             data=validated_payload,
             metrics=metrics_payload or self._build_emergency_metrics("emergency_grid_fallback"),
+            quality_report=quality_report,
         )
 
     # Parse model extraction output with resilient fallback (strict -> permissive -> repair call) before failing.
@@ -2005,6 +2044,8 @@ class DesignParseOrchestrator:
         violations: list[str] = []
         actual_counts = self._actual_room_program_counts(extracted)
         for family, requested in expected_counts.items():
+            if family in {"corridor", "stairs"}:
+                continue
             actual = actual_counts.get(family, 0)
             if actual != requested:
                 violations.append(
@@ -2108,6 +2149,8 @@ class DesignParseOrchestrator:
         }
 
         for room_type, expected_total in expected_counts.items():
+            if room_type in {"corridor", "stairs"}:
+                continue
             indices = indices_by_type.get(room_type, [])
             ordered_indices = sorted(
                 indices,

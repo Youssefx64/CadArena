@@ -46,7 +46,9 @@ def _qwen_cloud_engine() -> CadArenaLangChainEngine:
     )
 
 
-def _resolve_langchain_engine(model_choice: ParseDesignModel) -> CadArenaLangChainEngine | None:
+def _resolve_langchain_engine(
+    model_choice: ParseDesignModel,
+) -> CadArenaLangChainEngine | None:
     """Resolve the best available LangChain engine for iterative intent and diff extraction."""
 
     try:
@@ -61,12 +63,17 @@ def _resolve_langchain_engine(model_choice: ParseDesignModel) -> CadArenaLangCha
     return None
 
 
+# Duplicate _resolve_diff_room_names removed. The actual definition resides at the end of this file.
+
+
 async def run_iterative_design(
     user_prompt: str,
     current_layout: dict[str, Any] | None,
     project_id: str,
     model_choice: ParseDesignModel = ParseDesignModel.HUGGINGFACE,
+    model_id: str | None = None,
     recovery_mode: RecoveryMode = RecoveryMode.REPAIR,
+    selection_offset: int = 0,
 ) -> dict[str, Any]:
     """
     Route iterative design requests using only current-layout presence.
@@ -84,37 +91,68 @@ async def run_iterative_design(
             project_id=project_id,
             intent="NEW_DESIGN",
             model_choice=model_choice,
+            model_id=model_id,
             recovery_mode=recovery_mode,
             diff_engine=diff_engine,
+            selection_offset=selection_offset,
         )
 
     # Treat the presence of current_layout as the only signal that this is an iterative edit.
     logger.info("[DiffOrchestrator] project=%s path=iterative_edit", project_id)
     diff: dict[str, Any] = {}
     if diff_engine is None:
-        logger.warning("[DiffOrchestrator] no diff engine available - falling back to heuristics/full parse")
+        logger.warning(
+            "[DiffOrchestrator] no diff engine available - falling back to heuristics/full parse"
+        )
     else:
         try:
             # Try surgical diff extraction first so common edits stay scoped to the current plan.
-            diff = await diff_engine.extract_diff(user_prompt, current_layout, project_id)
+            llm_prompt = user_prompt
+            has_arabic = any("\u0600" <= ch <= "\u06ff" for ch in user_prompt)
+            if has_arabic:
+                from app.utils.design_prompt import translate_arabic_to_english
+
+                translated_hint = translate_arabic_to_english(user_prompt)
+                llm_prompt = (
+                    f"{user_prompt}\n(English translation hint: {translated_hint})"
+                )
+            diff = await diff_engine.extract_diff(
+                llm_prompt, current_layout, project_id
+            )
         except Exception as exc:
-            logger.warning("[DiffOrchestrator] extract_diff failed: %s - falling back to heuristics/full parse", exc)
+            logger.warning(
+                "[DiffOrchestrator] extract_diff failed: %s - falling back to heuristics/full parse",
+                exc,
+            )
 
     # Keep a deterministic heuristic fallback for common edits when LLM diff extraction is unavailable.
     if not diff or not str(diff.get("operation", "")).strip():
-        diff = _heuristic_diff_from_prompt(user_prompt, current_layout)
-        logger.info("[DiffOrchestrator] heuristic_diff=%s", diff.get("operation"))
+        from app.utils.design_prompt import translate_arabic_to_english
+
+        translated_prompt = translate_arabic_to_english(user_prompt)
+        diff = _heuristic_diff_from_prompt(translated_prompt, current_layout)
+        logger.info(
+            "[DiffOrchestrator] heuristic_diff=%s (translated: %s)",
+            diff.get("operation"),
+            translated_prompt,
+        )
+
+    # Resolve fuzzy/Arabic room names in the diff object to exact English names in the layout
+    if diff and str(diff.get("operation", "")).strip():
+        diff = _resolve_diff_room_names(diff, current_layout)
 
     # Regenerate the whole layout only when no usable surgical diff could be derived.
     if not diff or not str(diff.get("operation", "")).strip():
-        logger.info("[DiffOrchestrator] project=%s empty_diff -> full_parse", project_id)
-        return await _run_full_parse_fallback(
-            user_prompt=user_prompt,
-            project_id=project_id,
-            intent="FULL_PARSE_FALLBACK",
-            model_choice=model_choice,
-            recovery_mode=recovery_mode,
-            diff_engine=diff_engine,
+        logger.warning(
+            "[DiffOrchestrator] project=%s empty_diff - returning original layout",
+            project_id,
+        )
+        return _iterative_failure_response(
+            current_layout,
+            "EDIT_FAILED",
+            [
+                "Could not interpret edit request. Please check your spelling or try a different command."
+            ],
         )
 
     # Patch the provided layout geometry without mutating the caller-owned input object.
@@ -122,8 +160,12 @@ async def run_iterative_design(
     try:
         patched_layout = patcher.apply(current_layout, diff)
     except Exception as exc:
-        logger.warning("[DiffOrchestrator] patcher failed: %s - returning original layout", exc)
-        return _iterative_failure_response(current_layout, "PATCH_FAILED", _error_messages(exc))
+        logger.warning(
+            "[DiffOrchestrator] patcher failed: %s - returning original layout", exc
+        )
+        return _iterative_failure_response(
+            current_layout, "PATCH_FAILED", _error_messages(exc)
+        )
 
     extracted_payload = _synthesize_extracted_payload(patched_layout)
     finalized_layout = copy.deepcopy(patched_layout)
@@ -148,10 +190,16 @@ async def run_iterative_design(
                 extracted_payload=extracted_payload,
                 planned_payload=finalized_layout,
                 selected_topology="iterative_patch",
+                tolerant=True,
             )
         except Exception as exc:
-            logger.warning("[DiffOrchestrator] validation error: %s - returning original layout", exc)
-            return _iterative_failure_response(current_layout, "VALIDATION_FAILED", _error_messages(exc))
+            logger.warning(
+                "[DiffOrchestrator] validation error: %s - returning original layout",
+                exc,
+            )
+            return _iterative_failure_response(
+                current_layout, "VALIDATION_FAILED", _error_messages(exc)
+            )
 
     # Return the fully patched layout payload with the requested iterative metadata contract.
     changed_rooms = _collect_changed_room_names(diff, finalized_layout)
@@ -169,8 +217,10 @@ async def _run_full_parse_fallback(
     project_id: str,
     intent: str,
     model_choice: ParseDesignModel,
+    model_id: str | None,
     recovery_mode: RecoveryMode,
     diff_engine: CadArenaLangChainEngine | None,
+    selection_offset: int = 0,
 ) -> dict[str, Any]:
     """Run the untouched one-shot parser and adapt its result to iterative metadata."""
 
@@ -178,8 +228,10 @@ async def _run_full_parse_fallback(
     result = await parse_design_prompt_with_metadata(
         prompt=user_prompt,
         model_choice=model_choice,
+        model_id=model_id,
         recovery_mode=recovery_mode,
         request_id=f"iterative_{project_id}_{uuid4().hex}",
+        selection_offset=selection_offset,
     )
 
     # Clear project memory after a fresh full parse so future edits start from the new design baseline.
@@ -340,7 +392,8 @@ def _heuristic_diff_from_prompt(
 
     prompt_lower = user_prompt.lower().strip()
     rooms = current_layout.get("rooms", [])
-    room_names = [r["name"] for r in rooms]
+    room_names = [str(r.get("name", "")).strip() for r in rooms if r.get("name")]
+    lowered_names = {name.lower(): name for name in room_names}
 
     room_type_map = {
         "bedroom": "bedroom",
@@ -359,6 +412,20 @@ def _heuristic_diff_from_prompt(
         "hallway": "corridor",
     }
 
+    plural_room_types = {
+        "bedrooms": "bedroom",
+        "bed rooms": "bedroom",
+        "bathrooms": "bathroom",
+        "toilets": "bathroom",
+        "restrooms": "bathroom",
+        "wcs": "bathroom",
+        "kitchens": "kitchen",
+        "living rooms": "living",
+        "dining rooms": "living",
+        "corridors": "corridor",
+        "hallways": "corridor",
+    }
+
     # Remove an existing room by matching the prompt text against current room names.
     remove_match = re.search(
         r"(?:remove|delete|get rid of)\s+(?:the\s+)?(.+?)(?:\s*$|\s+and\b)",
@@ -366,11 +433,34 @@ def _heuristic_diff_from_prompt(
     )
     if remove_match:
         target = remove_match.group(1).strip()
-        matched = [name for name in room_names if target in name.lower()]
-        if matched:
+        cleaned_target = re.sub(
+            r"^(all\s+the\s+|all\s+|the\s+|a\s+|an\s+)", "", target
+        ).strip()
+        if cleaned_target in plural_room_types:
+            target_type = plural_room_types[cleaned_target]
+            resolved_rooms = [
+                str(r.get("name")).strip()
+                for r in rooms
+                if r.get("name")
+                and (
+                    (
+                        str(r.get("room_type")).strip().lower() == target_type
+                        and "laundry" not in str(r.get("name")).strip().lower()
+                    )
+                    or target_type in str(r.get("name")).strip().lower()
+                )
+            ]
+            if resolved_rooms:
+                return {
+                    "operation": "remove",
+                    "changes": {"rooms_to_remove": resolved_rooms},
+                }
+
+        resolved = _resolve_room_name(target, room_names, lowered_names)
+        if resolved:
             return {
                 "operation": "remove",
-                "changes": {"rooms_to_remove": matched[:1]},
+                "changes": {"rooms_to_remove": [resolved]},
             }
 
     # Swap two existing rooms when both prompt fragments resolve against the layout.
@@ -381,8 +471,10 @@ def _heuristic_diff_from_prompt(
     if swap_match:
         a_hint = swap_match.group(1).strip()
         b_hint = swap_match.group(2).strip()
-        room_a = next((name for name in room_names if a_hint in name.lower()), None)
-        room_b = next((name for name in room_names if b_hint in name.lower()), None)
+        a_hint = re.sub(r"^(the|a|an)\s+", "", a_hint)
+        b_hint = re.sub(r"^(the|a|an)\s+", "", b_hint)
+        room_a = _resolve_room_name(a_hint, room_names, lowered_names)
+        room_b = _resolve_room_name(b_hint, room_names, lowered_names)
         if room_a and room_b:
             return {
                 "operation": "swap",
@@ -393,35 +485,43 @@ def _heuristic_diff_from_prompt(
     modify_match = re.search(
         r"(?:make|enlarge|expand|increase|shrink|reduce|decrease|resize)"
         r"\s+(?:the\s+)?(.+?)"
-        r"\s+(?:bigger|larger|smaller|wider|narrower|more\s+\w+)?",
+        r"(?:\s+(?:bigger|larger|smaller|wider|narrower|more\s+\w+))?$",
         prompt_lower,
     )
     if modify_match:
         target = modify_match.group(1).strip()
-        matched_room = next(
-            (room for room in rooms if target in room["name"].lower()),
-            None,
-        )
-        if matched_room:
-            is_shrink = any(
-                keyword in prompt_lower
-                for keyword in ["smaller", "shrink", "reduce", "decrease", "narrower"]
+        resolved = _resolve_room_name(target, room_names, lowered_names)
+        if resolved:
+            matched_room = next(
+                (room for room in rooms if room["name"] == resolved),
+                None,
             )
-            scale = 0.75 if is_shrink else 1.30
-            return {
-                "operation": "modify",
-                "changes": {
-                    "rooms_to_modify": [
-                        {
-                            "name": matched_room["name"],
-                            "room_type": matched_room["room_type"],
-                            "width": round(matched_room["width"] * scale, 3),
-                            "height": round(matched_room["height"] * scale, 3),
-                            "origin": matched_room["origin"],
-                        }
+            if matched_room:
+                is_shrink = any(
+                    keyword in prompt_lower
+                    for keyword in [
+                        "smaller",
+                        "shrink",
+                        "reduce",
+                        "decrease",
+                        "narrower",
                     ]
-                },
-            }
+                )
+                scale = 0.75 if is_shrink else 1.30
+                return {
+                    "operation": "modify",
+                    "changes": {
+                        "rooms_to_modify": [
+                            {
+                                "name": matched_room["name"],
+                                "room_type": matched_room["room_type"],
+                                "width": round(matched_room["width"] * scale, 3),
+                                "height": round(matched_room["height"] * scale, 3),
+                                "origin": matched_room["origin"],
+                            }
+                        ]
+                    },
+                }
 
     # Add a new room type using boundary-scaled defaults when no exact geometry is supplied.
     add_match = re.search(
@@ -464,7 +564,14 @@ def _resolve_room_name(
 ) -> str | None:
     """Resolve fuzzy room name text into an existing room name from the current layout."""
 
-    cleaned = re.sub(r"\s+", " ", str(fragment or "").strip().lower())
+    fragment_str = str(fragment or "")
+    has_arabic = any("\u0600" <= ch <= "\u06ff" for ch in fragment_str)
+    if has_arabic:
+        from app.utils.design_prompt import translate_arabic_to_english
+
+        fragment_str = translate_arabic_to_english(fragment_str)
+
+    cleaned = re.sub(r"\s+", " ", fragment_str.strip().lower())
     cleaned = re.sub(r"^(the|a|an)\s+", "", cleaned)
     if not cleaned:
         return None
@@ -552,7 +659,9 @@ def _next_room_name(current_layout: dict[str, Any], base_name: str) -> str:
     return f"{base_name} {index}"
 
 
-def _default_adjacent_room_name(current_layout: dict[str, Any], room_type: str) -> str | None:
+def _default_adjacent_room_name(
+    current_layout: dict[str, Any], room_type: str
+) -> str | None:
     """Pick a stable adjacency hint for heuristic room additions."""
 
     rooms = [
@@ -571,7 +680,9 @@ def _default_adjacent_room_name(current_layout: dict[str, Any], room_type: str) 
     return str(rooms[0].get("name", "")).strip() if rooms else None
 
 
-def _find_room_by_name(current_layout: dict[str, Any], room_name: str | None) -> dict[str, Any] | None:
+def _find_room_by_name(
+    current_layout: dict[str, Any], room_name: str | None
+) -> dict[str, Any] | None:
     """Return the existing room payload for an exact room name match."""
 
     cleaned_name = str(room_name or "").strip()
@@ -583,3 +694,81 @@ def _find_room_by_name(current_layout: dict[str, Any], room_name: str | None) ->
         if str(room.get("name", "")).strip() == cleaned_name:
             return room
     return None
+
+
+def _resolve_diff_room_names(
+    diff: dict[str, Any], current_layout: dict[str, Any]
+) -> dict[str, Any]:
+    """Resolve fuzzy/Arabic room names in the diff to exact English room names in current_layout."""
+    diff_copy = copy.deepcopy(diff)
+    rooms = current_layout.get("rooms", [])
+    room_names = [
+        str(room.get("name", "")).strip() for room in rooms if room.get("name")
+    ]
+    lowered_names = {name.lower(): name for name in room_names}
+
+    changes = diff_copy.get("changes", {})
+    if not isinstance(changes, dict):
+        return diff_copy
+
+    # 1. Resolve modify
+    if "rooms_to_modify" in changes and isinstance(changes["rooms_to_modify"], list):
+        for room_patch in changes["rooms_to_modify"]:
+            if not isinstance(room_patch, dict):
+                continue
+            name = room_patch.get("name")
+            if name:
+                resolved = _resolve_room_name(name, room_names, lowered_names)
+                if resolved:
+                    room_patch["name"] = resolved
+                # Normalize room_type if needed
+                if "room_type" in room_patch:
+                    canonical = _canonical_room_type(room_patch["room_type"])
+                    if canonical:
+                        room_patch["room_type"] = canonical
+
+    # 2. Resolve remove
+    if "rooms_to_remove" in changes and isinstance(changes["rooms_to_remove"], list):
+        resolved_remove = []
+        for name in changes["rooms_to_remove"]:
+            if not isinstance(name, str):
+                continue
+            resolved = _resolve_room_name(name, room_names, lowered_names)
+            if resolved:
+                resolved_remove.append(resolved)
+            else:
+                resolved_remove.append(name)
+        changes["rooms_to_remove"] = resolved_remove
+
+    # 3. Resolve swap
+    if "rooms_to_swap" in changes and isinstance(changes["rooms_to_swap"], list):
+        resolved_swap = []
+        for pair in changes["rooms_to_swap"]:
+            if not isinstance(pair, list) or len(pair) != 2:
+                continue
+            r0 = _resolve_room_name(pair[0], room_names, lowered_names) or pair[0]
+            r1 = _resolve_room_name(pair[1], room_names, lowered_names) or pair[1]
+            resolved_swap.append([r0, r1])
+        changes["rooms_to_swap"] = resolved_swap
+
+    # 4. Resolve adjacent_to in additions
+    if "rooms_to_add" in changes and isinstance(changes["rooms_to_add"], list):
+        for room_add in changes["rooms_to_add"]:
+            if not isinstance(room_add, dict):
+                continue
+            adj = room_add.get("adjacent_to")
+            if adj:
+                resolved = _resolve_room_name(adj, room_names, lowered_names)
+                if resolved:
+                    room_add["adjacent_to"] = resolved
+            # Normalize room_type and default name
+            if "room_type" in room_add:
+                canonical = _canonical_room_type(room_add["room_type"])
+                if canonical:
+                    room_add["room_type"] = canonical
+                    if not room_add.get("name"):
+                        room_add["name"] = _next_room_name(
+                            current_layout, _default_room_name(canonical)
+                        )
+
+    return diff_copy

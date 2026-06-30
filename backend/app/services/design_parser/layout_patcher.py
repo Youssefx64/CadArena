@@ -67,7 +67,50 @@ class LayoutPatcher:
         }
         boundary_width, boundary_height = self._boundary_size(layout)
 
-        # Walk existing rooms and update only the targeted ones.
+        # Try to use DeterministicLayoutPlanner to redistribute the rooms after modification
+        try:
+            from app.services.design_parser.layout_planner import DeterministicLayoutPlanner
+            room_program = []
+            
+            for r in self._iter_rooms(layout):
+                name = r["name"]
+                patch = patches_by_name.get(name)
+                
+                # Default values from current room
+                w = self._finite_float(r.get("width"), self.MIN_ROOM_SIDE)
+                h = self._finite_float(r.get("height"), self.MIN_ROOM_SIDE)
+                room_type = r["room_type"]
+                
+                if patch is not None:
+                    if "width" in patch:
+                        w = self._finite_float(patch.get("width"), w)
+                    if "height" in patch:
+                        h = self._finite_float(patch.get("height"), h)
+                    if "room_type" in patch and patch.get("room_type") is not None:
+                        room_type = patch["room_type"]
+                        
+                room_program.append({
+                    "name": name,
+                    "room_type": room_type,
+                    "count": 1,
+                    "preferred_area": w * h
+                })
+                
+            extracted_payload = {
+                "boundary": {"width": boundary_width, "height": boundary_height},
+                "room_program": room_program
+            }
+            
+            planner = DeterministicLayoutPlanner()
+            planned_layout = planner.plan(extracted_payload)
+            if "rooms" in planned_layout:
+                layout["rooms"] = planned_layout["rooms"]
+                return layout
+        except Exception as exc:
+            import logging
+            logging.warning("[LayoutPatcher] Redistribution during modify failed: %s. Falling back to surgical modification.", exc)
+
+        # Fall back to surgical modification if planner fails
         for room in self._iter_rooms(layout):
             room_name = str(room.get("name", "")).strip()
             patch = patches_by_name.get(room_name)
@@ -120,7 +163,52 @@ class LayoutPatcher:
             if isinstance(raw_room, dict)
         ]
 
-        # Place each room only if it fits without overlapping the current layout.
+        # Try to use DeterministicLayoutPlanner to redistribute the rooms after adding new ones
+        try:
+            from app.services.design_parser.layout_planner import DeterministicLayoutPlanner
+            boundary_width, boundary_height = self._boundary_size(layout)
+            room_program = []
+            
+            # 1. Existing rooms
+            for r in self._iter_rooms(layout):
+                w = self._finite_float(r.get("width"), self.MIN_ROOM_SIDE)
+                h = self._finite_float(r.get("height"), self.MIN_ROOM_SIDE)
+                room_program.append({
+                    "name": r["name"],
+                    "room_type": r["room_type"],
+                    "count": 1,
+                    "preferred_area": w * h
+                })
+            
+            # 2. Added rooms
+            for candidate in normalized_additions:
+                if candidate is None:
+                    continue
+                room_payload, _ = candidate
+                w = self._finite_float(room_payload.get("width"), self.MIN_ROOM_SIDE)
+                h = self._finite_float(room_payload.get("height"), self.MIN_ROOM_SIDE)
+                room_program.append({
+                    "name": room_payload["name"],
+                    "room_type": room_payload["room_type"],
+                    "count": 1,
+                    "preferred_area": w * h
+                })
+                
+            extracted_payload = {
+                "boundary": {"width": boundary_width, "height": boundary_height},
+                "room_program": room_program
+            }
+            
+            planner = DeterministicLayoutPlanner()
+            planned_layout = planner.plan(extracted_payload)
+            if "rooms" in planned_layout:
+                layout["rooms"] = planned_layout["rooms"]
+                return layout
+        except Exception as exc:
+            import logging
+            logging.warning("[LayoutPatcher] Redistribution during add failed: %s. Falling back to surgical placement.", exc)
+
+        # Fall back to surgical placement if planner fails
         for candidate in normalized_additions:
             if candidate is None:
                 continue
@@ -150,13 +238,53 @@ class LayoutPatcher:
             return layout
 
         # Keep only rooms not targeted by the diff.
-        layout["rooms"] = [
+        remaining_rooms = [
             room
             for room in self._iter_rooms(layout)
             if str(room.get("name", "")).strip() not in names_to_remove
         ]
 
-        # Drop stale openings that reference rooms removed from the layout.
+        if not remaining_rooms:
+            layout["rooms"] = []
+            layout["openings"] = []
+            return layout
+
+        # Try to use DeterministicLayoutPlanner to redistribute the remaining rooms
+        try:
+            from app.services.design_parser.layout_planner import DeterministicLayoutPlanner
+            boundary_width, boundary_height = self._boundary_size(layout)
+            room_program = []
+            for r in remaining_rooms:
+                w = self._finite_float(r.get("width"), self.MIN_ROOM_SIDE)
+                h = self._finite_float(r.get("height"), self.MIN_ROOM_SIDE)
+                room_program.append({
+                    "name": r["name"],
+                    "room_type": r["room_type"],
+                    "count": 1,
+                    "preferred_area": w * h
+                })
+            
+            extracted_payload = {
+                "boundary": {"width": boundary_width, "height": boundary_height},
+                "room_program": room_program
+            }
+            
+            planner = DeterministicLayoutPlanner()
+            planned_layout = planner.plan(extracted_payload)
+            if "rooms" in planned_layout:
+                layout["rooms"] = planned_layout["rooms"]
+                layout["openings"] = [
+                    opening
+                    for opening in self._iter_openings(layout)
+                    if str(opening.get("room_name", "")).strip() not in names_to_remove
+                ]
+                return layout
+        except Exception as exc:
+            import logging
+            logging.warning("[LayoutPatcher] Redistribution during remove failed: %s. Falling back to surgical removal.", exc)
+
+        # Fall back to surgical removal if planner fails
+        layout["rooms"] = remaining_rooms
         layout["openings"] = [
             opening
             for opening in self._iter_openings(layout)
