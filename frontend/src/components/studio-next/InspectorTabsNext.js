@@ -5,6 +5,7 @@ import {
   AlertTriangle, CheckCircle, FileText
 } from 'lucide-react';
 import LayerPanel from '../viewer/LayerPanel';
+import toast from 'react-hot-toast';
 import cadArenaAPI from '../../services/api';
 
 function classNames(...items) {
@@ -255,43 +256,64 @@ export default function InspectorTabsNext({
                 
                 <div className="grid grid-cols-1 gap-2.5">
                   {/* DXF drawing export */}
-                  <a
-                    href={cadArenaAPI.dxfDownloadUrl(fileToken, dxfName)}
-                    download={dxfName}
-                    className="p-3 border border-slate-200 dark:border-slate-800 hover:border-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg flex items-center justify-between group transition-all"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const url = cadArenaAPI.dxfDownloadUrl(fileToken, dxfName);
+                        await cadArenaAPI.triggerFileDownload(url, dxfName);
+                      } catch (err) {
+                        toast.error(err.message);
+                      }
+                    }}
+                    className="p-3 w-full text-left border border-slate-200 dark:border-slate-800 hover:border-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg flex items-center justify-between group transition-all"
                   >
                     <div>
                       <span className="font-bold text-slate-800 dark:text-slate-250 block">AutoCAD DXF Drawing</span>
                       <span className="text-[10px] font-mono text-slate-400">{dxfName}</span>
                     </div>
                     <Download className="h-4.5 w-4.5 text-slate-450 group-hover:text-sky-500 transition-colors" />
-                  </a>
+                  </button>
 
                   {/* PNG layout download */}
-                  <a
-                    href={cadArenaAPI.dxfPngUrl(fileToken, dxfName.replace('.dxf', '.png'))}
-                    download={dxfName.replace('.dxf', '.png')}
-                    className="p-3 border border-slate-200 dark:border-slate-800 hover:border-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg flex items-center justify-between group transition-all"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const url = cadArenaAPI.dxfPngUrl(fileToken, dxfName.replace('.dxf', '.png'));
+                        await cadArenaAPI.triggerFileDownload(url, dxfName.replace('.dxf', '.png'));
+                      } catch (err) {
+                        toast.error(err.message);
+                      }
+                    }}
+                    className="p-3 w-full text-left border border-slate-200 dark:border-slate-800 hover:border-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg flex items-center justify-between group transition-all"
                   >
                     <div>
                       <span className="font-bold text-slate-800 dark:text-slate-250 block">PNG Image Layout</span>
                       <span className="text-[10px] font-mono text-slate-400">Flat rendered layout boundary</span>
                     </div>
                     <Download className="h-4.5 w-4.5 text-slate-450 group-hover:text-sky-500 transition-colors" />
-                  </a>
+                  </button>
 
                   {/* PDF layout download */}
-                  <a
-                    href={cadArenaAPI.dxfPdfUrl(fileToken, dxfName.replace('.dxf', '.pdf'))}
-                    download={dxfName.replace('.dxf', '.pdf')}
-                    className="p-3 border border-slate-200 dark:border-slate-800 hover:border-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg flex items-center justify-between group transition-all"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const url = cadArenaAPI.dxfPdfUrl(fileToken, dxfName.replace('.dxf', '.pdf'));
+                        await cadArenaAPI.triggerFileDownload(url, dxfName.replace('.dxf', '.pdf'));
+                      } catch (err) {
+                        toast.error(err.message);
+                      }
+                    }}
+                    className="p-3 w-full text-left border border-slate-200 dark:border-slate-800 hover:border-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg flex items-center justify-between group transition-all"
                   >
                     <div>
                       <span className="font-bold text-slate-800 dark:text-slate-250 block">PDF Document Layout</span>
                       <span className="text-[10px] font-mono text-slate-400">Printable document layout</span>
                     </div>
                     <Download className="h-4.5 w-4.5 text-slate-450 group-hover:text-sky-500 transition-colors" />
-                  </a>
+                  </button>
 
                   {/* Compliance metadata report */}
                   {qualityReport && (

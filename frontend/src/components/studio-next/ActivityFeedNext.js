@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import PromptComposerNext from './PromptComposerNext';
 import ReasoningTimelineNext from './ReasoningTimelineNext';
+import toast from 'react-hot-toast';
 import cadArenaAPI from '../../services/api';
 
 function classNames(...items) {
@@ -349,14 +350,21 @@ export default function ActivityFeedNext({
                       )}
 
                       {/* Direct DXF Download */}
-                      <a
-                        href={cadArenaAPI.dxfDownloadUrl(rec.fileToken, rec.dxfName)}
-                        download={rec.dxfName}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const url = cadArenaAPI.dxfDownloadUrl(rec.fileToken, rec.dxfName);
+                            await cadArenaAPI.triggerFileDownload(url, rec.dxfName);
+                          } catch (err) {
+                            toast.error(err.message);
+                          }
+                        }}
                         className="px-2 py-1 text-[10px] font-bold border border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-850 rounded text-slate-600 dark:text-slate-350 flex items-center gap-1 transition-all"
                       >
                         <Download className="h-3.5 w-3.5" />
                         <span>Download</span>
-                      </a>
+                      </button>
 
                       {/* Refine layout option */}
                       <button

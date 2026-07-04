@@ -13,6 +13,8 @@ import {
   Image,
   FileDown,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import cadArenaAPI from '../../services/api';
 
 function ViewerToolbar({
   fileName,
@@ -98,33 +100,48 @@ function ViewerToolbar({
 
       {token ? (
         <>
-          <a
-            href={downloadUrl}
+          <button
+            onClick={async () => {
+              try {
+                await cadArenaAPI.triggerFileDownload(downloadUrl, safeName);
+              } catch (err) {
+                toast.error(err.message);
+              }
+            }}
             className="app-button-secondary app-button-compact gap-1.5"
-            download={safeName}
             title="Download DXF"
           >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Download</span>
-          </a>
-          <a
-            href={exportPngUrl}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await cadArenaAPI.triggerFileDownload(exportPngUrl, safeName.replace(/\.dxf$/i, '.png'));
+              } catch (err) {
+                toast.error(err.message);
+              }
+            }}
             className="app-button-ghost app-button-compact gap-1"
-            download
             title="Export as PNG"
           >
             <Image className="h-3.5 w-3.5" />
             <span className="text-xs font-semibold">PNG</span>
-          </a>
-          <a
-            href={exportPdfUrl}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await cadArenaAPI.triggerFileDownload(exportPdfUrl, safeName.replace(/\.dxf$/i, '.pdf'));
+              } catch (err) {
+                toast.error(err.message);
+              }
+            }}
             className="app-button-ghost app-button-compact gap-1"
-            download
             title="Export as PDF"
           >
             <FileDown className="h-3.5 w-3.5" />
             <span className="text-xs font-semibold">PDF</span>
-          </a>
+          </button>
 
           <div className="viewer-toolbar-sep" />
         </>

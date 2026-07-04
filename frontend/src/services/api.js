@@ -725,6 +725,43 @@ class CadArenaAPI {
       throw new Error('Failed to download image');
     }
   }
+
+  /**
+   * Triggers an authenticated file download using a GET request with responseType: 'blob'.
+   * This prevents dev server's historyApiFallback from intercepting download requests.
+   * @param {string} downloadUrl - The relative or absolute URL to download the file from
+   * @param {string} filenameHint - The fallback filename to save the file as
+   */
+  async triggerFileDownload(downloadUrl, filenameHint = '') {
+    try {
+      console.log(`📥 Triggering file download: ${downloadUrl}`);
+      const response = await api.get(downloadUrl, { responseType: 'blob' });
+      const blob = response.data;
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Extract filename from Content-Disposition header if possible
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = filenameHint || 'download';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename=(?:["']([^"']+)["']|([^;]+))/);
+        if (match) {
+          filename = match[1] || match[2];
+        }
+      }
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      return true;
+    } catch (error) {
+      console.error('❌ File download failed:', error);
+      throw new Error(error.message || 'Failed to download file');
+    }
+  }
 }
 
 // Create and export API instance
@@ -741,6 +778,7 @@ export const {
   generateVariations,
   getPresets,
   downloadImage,
+  triggerFileDownload,
   getParseDesignModels,
   listWorkspaceProjects,
   createWorkspaceProject,
