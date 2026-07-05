@@ -27,7 +27,7 @@ def _register_toilet_wc(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="TOILET_WC")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(-0.19, 0.52), (0.19, 0.52), (0.19, 0.70), (-0.19, 0.70)], close=True, dxfattribs={**attrs, "const_width": 0.015})  # Draw cistern tank.
     blk.add_ellipse(center=(0.00, 0.26), major_axis=(0.0, 0.26), ratio=0.68, dxfattribs=attrs)  # Draw outer bowl ellipse.
@@ -44,7 +44,7 @@ def _register_sink_wall(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="SINK_WALL")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(-0.30, 0.0), (0.30, 0.0), (0.30, 0.52), (-0.30, 0.52)], close=True, dxfattribs={**attrs, "const_width": 0.015})  # Draw sink surround.
     blk.add_ellipse(center=(0.00, 0.24), major_axis=(0.22, 0.0), ratio=0.78, dxfattribs=attrs)  # Draw rounded basin profile.
@@ -61,7 +61,7 @@ def _register_shower_tray(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="SHOWER_TRAY")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
     tray_boundary = [(0.0, 0.0), (0.90, 0.0), (0.90, 0.90), (0.0, 0.90)]
 
     blk.add_lwpolyline(tray_boundary, close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw tray border.

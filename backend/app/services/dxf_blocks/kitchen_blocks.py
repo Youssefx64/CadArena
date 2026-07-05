@@ -27,7 +27,7 @@ def _register_stove_4burner(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="STOVE_4BURNER")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (0.60, 0.0), (0.60, 0.60), (0.0, 0.60)], close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw stove body.
     blk.add_lwpolyline([(0.02, 0.54), (0.58, 0.54), (0.58, 0.58), (0.02, 0.58)], close=True, dxfattribs=attrs)  # Draw control strip.
@@ -55,7 +55,7 @@ def _register_kitchen_sink_double(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="KITCHEN_SINK_DOUBLE")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (0.80, 0.0), (0.80, 0.52), (0.0, 0.52)], close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw sink surround.
     blk.add_lwpolyline([(0.04, 0.05), (0.36, 0.05), (0.36, 0.47), (0.04, 0.47)], close=True, dxfattribs=attrs)  # Draw left basin.
@@ -73,7 +73,7 @@ def _register_refrigerator(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="REFRIGERATOR")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (0.70, 0.0), (0.70, 0.75), (0.0, 0.75)], close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw fridge body.
     blk.add_line((0.0, 0.28), (0.70, 0.28), dxfattribs=attrs)  # Draw freezer/fridge split.

@@ -27,12 +27,12 @@ def _register_bed_double(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="BED_DOUBLE")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (1.60, 0.0), (1.60, 2.00), (0.0, 2.00)], close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw mattress outline.
     blk.add_lwpolyline([(0.04, 1.74), (1.56, 1.74), (1.56, 1.98), (0.04, 1.98)], close=True, dxfattribs=attrs)  # Draw headboard boundary.
     headboard_hatch = blk.add_hatch(dxfattribs=attrs)  # Create solid hatch for the headboard fill.
-    headboard_hatch.set_solid_fill(color=_LAYER_COLOR)  # Use solid pattern for professional CAD look.
+    headboard_hatch.set_solid_fill(color=256)  # Use solid pattern for professional CAD look.
     headboard_hatch.paths.add_polyline_path([(0.04, 1.74), (1.56, 1.74), (1.56, 1.98), (0.04, 1.98)], is_closed=True)  # Apply hatch boundary.
     blk.add_lwpolyline([(0.08, 1.42), (0.68, 1.42), (0.68, 1.70), (0.08, 1.70)], close=True, dxfattribs=attrs)  # Draw left pillow.
     blk.add_lwpolyline([(0.92, 1.42), (1.52, 1.42), (1.52, 1.70), (0.92, 1.70)], close=True, dxfattribs=attrs)  # Draw right pillow.
@@ -47,12 +47,12 @@ def _register_bed_single(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="BED_SINGLE")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (1.00, 0.0), (1.00, 2.00), (0.0, 2.00)], close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw mattress outline.
     blk.add_lwpolyline([(0.04, 1.74), (0.96, 1.74), (0.96, 1.98), (0.04, 1.98)], close=True, dxfattribs=attrs)  # Draw headboard boundary.
     headboard_hatch = blk.add_hatch(dxfattribs=attrs)  # Create solid hatch for the headboard fill.
-    headboard_hatch.set_solid_fill(color=_LAYER_COLOR)  # Use solid pattern for professional CAD look.
+    headboard_hatch.set_solid_fill(color=256)  # Use solid pattern for professional CAD look.
     headboard_hatch.paths.add_polyline_path([(0.04, 1.74), (0.96, 1.74), (0.96, 1.98), (0.04, 1.98)], is_closed=True)  # Apply hatch boundary.
     blk.add_lwpolyline([(0.12, 1.42), (0.88, 1.42), (0.88, 1.70), (0.12, 1.70)], close=True, dxfattribs=attrs)  # Draw centered pillow.
     blk.add_lwpolyline([(0.04, 1.28), (0.96, 1.28)], close=False, dxfattribs=attrs)  # Draw blanket fold line.
@@ -65,7 +65,7 @@ def _register_wardrobe(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="WARDROBE")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (1.80, 0.0), (1.80, 0.60), (0.0, 0.60)], close=True, dxfattribs={**attrs, "const_width": 0.02})  # Draw wardrobe outer body.
     blk.add_line((0.90, 0.0), (0.90, 0.60), dxfattribs=attrs)  # Draw door split line.

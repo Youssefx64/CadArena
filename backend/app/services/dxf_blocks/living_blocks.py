@@ -26,19 +26,19 @@ def _register_sofa_3seat(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="SOFA_3SEAT")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (2.20, 0.0), (2.20, 0.24), (0.0, 0.24)], close=True, dxfattribs=attrs)  # Draw sofa back rest outline.
     back_hatch = blk.add_hatch(dxfattribs=attrs)  # Create solid hatch for the back rest mass.
-    back_hatch.set_solid_fill(color=_LAYER_COLOR)  # Fill back rest with solid hatch.
+    back_hatch.set_solid_fill(color=256)  # Fill back rest with solid hatch.
     back_hatch.paths.add_polyline_path([(0.0, 0.0), (2.20, 0.0), (2.20, 0.24), (0.0, 0.24)], is_closed=True)  # Set back rest hatch boundary.
     blk.add_lwpolyline([(0.0, 0.24), (0.24, 0.24), (0.24, 0.92), (0.0, 0.92)], close=True, dxfattribs=attrs)  # Draw left armrest outline.
     left_arm_hatch = blk.add_hatch(dxfattribs=attrs)  # Create solid hatch for left armrest.
-    left_arm_hatch.set_solid_fill(color=_LAYER_COLOR)  # Fill left armrest with solid hatch.
+    left_arm_hatch.set_solid_fill(color=256)  # Fill left armrest with solid hatch.
     left_arm_hatch.paths.add_polyline_path([(0.0, 0.24), (0.24, 0.24), (0.24, 0.92), (0.0, 0.92)], is_closed=True)  # Set left armrest hatch boundary.
     blk.add_lwpolyline([(1.96, 0.24), (2.20, 0.24), (2.20, 0.92), (1.96, 0.92)], close=True, dxfattribs=attrs)  # Draw right armrest outline.
     right_arm_hatch = blk.add_hatch(dxfattribs=attrs)  # Create solid hatch for right armrest.
-    right_arm_hatch.set_solid_fill(color=_LAYER_COLOR)  # Fill right armrest with solid hatch.
+    right_arm_hatch.set_solid_fill(color=256)  # Fill right armrest with solid hatch.
     right_arm_hatch.paths.add_polyline_path([(1.96, 0.24), (2.20, 0.24), (2.20, 0.92), (1.96, 0.92)], is_closed=True)  # Set right armrest hatch boundary.
     blk.add_lwpolyline([(0.26, 0.26), (0.80, 0.26), (0.80, 0.90), (0.26, 0.90)], close=True, dxfattribs=attrs)  # Draw cushion 1.
     blk.add_lwpolyline([(0.83, 0.26), (1.37, 0.26), (1.37, 0.90), (0.83, 0.90)], close=True, dxfattribs=attrs)  # Draw cushion 2.
@@ -54,7 +54,7 @@ def _register_coffee_table(doc: Any) -> None:
 
     _ensure_layer(doc)
     blk = doc.blocks.new(name="COFFEE_TABLE")
-    attrs = {"layer": _LAYER_NAME, "color": _LAYER_COLOR}
+    attrs = {"layer": _LAYER_NAME}
 
     blk.add_lwpolyline([(0.0, 0.0), (1.20, 0.0), (1.20, 0.60), (0.0, 0.60)], close=True, dxfattribs={**attrs, "const_width": 0.015})  # Draw outer table frame.
     blk.add_lwpolyline([(0.06, 0.06), (1.14, 0.06), (1.14, 0.54), (0.06, 0.54)], close=True, dxfattribs=attrs)  # Draw glass inset.

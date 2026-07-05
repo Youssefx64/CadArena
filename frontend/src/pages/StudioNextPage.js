@@ -104,6 +104,10 @@ export default function StudioNextPage() {
       { name: 'DOORS', visible: data.openings && data.openings.some(o => o.type === 'door') },
       { name: 'WINDOWS', visible: data.openings && data.openings.some(o => o.type === 'window') },
       { name: 'ROOM_LABELS', visible: data.rooms && data.rooms.length > 0 },
+      { name: 'FURNITURE_BEDROOM', visible: data.rooms && data.rooms.some(r => r.room_type === 'bedroom' || r.room_type === 'master_bedroom') },
+      { name: 'FURNITURE_LIVING', visible: data.rooms && data.rooms.some(r => r.room_type === 'living' || r.room_type === 'living_room' || r.room_type === 'lounge') },
+      { name: 'FURNITURE_KITCHEN', visible: data.rooms && data.rooms.some(r => r.room_type === 'kitchen') },
+      { name: 'FURNITURE_SANITARY', visible: data.rooms && data.rooms.some(r => r.room_type === 'bathroom') },
       { name: 'BORDER', visible: true }
     ].filter(l => l.visible || l.name === 'BORDER' || l.name === 'ROOM_LABELS');
     setLayers(defaultLayers);

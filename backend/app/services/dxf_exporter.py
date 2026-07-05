@@ -207,11 +207,12 @@ def _render_dxf_with_matplotlib(
         }
 
         # Apply per-layer preview overrides so sheet exports stay close to the intended CAD print hierarchy.
-        def _apply_layer_override(override):
-            for key, value in layer_overrides.get(
-                getattr(override, "layer", ""), {}
-            ).items():
-                setattr(override, key, value)
+        def _apply_layer_override(layers):
+            for layer_props in layers:
+                for key, value in layer_overrides.get(
+                    layer_props.layer, {}
+                ).items():
+                    setattr(layer_props, key, value)
 
         render_context.set_layer_properties_override(_apply_layer_override)
         backend = MatplotlibBackend(ax)
