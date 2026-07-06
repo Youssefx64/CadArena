@@ -56,17 +56,22 @@ async def rag_list_models() -> AvailableModelsResponse:
 
 
 @router.get("/health", response_model=HealthResponse)
-async def rag_health() -> HealthResponse:
+async def rag_health(thread_id: str | None = None) -> HealthResponse:
     """Check RAG health without touching Project A state."""
     from .rag_engine import get_rag_engine
 
     try:
         engine = get_rag_engine()
+        filters = {}
+        if thread_id:
+            filters["thread_id"] = thread_id
+        
+        doc_count = engine.count_documents(filters=filters) if thread_id else engine.count_documents()
         return HealthResponse(
             status="healthy",
             vector_store=engine.vector_store_type,
             embedding_model=engine.embedding_model_name,
-            document_count=engine.count_documents(),
+            document_count=doc_count,
         )
     except Exception as exc:
         raise HTTPException(

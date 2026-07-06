@@ -37,7 +37,7 @@ class RetrievedSource:
 class VectorStore:
     """Interface implemented by concrete vector store adapters."""
 
-    def count_documents(self, collection: str) -> int | None:
+    def count_documents(self, collection: str, filters: dict[str, Any] | None = None) -> int | None:
         """Return document count for a collection."""
         raise NotImplementedError
 
@@ -104,9 +104,27 @@ class QdrantVectorStore(VectorStore):
             self._client = QdrantClient(path=str(path))
         return self._client
 
-    def count_documents(self, collection: str) -> int | None:
+    def count_documents(self, collection: str, filters: dict[str, Any] | None = None) -> int | None:
         if not self.client.collection_exists(collection_name=collection):
             return 0
+        if filters:
+            query_filter = self._build_filter(filters)
+            try:
+                result = self.client.count(collection_name=collection, count_filter=query_filter)
+                return result.count
+            except Exception as e:
+                logger.error(f"Error counting documents with filter: {e}")
+                try:
+                    records, _ = self.client.scroll(
+                        collection_name=collection,
+                        scroll_filter=query_filter,
+                        limit=10000,
+                        with_payload=False,
+                        with_vectors=False
+                    )
+                    return len(records)
+                except Exception:
+                    return 0
         info = self.client.get_collection(collection_name=collection)
         return int(getattr(info, "points_count", 0) or 0)
 
@@ -365,7 +383,7 @@ class PGVectorStore(VectorStore):
             "database integration session before use through RAG/app."
         )
 
-    def count_documents(self, collection: str) -> int | None:
+    def count_documents(self, collection: str, filters: dict[str, Any] | None = None) -> int | None:
         self._unsupported()
         return None
 

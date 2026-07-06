@@ -50,10 +50,10 @@ class RAGEngine:
             self._generator = GenerationClient(self.settings)
         return self._generator
 
-    def count_documents(self, collection: str | None = None) -> int | None:
+    def count_documents(self, collection: str | None = None, filters: dict[str, Any] | None = None) -> int | None:
         """Return total document count for a collection."""
         collection_name = collection or self.settings.RAG_COLLECTION_NAME
-        return self.vector_store.count_documents(collection_name)
+        return self.vector_store.count_documents(collection_name, filters=filters)
 
     def ingest(
         self,

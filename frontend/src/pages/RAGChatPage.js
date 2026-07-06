@@ -1267,7 +1267,7 @@ export default function RAGChatPage() {
   const refreshHealth = React.useCallback(async () => {
     setHealthState('checking');
     try {
-      const data = await cadArenaAPI.checkRagHealth();
+      const data = await cadArenaAPI.checkRagHealth(activeThreadId);
       setHealth(data);
       setHealthState('healthy');
       setError('');
@@ -1276,7 +1276,7 @@ export default function RAGChatPage() {
       setHealthState('error');
       setError(err.message);
     }
-  }, []);
+  }, [activeThreadId]);
 
   const refreshThreads = React.useCallback(async () => {
     setIsLoadingThreads(true);
@@ -1886,7 +1886,7 @@ export default function RAGChatPage() {
   const activeProjectTitle = threads.find(t => t.id === activeThreadId)?.title || 'Untitled Project';
   const complianceRows = deriveComplianceRows({ sources, findings, messages });
   const selectedSource = sources[selectedSourceIndex] || null;
-  const indexedChunkCount = typeof health?.document_count === 'number' ? health.document_count : null;
+  const indexedChunkCount = activeThreadId && typeof health?.document_count === 'number' ? health.document_count : null;
 
   return (
     <div

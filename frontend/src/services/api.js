@@ -621,8 +621,9 @@ class CadArenaAPI {
     return response.data;
   }
 
-  async checkRagHealth() {
-    const response = await ragApi.get('/rag/health');
+  async checkRagHealth(threadId = null) {
+    const params = threadId ? { thread_id: threadId } : {};
+    const response = await ragApi.get('/rag/health', { params });
     return response.data;
   }
 
